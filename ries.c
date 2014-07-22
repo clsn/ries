@@ -3178,6 +3178,9 @@ ries_val   k_X;
 char sym_X[30] = "";
 int  wt_X = 0;
 
+struct { char symbol[2]; int wt; ries_val value; } custom_symbols[30];
+size_t symbol_count=0;
+
 /* Constants that parametrize functions */
 
 ries_val k_sincos_arg_scale = 0;
@@ -5107,6 +5110,8 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
   ries_tgs tga;
   ries_tgs tgb;
   ries_tgs trv; /* Tags of result */
+  char found=0;
+  int i;
 
   /* set default for differential (overridden if we compute it) */
   drv = (ries_dif)k_0;
@@ -5134,8 +5139,6 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     rv = k_3; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
   case 'p' :
     rv = k_pi; ms_push(ms, rv, (ries_dif) k_0, TYPE_ELEM); *undo_count = 1; break;
-  case 'X' :
-    rv = k_X; ms_push(ms, rv, (ries_dif) k_0, TYPE_ELEM); *undo_count = 1; break;
   case '4' :
     rv = k_4; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
   case '5' :
@@ -5652,6 +5655,17 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
 #endif
 
   default:
+    for (i=0; i < symbol_count; i++) {
+      if (op == custom_symbols[i].symbol[0]) {
+	rv = custom_symbols[i].value;
+	ms_push(ms, rv, (ries_dif) k_0, TYPE_TRAN /*?*/); *undo_count=1;
+	found=1;
+	break;
+      }
+    }
+    if (found) {
+      break;
+    }
     return ERR_EXEC_ILLEGAL_SYMBOL;
   }
 
@@ -5819,8 +5833,7 @@ s16 infix_1(
       if ((sym_attrs[op_a].seft == 'a') && (op_b >= '0') && (op_b <= '9')) {
         swap = 1;
       } else if ((op_a == 'x') &&
-		 ( (op_b == 'e') || (op_b == 'f') || (op_b == 'p') ||
-		   (op_b == 'X')) ) {
+		 ( (op_b == 'e') || (op_b == 'f') || (op_b == 'p')) ) {
         /* "x pi" -> "pi x" */
         swap = 1;
       }
@@ -10050,6 +10063,13 @@ void init2()
 #endif
   }
 
+  for (i = 0; i < symbol_count; i++) {
+    add_symbol(ADDSYM_NAMES(custom_symbols[i].symbol[0], custom_symbols[i].symbol,
+			    custom_symbols[i].symbol),
+	       'a', 4, custom_symbols[i].symbol, custom_symbols[i].symbol,
+	       custom_symbols[i].symbol);
+  }
+
   /* Setup the g_{a|b|c}_{min|max}w variables */
   setup_abc_mmw();
 
@@ -10953,12 +10973,12 @@ void parse_args(size_t nargs, char *argv[])
 			      "%c:%d:%lf", &symbol, &wt, &t
 #endif
 
-			      )) {
-	k_X = t;
-	sym_X[0]=symbol;
-	sym_X[1]='\0';
-	wt_X=wt;
-	// strcpy(sym_X, symbol);
+				) && symbol_count < 30) {
+	custom_symbols[symbol_count].symbol[0]=symbol;
+	custom_symbols[symbol_count].symbol[1]='\0';
+	custom_symbols[symbol_count].wt=wt;
+	custom_symbols[symbol_count].value=t;
+	symbol_count++;
       }
       } else if (strcmp(pa_this_arg, "--min-match-distance") == 0) {
         ries_dif t;
