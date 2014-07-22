@@ -3174,6 +3174,9 @@ ries_val   k_6 = 6.0L;
 ries_val   k_7 = 7.0L;
 ries_val   k_8 = 8.0L;
 ries_val   k_9 = 9.0L;
+ries_val   k_X;
+char sym_X[30] = "";
+int  wt_X = 0;
 
 /* Constants that parametrize functions */
 
@@ -5131,6 +5134,8 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     rv = k_3; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
   case 'p' :
     rv = k_pi; ms_push(ms, rv, (ries_dif) k_0, TYPE_ELEM); *undo_count = 1; break;
+  case 'X' :
+    rv = k_X; ms_push(ms, rv, (ries_dif) k_0, TYPE_ELEM); *undo_count = 1; break;
   case '4' :
     rv = k_4; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
   case '5' :
@@ -5814,7 +5819,8 @@ s16 infix_1(
       if ((sym_attrs[op_a].seft == 'a') && (op_b >= '0') && (op_b <= '9')) {
         swap = 1;
       } else if ((op_a == 'x') &&
-          ( (op_b == 'e') || (op_b == 'f') || (op_b == 'p')) ) {
+		 ( (op_b == 'e') || (op_b == 'f') || (op_b == 'p') ||
+		   (op_b == 'X')) ) {
         /* "x pi" -> "pi x" */
         swap = 1;
       }
@@ -9927,6 +9933,10 @@ void init2()
     'a', 9,     0, 0, "integer");
   add_symbol(ADDSYM_NAMES('x', 0,       "x"),
     'a', 5,     0, 0, "the variable of the equation");
+  if (sym_X[0] != '\0') {
+    add_symbol(ADDSYM_NAMES('X', sym_X, sym_X),
+	       'a', wt_X, "X", "X", "");
+  }
 
   /* seft 'b' symbols */
   add_symbol(ADDSYM_NAMES('n', "neg",  "-"),
@@ -10931,6 +10941,25 @@ void parse_args(size_t nargs, char *argv[])
           print_end(-1);
         }
 
+    } else if (strcmp(pa_this_arg, "-X") == 0) {
+      char symbol;
+      int wt;
+      ries_val t;
+      pa_get_arg();
+      if (pa_this_arg && sscanf(pa_this_arg,
+#ifdef RIES_VAL_LDBL
+			      "%c:%d:%Lf", &symbol, &wt, &t
+#else
+			      "%c:%d:%lf", &symbol, &wt, &t
+#endif
+
+			      )) {
+	k_X = t;
+	sym_X[0]=symbol;
+	sym_X[1]='\0';
+	wt_X=wt;
+	// strcpy(sym_X, symbol);
+      }
       } else if (strcmp(pa_this_arg, "--min-match-distance") == 0) {
         ries_dif t;
         pa_get_arg();
