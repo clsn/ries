@@ -3174,9 +3174,6 @@ ries_val   k_6 = 6.0L;
 ries_val   k_7 = 7.0L;
 ries_val   k_8 = 8.0L;
 ries_val   k_9 = 9.0L;
-ries_val   k_X;
-char sym_X[30] = "";
-int  wt_X = 0;
 
 struct { char symbol[2]; int wt; ries_val value; } custom_symbols[30];
 size_t symbol_count=0;
@@ -9946,10 +9943,6 @@ void init2()
     'a', 9,     0, 0, "integer");
   add_symbol(ADDSYM_NAMES('x', 0,       "x"),
     'a', 5,     0, 0, "the variable of the equation");
-  if (sym_X[0] != '\0') {
-    add_symbol(ADDSYM_NAMES('X', sym_X, sym_X),
-	       'a', wt_X, "X", "X", "");
-  }
 
   /* seft 'b' symbols */
   add_symbol(ADDSYM_NAMES('n', "neg",  "-"),
@@ -10973,12 +10966,19 @@ void parse_args(size_t nargs, char *argv[])
 			      "%c:%d:%lf", &symbol, &wt, &t
 #endif
 
-				) && symbol_count < 30) {
+				) && 
+	  !strchr("+-*/ 0123456789fepnrsqlESCT^vL()=I", symbol)
+	  && symbol_count < 30) {
 	custom_symbols[symbol_count].symbol[0]=symbol;
 	custom_symbols[symbol_count].symbol[1]='\0';
 	custom_symbols[symbol_count].wt=wt;
 	custom_symbols[symbol_count].value=t;
 	symbol_count++;
+      }
+      else {
+	printf("%s: -X should be followed by symbol:weight:value.\nThe symbol should be one character long and not already in use.\n", g_argv0);
+	brief_help();
+	print_end(-1);
       }
       } else if (strcmp(pa_this_arg, "--min-match-distance") == 0) {
         ries_dif t;
