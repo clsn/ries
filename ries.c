@@ -3136,7 +3136,7 @@ b001 g_explicit_multiply; /* Always show '*' symbol for multiplication */
 #define AM_mul 0x10000 /* * - */
 #define AM_pow 0x20000 /* ^ - */
 
-#define MAX_SEFT_POP 20
+#define MAX_SEFT_POP 40
 symbol g_asym[MAX_SEFT_POP];   /* the valid seft 'a' symbols */
 s16 n_asym;
 s16 g_a_minw;        /* minimum weight of seft 'a' symbols */
