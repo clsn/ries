@@ -1,28 +1,24 @@
 /* ries.c
 
     RIES -- Find Algebraic Equations, Given Their Solution
-    Copyright (C) 2000-2013 Robert P. Munafo
-    This is the 2014 Mar 04 version of "ries.c"
+    Copyright (C) 2000-2016 Robert P. Munafo
+    This is the 2016 Jan 04 version of "ries.c"
 
 
-    This program is free software; you can redistribute it and/or modify
+    This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
+    the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+    If you got ries.c from the website mrob.com, the GNU General Public
+    License may be retrieved from mrob.com/ries/COPYING.txt
 
-    If you got ries.c from the website www.mrob.com, the
-    GNU General Public License may be retrieved from the following URL:
-
-    http://www.mrob.com/ries/COPYING.txt
+    You may also find a copy of the license at www.gnu.org/licenses/
 
 
     The remainder of this large header comment is broken up into sections
@@ -39,7 +35,7 @@ HOW TO BUILD:
      gcc -o ries ries.c -lm
 
      If the compilation fails and reports errors like "undefined reference",
-     try moving the pieces around: "gcc ries.c -lm -o ries". The command
+     try moving the pieces around: "gcc ries.c -lm -o ries". Using the order
      "gcc -o ries -lm ries.c" is known to NOT work with recent versions
      of GCC.
 
@@ -55,6 +51,14 @@ BUILD OPTIONS:
 
 In the compile line you may add one or more of these options:
 
+  -DRIES_WANT_LDBL
+    Use this option to 'ask' RIES to use the 'long double' floating-point
+    data type for all calculations. It will try to determine (via other
+    predefined flags provided by the compiler) whether it is available
+    and if so, will use it. This gives a few extra digits of precision on
+    most Intel-based systems, and gives about 30 digits on PowerPC systems.
+    On some systems (notably Cygwin) you'll get errors.
+
   -DRIES_USE_SA_M64
     Use this option to make RIES use standalone transcendental functions.
     These functions are in the separate source file "msal_math64.c", which
@@ -65,6 +69,13 @@ In the compile line you may add one or more of these options:
     Longer expressions might be needed if you're using the --one-sided
     option a lot, but they also increase the amount of memory RIES uses
     while doing long searches.
+
+BUILDING IN MICROSOFT VISUAL C++
+
+If you want to build RIES in MS Visual Studio, start at the RIES
+website (mrob.com/ries) and follow the "Source code" link. Download
+and save the source file "ries-for-windows.c". Read its header comment
+for further instructions.
 
 RIES INSTRUCTIONS (MANUAL)
 
@@ -81,32 +92,46 @@ version, copy it to the proper place (probably in /usr/share) e.g. :
 (substitute appropriate local manpage directory for your OS) then type
 "man ries".
 
+*/ /*
+
 UNFINISHED WORK
 
 (Listed more or less in the order that I want to look at them, and
 recent ones have date tags. Most of the undated notes are from prior
 to December 2011)
 
-2013.0314 Reconcile the implementations of -i and -r. -r works
-entirely by excluding symbols; -i works by testing the tags of values.
-Clearly -i could also exclude some symbols for efficiency, but this
-will mean changing the test vectors in #qualify#.
+20150118
+   There is an error in the manual: "... To exit on a match within
+some ``epsilon'', use --max-match-distance with a nonzero epsilon; to
+reject inexact matches use --max-match-distance ..." note that the
+first behaviour does not happen (but would be a nice feature to have).
+The first behaviour is accomplished by the option "-n1". Check
+the rest of the manual for similar errors and make sure "-n1" and
+--{min|max}-match-distance cross-reference each other.
 
 2013.0314 Look into adding two more classes of numbers: -e for
 "elementary" and something like -t for "transcendental". The
 uncertainty has to do with which definitions I wish to use.
-  I would like to have a class of numbers where exponentiation is
-unrestricted, so sqrt(2)^sqrt(2) would be allowed. That is kind of
-like what we'd get now with "-a --any-exponents", but I don't want to
-allow x in exponents because I consider the root of "x^x=2" to be
-non-elementary. So we need a "--no-x-in-exponents" option to do -e the
-way I envision it. Since trig functions are linked to exponents
-(Euler's formula; complex exponential function) it seems to make sense
-to have a "--no-x-in-trig" setting as well (which conveniently would
-also make -e results easier to solve). I should allow e and the
-exponential function but with no x in the exponent; logarithms should
-also be allowed, but with no x inside a logarithm (otherwise we get
-things like "x*ln(x)=3" which is just another form of "x*e^x=e^3").
+  -e for "elementary" fills the rather wide conceptual gap between -a
+(algebraic) and -l (Liouvillian). I would like to have a class of
+numbers where exponentiation is unrestricted, so sqrt(2)^sqrt(2) would
+be allowed. That is kind of like what we'd get now with "-a
+--any-exponents", but I don't want to allow x in exponents because I
+consider the root of "x^x=2" to be non-elementary. So we need a
+"--no-x-in-exponents" option to do -e the way I envision it. Since
+trig functions are linked to exponents (Euler's formula; complex
+exponential function) it seems to make sense to have a
+"--no-x-in-trig" setting as well (which conveniently also makes
+try_solve's job easier). I should allow e and the exponential function
+but with no x in the exponent; logarithms should also be allowed, but
+with no x inside a logarithm (otherwise we get things like "x*ln(x)=3"
+which is just another form of "x*e^x=e^3"). This only needs one
+setting, that is, --no-x-in-exponents also implies no x in arguments
+to [E], [l] or in either argument of [L].
+  -t would allow everything, and would also enable the W function if
+it is available. The only difference versus -EW is that -t would not
+generate an error when W is not available, but would just silently
+proceed to find W-less solutions.
 
 2013.0314: RIES has trouble finding an equation for
 1.3566631192732151980, which is the root of 2^x+3^x=7. The best I
@@ -144,8 +169,14 @@ driving users nuts I can give them hints on how to avoid that.
   Constants and (eventually) functions can share a common FORTH-like
 syntax. Note the optional weight and abbreviation fields just before
 the full name:
+  # x e^-(x^2) is the inverse of Gosper's "Dilbert Lambda Function"
+  --define : InverseDilbertLambda ( x -- x e^-(x^2) )
+    dup dup* neg exp *
+  ;
+  --define : XeX ( x -- x*e^x ) dup exp * ;
   --define : Eg:EulerGamma # seft-a (constant)
     ( -- The Euler-Mascheroni constant, 0.57721... )
+    ( --value-type TRAN )
     # 50 digits for when RIES goes to higher precision
     0.57721566490153286060651209008240243104215933593992
   ;
@@ -161,6 +192,13 @@ expressions.
   In the first implementation of functions, you cannot include literal
 constants in the function, but instead have to --define the constant
 first with its own name.
+  2014.1122: Everything in comments would be ignored except a token
+starting with '--', like the ( --value-type TRAN ) example above. This
+allows me to extend the FORTH syntax to deliver optional metadata. If
+a constant has no explicitly given --value-type, it would be guessed
+using guess_valtype() as is currently done with the target. Advanced
+users who are making collections of constants in -p files would define
+a --value-type for all.
   2012.0613: I might also want to allow immediate constants in
 --eval-expression strings (and thus, in eval()) delimited by parentheses
 or whitespace. If using parentheses, "ries --eval-expression '(27)q'"
@@ -211,7 +249,7 @@ improvement (in which case there would be a small database containing
 the [x] expression for each target).
 
 2013.0305: A similar idea to the "multiple targets" idea is a
-"correllation search" operating mode. In this mode there are just two
+"correlation search" operating mode. In this mode there are just two
 targets T and U, and all expressions contain one or the other; any
 match must have a T expression on the LHS and a U expression on the
 RHS. This is like one-sided mode except that everything is an LHS, and
@@ -287,11 +325,13 @@ solution is probably to make "solve for x" mutually exclusive to the
 -O option. As a sole exception, -Ox can still be implemented, so long
 as all reported results involve just a single LHS and an RHS.
  * 2013.0215: One-sided simplification/reduction rules similar to
-those already in cv_simplify. One simple example is [ss]->[4^]. A lot
+those already in cv.simplify. One simple example is [ss]->[4^]. A lot
 of these are already implicit in the pruning rules, so I can look in
 the comments next to the add_rule() calls to get the list of
 simplifications. Virtually all will be simple string substitutions.
 The unsimplified forms show up only when using -s.
+
+*/ /*
 
 2012.0503 (partly done on 20120505): Prior to 20120505, "ries -l-2 -i
 143" gave the bizarre answer "(x-2)+3 = (3*4)^2". The "(x-2)+3"
@@ -393,7 +433,9 @@ extra whitespace when there is no exponent). Convert all instances of
 double printf and scanf to use these routines (including the debug_X
 printfs).
  * Use three sets of flags:
-    Desired precision: RIES_WANT_F53, RIES_WANT_F64 and RIES_WANT_F107
+    Desired precision: RIES_WANT_F53, RIES_WANT_F64 and RIES_WANT_F107;
+      also RIES_WANT_LDBL etc. for users who don't know what their 'long
+      double' precision but still want to use it.
     Available types and their precisions: RIES_HAVE_LDBL_F64,
       RIES_HAVE_LDBL_F107 and RIES_HAVE_F128
     Which type to use: RIES_VAL_DBL, RIES_VAL_LDBL and RIES_VAL_F128
@@ -432,7 +474,7 @@ For example, [43L] : [3q] : [+] => [43L3q+], which would then match
 [x2-].
 
 2012.0109: Good, but hard to implement, and very memory-intensive:
-Have N threads
+  Within each petit-cycle, have N threads
 running at any one time, each constraining itself to a part of the
 expression search-space, distinguished by the first few symbols in the
 expression. For example, after the complexity depth has gotten high
@@ -457,8 +499,19 @@ memory during the merge process, and 4 times as much memory bandwidth;
 and (more crucially) there is no clear way to determine in advance
 whether there will be enough free memory to perform the merge.
 
+2014.1122: Good, and a little less hard to implement:
+  Run in normal single-threaded mode until the tree is big enough to
+survey the location of quartiles as in the 2012.0109 proposal. Then,
+permanently split the tree into N pieces (probably by a simple
+traverse-and-copy). On subsequent patit-cycles, run N threads where
+each thread imposes its own values of g_min_equ_val and g_max_equ_val.
+Threads will find duplicate solutions, but are not fully redundant; as
+a rough guess I imagine it will have a factor of sqrt(N) of
+ineffeciency, so a 4-thread system will use 2 times as much memory
+to find the same answers in half as much time.
+
 2012.0423: BAD: The following does *not* work because of the elaborate
-interleaved nature of the bt_insert algorithm (see note in oldries.c
+interleaved nature of the bt.insert algorithm (see note in oldries.c
 mentioning "memory performance degradation"), however it could if we
 return to the older 2-tree implementation.
   - Have 2 scans running at any one time, an RHS scan and a LHS scan.
@@ -503,7 +556,7 @@ might have more info):
 variations on -l that allow specifying limit of search by
 precision, by time, by memory usage, or by number of equations tested.
 The present -l is usually correlated with all of these but is never
-equal to any of them. ('-lmem=10M', '-ltime=20m', '-ldigits=8', 
+equal to any of them. ('-lmem=10M', '-ltime=20m', '-ldigits=8',
 '-lexprs=3e6', -leqns=1e10', etc.) --max.memory is a different because
 a small -l will still cause RIES to exit before the indicated amount
 of  memory is used.
@@ -568,46 +621,7 @@ use "factorial" notation when displaying.
 functions. Looks easy -- after all, complex data types are native in
 GCC!
 
-%%% Test cases to test periodically:
-
-ries 0.08600409182 -l1      should give "3 pi x = 8/pi^2" or equivalent
-
-ries -l1 0.434294481903252  should give "e^(1/x) = 1+9"
-                                     or "x = 1/ln(1+9)"
-
-ries 2000.0222 '-Sn1/r+87^s'  used to give bogus roundoff match
-
-ries 27 -Sx3qL6             used to give bogus roundoff match
-
-ries '-S14+*-/n' 27         generates a small number of equations
-ries '-S4+*-/n' 27          used to generate *more* than the previous example
-
-ries 27 '-S4+*-/' -Ox -ie   Should give [x4+4*4+] = [4444+**]
-                              which is "4(x+4)+4 = 4*4(4+4)"
-
-ries -Nl+ 2.5063            Stephen's number: should give the three
-                            answers "2 x = 5", "x^2 = 2 pi", "x^x = 10"
-
-ries -3.14159               should give "-x = pi"
-
-ries -23                    ln(-x) = pi, followed by an exact match
-
-ries -Slvsnex 1.017285      used to give bogus exact match
-
-ries -i 14327652 -l4        used to give erroneous [xsxL7s^n] = [27s^n]
-
-ries -i 7823310 -l4         used to give erroneous [x35s^*x/] = [35s^]
-
-ries 2.505317647 -l1        gives [x5l-] = [6ql] (which is correct)
-                            with error 4.8e-11. Make sure "almost-zero"
-                            checks don't clobber this.
-
-ries '-S4+*-/' 17           should give an answer with only 4 or 5 4's,
-                            such as [x44/-] = [44*]
-
-ries 17.649955654152575     log_2(x) = 1+pi
-
-ries -l2 98.5913852852497   log_(2+phi)(x) = 3/7+pi
+(Test cases are now in #qualify#)
 
 */ /*
 
@@ -683,7 +697,8 @@ ARCHITECTURE
            ge_2 -- Generate one step of FORTH code and update metastack,
            :       recurse if more symbols in the form
            :.ge_2 -- Recursive levels until form is complete
-               canonval -- Try to put expression value in [1.0,2.0)
+               canonval -- Try to put expression value in [1.0,2.0) (only if
+                           --canon-reduction option is used)
                bt_insert -- Insert calculated result into LHS or RHS tree
                  check_exact_match (called for exact matches)
                    report_match -- Display match without doing Newton
@@ -961,8 +976,8 @@ such as a numeric method. This is the "root-finding problem"
 
 Conveniently, all three problems (the error-margin problem, the
 tautology problem, and the root-finding problem) are handled in the
-same way: by calculating the *differential* of all terms and
-subexpressions on the LHS. The differential, when multiplied by the
+same way: by calculating the *derivative* of all terms and
+subexpressions on the LHS. The derivative, when multiplied by the
 lhs/rhs diff, gives a very good approximation to the delta, which as
 mentioned above is the amount that X would need to be changed to make
 the equation a perfect match.
@@ -972,21 +987,21 @@ all equations can get rated in terms of how much X has to change to
 make LHS and RHS match, rather than how much the LHS would have to change.
 
 It solves the tautology problem because, by definition, an LHS with
-a zero differential is constant with respect to X, and therefore
+a zero derivative is constant with respect to X, and therefore
 constitutes a tautology solution.
 
 It also solves the root-finding problem quite conveniently. If you have
 an equation like X^X = 10, and you have an approximation for X, you can
 use derivatives and Newton's method to find a better approximation for
-X. When RIES takes the differential of the LHS and multiplies it by the
+X. When RIES takes the derivative of the LHS and multiplies it by the
 lhs/rhs diff, it is essentially performing one step of Newton's method.
 The resulting value can be added to X to form a better approximation to
 the root of the equation.
 
-Differentials are evaluated for LHS expressions as the expressions are
-generated. In the following table, the calculation of the differential
+Derivatives are evaluated for LHS expressions as the expressions are
+generated. In the following table, the calculation of the derivative
 for each symbol is shown, based on the values of the operands (A and
-B) and their differentials (da and db). Some of these will be familiar
+B) and their derivatives (da and db). Some of these will be familiar
 to anyone who has taken calculus:
 
   seft '0' symbols:
@@ -1010,7 +1025,7 @@ to anyone who has taken calculus:
   !  factorial      %%% reserved (mutex with G)
   S  sine           cos(A) da
   T  tangent        (1 + tan^2(A)) da
-  W  LambertW       %%% reserved
+  W  LambertW       W(a)/(a(1+W(a))) da
   seft 'c' symbols:
   +  plus           da + db
   -  minus          da - db
@@ -1260,16 +1275,16 @@ like divide-by-zero. This brings the numbers down to
 20000217 Add using.x (formerly "on_rhs") variable and AM_RHS so it
 generates LHS and RHS expressions, and make main outer loop call
 gen_forms twice. In the LHS case there is lots of pruning. Figure out
-that there is a substantial problem with error factors (differential
+that there is a substantial problem with error factors (derivative
 of X) that will make lots of bogus "solutions" show up in the output.
 
 20000218 Finish figuring out how to deal with the bogus solutions --
-compute differentials on all LHS expressions. This also solves the
+compute derivatives on all LHS expressions. This also solves the
 "trivial solutions" problem (e.g. "x - x = ln(1)"
 
-20000220 Add differential calculation to exec() and the ms_xxx
+20000220 Add derivative calculation to exec() and the ms_xxx
 routines. Initial output looks good, but I'm a bit worried about the
-very high differential values on things like [x8s^] -- they might
+very high derivative values on things like [x8s^] -- they might
 cause lots of bogus matches on things that aren't even close, like
 "x8s^ = 6".
 
@@ -1293,7 +1308,7 @@ and over again.
 rates, such that the population remains equal between the two sides.
 Add a bunch of comments documenting what's been done so far.
 
-20000221 Write bt_insert(); it now reports exact matches! It finds,
+20000221 Write bt.insert(); it now reports exact matches! It finds,
 for example, [x3+] = [4s] for X=13. However, for X=143 it reports
 [xrx*] = [1], with a derivative of 1.9e-19. Add PRUNE_DERIV to try to
 fix this, and it starts reporting [xxqL] = [2] with a derivative of
@@ -1431,7 +1446,7 @@ details). I think the numbers are: memory usage; total
 expressions/total distinct; total equations.
 
  -l0  1136K   32198/14576  53165000
- -l1  2876K  145183/51492  666660000 
+ -l1  2876K  145183/51492  666660000
  -l2  7632K  530668/152904 5712000000
  -l3 27100K 2311204/559419 78120000000
 
@@ -1532,6 +1547,8 @@ and the rule ("", '/', AM_KxK, 0).
 
 20090808 Remove "val" parameter of my_alloc()
 
+*/ /*
+
 20101218 Increase default level to -l2 (while preserving the effect
 of all '-l' values when such an option is provided: "ries 1.234" is now
 the same as "ries -l2 1.234", but "ries -l1 1.234" does the same thing
@@ -1615,11 +1632,13 @@ significant digits when the -x option is given.
   New 'z' option to -D and debug_z flag to show messages printed by
 init.numerics().
 
+*/ /*
+
 20111228
   Add more k_sig_loss tests in sin and cos.
   Display CPU time as "%.3f" rather than the old "%d.%d" that showed
 seconds and tenths.
-  RIES now exits when (best.match < k_0) regardless of the got_exact
+  RIES now exits when (best.match < k_0) regardless of the got.exact
 flag; this fixes a bug that would cause RIES to loop forever if it had
 not yet gotten an "exact match" at the point when best.match goes
 negative.
@@ -1719,7 +1738,7 @@ help much: in a typical run the average tree depth with rebalancing
 would be 17.5, and the actual (unbalanced) average depth is 24.5.
 
 20120103 Add check.exact_match(), removing more RIES-specific code
-from bt_insert.
+from bt.insert.
   Add next_isparam(), clean up argument parsing and fix a bug with
 parsing --significance-loss-margin argument.
 
@@ -1761,7 +1780,7 @@ This tries to transform expressions into forms that have a value in
      log_(2/sqrt(3))(x) = 3-1/2^e                for x = T - 1.21748e-09 {128}
      max complexity:          66           62          128
           dead-ends:     2290352      5560466      7850818  CPU time: 0.369
-        expressions:      183663       420208       603871 
+        expressions:      183663       420208       603871
            distinct:       92770       113599       206369  Memory: 12928KiB
 
   ries 1.50631415926535897932 --canon-reduction nr2
@@ -1780,7 +1799,7 @@ This tries to transform expressions into forms that have a value in
        sinpi(1/5),/x/2 = 1/-cospi(1/ln(sqrt(7))) for x = T + 1.15156e-10 {151}
      max complexity:          66           62          128
           dead-ends:     2290352      5560466      7850818  CPU time: 0.369
-        expressions:      183663       420208       603871 
+        expressions:      183663       420208       603871
            distinct:       63206        67234       130440  Memory: 8192KiB
 
 The intent is to get further with a given amount of memory by
@@ -1827,17 +1846,17 @@ argument.
 
 20120122 Add CANONVAL_MUL2 operation and stub cv.simplify() routine.
 
-20120423 Notes on what I need to accomplish to finish canonval,
+20120423 Notes on what I need to accomplish to finish canon.val,
 decanon, and cv.simplify routines:
 
-  canonval adds 'n', 'r', and/or '2/', '4/' to try to put an
+  canon.val adds 'n', 'r', and/or '2/', '4/' to try to put an
   expression's value into the range [1, 2). Call it just before
-  calling bt_insert. It should work on the existing expression
+  calling bt.insert. It should work on the existing expression
   structure and metastack state, and it needs to stop if MAX_ELEN is
   reached. We also need a decanon routine to undo its work before
   proceeding with the rest of ge.2.
     cv.simplify operates on two expressions (an equation), removing
-  any unnecessary symbols that may have been added by canonval. It
+  any unnecessary symbols that may have been added by canon.val. It
   takes two expressions A and B and removes any trailing '2/', '4/',
   'r' and 'n', or possibly shifts symbols from one expression to the
   other, all so as to make the equation A=B lower-complexity. Call
@@ -1932,6 +1951,8 @@ in 201112; I'll have to do a lot of testing to be sure.
 20120725 Change first argument of sym.strsym() from 'expr' to 'exp1' to
 avoid namespace conflict with typedef 'expr'
 
+*/ /*
+
 20121202 Better implementation of "--max.match-distance 0"
   Implement the --match.all-digits option, which makes RIES work more
 like ISC. The capabilities has already been implemented, primarily in
@@ -1978,7 +1999,7 @@ eliminating k_newton_settled later.
 implementing cv.simplify.
  debug_p replaces debug_q for the "first score not good enough" case.
  new flag debug_e replaces debug_E; debug_E replaces debug_F.
- debug_F replaces canonval cases of debug_G
+ debug_F replaces canon.val cases of debug_G
  add new flag debug_Q for cv.simplify
  make debug_S and debug_s distinct variables (but 'S' and 's' debug
 functions still print the same messages)
@@ -1991,7 +2012,7 @@ output.
  new flag debug_N replaces debug_o.
  debug_o replaces debug_p (including the debug_q case changed earlier today).
  debug_p is now used by infix.preproc
- debug_F and debug_f are now distinct (canonval for LHS and RHS respectively)
+ debug_F and debug_f are now distinct (canon.val for LHS and RHS respectively)
  Fix derivative formula for tangent and increase its symbol weight to 6
 (sine and cosine are both 3)
  Add --symbol.weights option. A few simple tests like "ries 2.5063
@@ -2088,6 +2109,8 @@ machines back to the 800 MHz G4 (which is 10 years old).
    completely idle for 1 minute. For tests under 25 seconds, this means
    the clock speed was near the maximum 3.3 GHz.
 
+*/ /*
+
 20121215 Standalone math source (msal_math64.c) now includes SIN and
 COS functions.
 
@@ -2156,7 +2179,7 @@ will be necessary for future optional functions like A and W, and also
 facilitates combining multiple profiles.
 
 20130301 Change almost all occurrences of 'double' declarations to
-one of 
+one of
   ries_val: The value of an expression or subexpression
   ries_dif: The value of a derivative, error, uncertainty, the distance of
             a match, etc.
@@ -2189,7 +2212,7 @@ features.
 (opposite of '-x').
   Use newly-added attribute tags to implement -i option (replacing
 many calls to float() with hopefully less aggregate work; look in
-exec() and search for 'g_restrict_subexpr'.)
+exec() and search for 'g_restrict.subexpr'.)
 
 20130305 Add --no-solve-for-x option (which merely undoes
 --try-solve-for-x). Add setup_abc_mmw() as part of refactoring the
@@ -2311,10 +2334,10 @@ shows the architecture (PPC/Intel) and precision:
     profile: -p/Users/munafo/.ries_profile
   RIES is free software; see the source for copying conditions.  There is NO
   warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  Dual-G5 /Users/munafo 
+  Dual-G5 /Users/munafo
    : ries 2.50618 -x
 
-     Your target value: T = 2.50618                         www.mrob.com/ries
+     Your target value: T = 2.50618                               mrob.com/ries
 
       x = 5/2                    for x = 2.5                               {50}
       x = e^3/8                  for x = 2.510692115398458467616066206823  {67}
@@ -2364,6 +2387,51 @@ done by check.match.
 20140303 Generate ERR_EXEC_ZERO_DERIV error in '^', 'L' and 'v'
 operations when the derivative calculation underflows to zero. This
 eliminates several recently-reported tautology errors.
+
+20140831 Expand brief_help() a little,
+
+20141014 Add --min-equate-value and --max-equate-value options.
+
+20141105 Add Lambert W function (duplicating and expanding on work by
+Mark Shoulson).
+
+20141106 Increase weight of 'tan' (that is, the tangent function when
+--trig-argument-scale is not the default) to 6, bringing it in line with
+'tanpi' (where the weight was always 6).
+  Bug-fixes in Lambert derivative and error handling, in debug_z mode
+call new test routine msal_test_lambertl
+
+20141117 Make -i (integer subexpressions) more efficient by restricting
+symbolset as is done for -r. All class restrictions now also exclude W.
+
+20141122 RIES license is now GPL version 3 (formerly GPL v2). Reorder
+the info in --version a little bit.
+
+20141207 Add test of each subexpression against g_restrict.subexpr so
+that if you do e.g. "-a -EL" the L will be enabled but effectively
+ignored; however I also canonize the unofficially supported "-a -Ep"
+by mutating the types of the predefined constants in a similar way as
+was already done for the target value. This is how user-defined
+constants without a user-defined class will need to be handled.
+  Add --any-subexpressions to enable the old behaviour, e.g. the user
+can use "-a --any-subexpressions -EL" to get the equivalent of the old
+"-a -EL".
+
+20141212 struct form now includes stk[] and arg1[], supporting rules
+that check the first argument of binary operators; add one rule using
+AM_a1_e.
+
+20141213 Add AM_a1_1 rules; #qualify# tests show that several more
+results are found in -l5 tests, indicating that these rules increase
+pruning for deep searches.
+
+20141216 Replace all "sprintf" with snprintf.
+20141217 Add #defines for most of the snprintf tempbuf sizes.
+
+20160104 Add code to enable cube root of a negative argument (presently
+disabled pending testing)
+
+*/ /*
 
 BUGS and TO-DO
 
@@ -2420,8 +2488,8 @@ output for the first occurrance of [xrS] and [9r] together:
       29        xp/ { 34} = 0.10443956395812863    , dx = 0.31830988618379069
       30         xs { 24} = 0.10765391922648457    , dx = 0.65621313374995649
       31        x3/ { 35} = 0.10936885562499275    , dx = 0.33333333333333331
-      32         9r { 26} = 0.1111111111111111     
-      33         8r { 26} = 0.125                  
+      32         9r { 26} = 0.1111111111111111
+      33         8r { 26} = 0.125
 
 The output shows that [9r] is inserted a few passes later than 'xrS',
 so check.sides is looking at [9r]'s neighbors [x3/] and [8r].
@@ -2494,6 +2562,13 @@ all three have to be within 10^-6 of each other.
 # endif
 #endif
 
+/* %%% Incomplete: We need a three-stage algorithm: detect what is the
+   precision of long double, check to see what they have requested, then
+   decide which type of float to use, then actually declare things. */
+#ifdef RIES_WANT_LDBL
+# define RIES_VAL_LDBL
+#endif
+
 /* If neither mathlib is selected, default to using the standard library
    provided by the compiler and runtime environment (as it is typically
    a few percent faster) */
@@ -2518,14 +2593,14 @@ all three have to be within 10^-6 of each other.
 #   define SIN(x) (msal_sinl((x)))
 #   define COS(x) (msal_cosl((x)))
 #   define TAN(x) (msal_tanl((x)))
-#   define LAMBERTW(x) (msal_lambertwl((x))))
-#   define GAMMA(x) (msal_lanczos_gamma((x))))
+#   define LAMBERTW(x) (msal_lambertwl((x)))
+#   define GAMMA(x) (msal_lanczos_gamma((x)))
 # else
 #   define SIN(x) (msal_sin((x)))
 #   define COS(x) (msal_cos((x)))
 #   define TAN(x) (msal_tan((x)))
-#   define LAMBERTW(x) (msal_lambertw((x))))
-#   define GAMMA(x) (msal_lanczos_gammal((x))))
+#   define LAMBERTW(x) (msal_lambertw((x)))
+#   define GAMMA(x) (msal_lanczos_gammal((x)))
 # endif
 #else
 # ifdef RIES_VAL_LDBL
@@ -2538,6 +2613,7 @@ all three have to be within 10^-6 of each other.
 #   define TAN(x) (tan((x)))
 # endif
   /* You need to use the stand-alone library to get Lambert and Gamma. */
+# define DUMMY_LAMBERT 1
 # define LAMBERTW(x) (0.0)
 # define GAMMA(x) (0.0)
 #endif
@@ -2599,7 +2675,7 @@ variants. */
 
 /* -------------- defines ------------------------------------------------- */
 
-#define RIES_VERSION "2014 Mar 04"
+#define RIES_VERSION "2016 Jan 04"
 
 /* Default search level. For backwards compatibility, the -l option adds
    a number to the DEFAULT_LEV_BASE value. Without a -l option, it acts as if
@@ -2675,7 +2751,7 @@ variants. */
 /  {2012.0522: If we really wanted to glean the definition from the
 /  environment, the cases I know of so far are:
 /
-/    Per the "stdint.h" in http://code.google.com/p/msinttypes/ 
+/    Per the "stdint.h" in http://code.google.com/p/msinttypes/
 /    Visual Studio 6 and Embedded VC++ 4 have a broken __int16
 /    Use "#if (_MSC_VER < 1300)" and declare typedef signed short int16_t;
 /
@@ -2958,13 +3034,13 @@ underflow.
 #define MS_STK_MAX  (((MAX_ELEN)+1) >> 1)
 typedef struct metastack {
   ries_val uv[MS_UV_MAX]; /* undo values */
-  ries_dif udv[MS_UV_MAX];/* undo values (differentials) */
+  ries_dif udv[MS_UV_MAX];/* undo values (derivatives) */
   ries_tgs utg[MS_UV_MAX];/* undo values (tags) */
   s16    uvp;             /* undo values pointer */
   s16    ms[MS_UNDO_MAX]; /* metastack (undo opcodes) */
   s16    msp;             /* metastack pointer (undo opcodes index) */
   ries_val s[MS_STK_MAX]; /* current stack */
-  ries_dif ds[MS_STK_MAX];/* stack of differentials for LHS */
+  ries_dif ds[MS_STK_MAX];/* stack of derivatives for LHS */
   ries_tgs tg[MS_STK_MAX];/* tags, e.g. integer or rational */
   s16    sp;              /* stack pointer */
 } metastack;
@@ -3022,7 +3098,10 @@ typedef struct form {
   s16    stack;            /* stack depth at end of form */
   s16    flen;             /* number of symbols in form */
   symbol sym[EXPR_ALLOC];  /* the form, e.g. "aabc" */
+  s16    stk[EXPR_ALLOC];  /* stack height after applying this symbol */
+  s16    arg1[EXPR_ALLOC]; /* ptr to first arg of any 'c' symbols in sym */
 } form;
+#define ARG1_NA -1
 
 typedef s32 attr_bits; /* Attribute bits for symbol rules */
 
@@ -3094,6 +3173,7 @@ b001 x_lhs_only;              /* true if symbol 'x' should only be on
                                     in an LHS) */
 char * g_anagram = 0;            /* A string of digits used for solving
                                     "four 4's" and similar problems. */
+b001 g_no_cv_simplify;
 b001 g_one_sided;
 b001 g_solve_for_x;
 #define LINELEFT_INIT (79-2)
@@ -3127,14 +3207,17 @@ b001 g_explicit_multiply; /* Always show '*' symbol for multiplication */
 #define AM_RHS 0x0080 /* set only when filling RHS list */
 #define AM_sq  0x0100 /* op -   where op is 's' or 'q' */
 #define AM_1K  0x0200 /* 1 K - */
-#define AM_l   0x0400 /* l - */
-#define AM_E   0x0800 /* E - */
-#define AM_pi  0x1000 /* p - */
-#define AM_KxK 0x2000 /* K * K - */
-#define AM_KpK 0x4000 /* K + K - */
-#define AM_plus 0x8000 /* + - */
-#define AM_mul 0x10000 /* * - */
-#define AM_pow 0x20000 /* ^ - */
+#define AM_l    0x0400 /* l - */
+#define AM_E    0x0800 /* E - */
+#define AM_pi   0x1000 /* p - */
+#define AM_KxK   0x2000 /* K * K - */
+#define AM_KpK   0x4000 /* K + K - */
+#define AM_plus  0x8000 /* + - */
+#define AM_mul  0x10000 /* * - */
+#define AM_pow  0x20000 /* ^ - */
+#define AM_a1_e 0x40000 /* e <expr> <seft_c_op> */
+#define AM_a1_1 0x80000 /* 1 <expr> <seft_c_op> */
+#define AM_a1_r 0x100000 /* r <expr> <seft_c_op> */
 
 #define MAX_SEFT_POP 20
 symbol g_asym[MAX_SEFT_POP];   /* the valid seft 'a' symbols */
@@ -3162,12 +3245,16 @@ s16 max_flen; /* max length of forms generated thus far */
 /* Irrational constants have lots-o-digits just in case this program ever
    gets ported to a C compiler that offers quad-precision floating point. */
 ries_val   k_0 = 0.0L;
+ries_val k_ern = (ries_val)-0.367879441171442321595523770161460867445811L; /* -1/e */
 ries_val   k_1 = 1.0L;
 ries_val k_phi = (ries_val)1.61803398874989484820458683436563811772030L;
+ries_tgs tg_phi = TYPE_CONS;
 ries_val   k_2 = 2.0L;
 ries_val   k_e = (ries_val)2.71828182845904523536028747135266249775724L;
+ries_tgs tg_e = TYPE_ELEM;
 ries_val   k_3 = 3.0L;
 ries_val  k_pi = (ries_val)3.14159265358979323846264338327950288419716L;
+ries_tgs tg_pi = TYPE_ELEM;
 ries_val   k_4 = 4.0L;
 ries_val   k_5 = 5.0L;
 ries_val   k_6 = 6.0L;
@@ -3211,6 +3298,9 @@ b001 g_refinement = B_TRUE;
 
 ries_dif p_ovr;
 ries_dif n_ovr;
+
+ries_val g_min_equ_val = -9.9e99;
+ries_val g_max_equ_val = 9.9e99;
 
 /* Format strings and precision constants.
 
@@ -3276,14 +3366,15 @@ as examples:
  +---------------------+
 
 */
-char fmt_g_nominal[20];   /* e.g. "%.17g" */
-char fmt_g_nom_fixed[20]; /* e.g. "%-23.17g" */
+#define FMT_STR_SIZE 20
+char fmt_g_nominal[FMT_STR_SIZE];   /* e.g. "%.17g" */
+char fmt_g_nom_fixed[FMT_STR_SIZE]; /* e.g. "%-23.17g" */
 
-char fmt_g_usable[20];    /* e.g. "%.15g" */
-char fmt_g_usa_fixed[20]; /* e.g. "%-21.15g" */
+char fmt_g_usable[FMT_STR_SIZE];    /* e.g. "%.15g" */
+char fmt_g_usa_fixed[FMT_STR_SIZE]; /* e.g. "%-21.15g" */
 
-char fmt_g_diff[20];      /* e.g. "%.7g" */
-char fmt_g_dif_fixed[20]; /* e.g. "%-13.7g" */
+char fmt_g_diff[FMT_STR_SIZE];      /* e.g. "%.7g" */
+char fmt_g_dif_fixed[FMT_STR_SIZE]; /* e.g. "%-13.7g" */
 
 
 /* Variables used by the search algorithm */
@@ -3310,46 +3401,46 @@ long g_cv_calls;
 
 /* debugging options: */
 /* numbers from "ries -l2 2.5063141592653589 -DJ | wc -l"   */
-s16 debug_S; /*  try.solve                                     51    */
-s16 debug_s; /*  report.match: "show work"                    272    */
+s16 debug_S; /*  try.solve                                    100    */
+s16 debug_s; /*  report.match: "show work"                    277    */
              /*       (values of all subexpressions)                 */
-s16 debug_N; /*  eval: sym, x and dx at each step             481    */
-s16 debug_n; /*  newton: x and dx at each step                153    */
-s16 debug_o; /*  check.match entry                         562749    */
-s16 debug_p; /*  infix.preproc                                118    */
-s16 debug_Q; /*  cv.simplify                                   53    */
-s16 debug_q; /*  check.match past 1st-stage test              125    */
-s16 debug_m; /*  ms_push, ms_pop, ms_peek, ms_undo        9173410    */
-s16 debug_r; /*  exec                                     1605525    */
+s16 debug_N; /*  eval: sym, x and dx at each step             461    */
+s16 debug_n; /*  newton: x and dx at each step                136    */
+s16 debug_o; /*  check.match entry                         539235    */
+s16 debug_p; /*  infix.preproc                                112    */
+s16 debug_Q; /*  cv.simplify                                   51    */
+s16 debug_q; /*  check.match past 1st-stage test              140    */
+s16 debug_m; /*  ms_push, ms_pop, ms_peek, ms_undo       10247603    */
+s16 debug_r; /*  exec                                     1806085    */
              /*  ge.2:                           UPPERCASE  lowercase
                                                    for LHS   for rhs */
              /*    exec:                                             */
-s16 debug_A; /*      prune partial exec error        61927    130510 */
-s16 debug_B; /*      prune partial 0 or dx near 0     3357      2666 */
-s16 debug_C; /*      prune partial noninteger        79245    671255 */
-             /*                  (using command: "ries 1047 -i -DC") */
-s16 debug_D; /*      prune partial overflow           1948      4321 */
+s16 debug_A; /*      prune partial exec error        42836     87770 */
+s16 debug_B; /*      prune partial 0 or dx near 0     3173      2714 */
+s16 debug_C; /*      prune partial noninteger        81056    697227 */
+             /*              (using command: "ries -l2 1047 -i -DC") */
+s16 debug_D; /*      prune partial overflow           1751      4350 */
              /*    full expr:                                        */
-s16 debug_E; /*      prune expr already in database 105526    281232 */
-s16 debug_F; /*      canonval                       366634    884213 */
+s16 debug_E; /*      prune expr already in database 102356    272746 */
+s16 debug_F; /*      canon.val                      349368    848882 */
              /*   (use: ries -l2 2.50631415926 --canon-reduction nr25 -DF) */
-s16 debug_G; /*      insert                         102307    103587 */
-s16 debug_0; /*      dump entire database                    1811037 */
+s16 debug_G; /*      insert                          96112     97337 */
+s16 debug_0; /*      dump entire database                    1712490 */
              /*    partial expr:                                     */
-s16 debug_H; /*      rules                          418287    624260 */
-s16 debug_I; /*      symbols to try                3985434   5935446 */
-s16 debug_J; /*        prune complexity            2596074   3839185 */
-s16 debug_K; /*        prune rules                  251052    417411 */
-s16 debug_L; /*        prune symcount                72560     95743 */
+s16 debug_H; /*      rules                          409175    816240 */
+s16 debug_I; /*      symbols to try                3904331   7759741 */
+s16 debug_J; /*        prune complexity            2579116   5102516 */
+s16 debug_K; /*        prune rules                  257302    558199 */
+s16 debug_L; /*        prune symcount                61994    114453 */
              /*   (use: ries -l2 2.50631415926 '-O-+/^v*qsrlLeEpf' -Dl) */
              /*  ge_1:                                               */
-s16 debug_t; /*    entry                                    10438    */
-s16 debug_u; /*    rminw and rmaxw calculation              46724    */
-s16 debug_v; /*    expressions generated                     5236    */
-s16 debug_w; /*  gf_1                                       31662    */
-s16 debug_x; /*  add.rule                                      90    */
-s16 debug_y; /*  main loop                                    732    */
-s16 debug_z; /*    init and miscellaneous                      52    */
+s16 debug_t; /*    entry                                    11017    */
+s16 debug_u; /*    rminw and rmaxw calculation              48895    */
+s16 debug_v; /*    expressions generated                     5525    */
+s16 debug_w; /*  gf_1                                       32922    */
+s16 debug_x; /*  add.rule                                      91    */
+s16 debug_y; /*  main loop                                    736    */
+s16 debug_z; /*    init and miscellaneous                      55    */
 s16 debug_M; /*    memory allocation                           46    */
 
 #define DBG_LHS 2
@@ -3372,6 +3463,21 @@ void ieee_paranoia(void);
 void init_formats(void);
 void show_version(void);
 void brief_help(void);
+
+void ries_strncpy(char * to, char * fr, int n);
+ries_val ries_intpow(ries_val x, int p);
+void ries_to_digits(ries_val x, char *s, int *expn, int *sign, int precision);
+void ries_snprinf_int(char * to, int len, int x);
+int ries_strlen(char * s);
+void ries_bltr0(char * s);
+void ries_spfg(char *s1, int length, char sign_flag, int precision,
+  ries_val x);
+void spfg(int prec, ries_val x);
+void spff(int prec, ries_val x);
+void ries_spfg_test(char *s1, int length, char sign_flag, int precision,
+  ries_val x);
+void msal_test_spfg(void);
+
 char * file_read(const char * filename);
 void delimit_args(const char *rawbuf, size_t * nargs, char * * * argv);
 
@@ -3494,6 +3600,7 @@ char * pa_get_arg(void);
 char * pa_stk_pop(void);
 void parse_args(size_t nargs, char *argv[]);
 void validate_types(void);
+ries_tgs guess_valtype(ries_val v);
 int main(int nargs, char *argv[]);
 
 /* -------------- functions ----------------------------------------------- */
@@ -3503,7 +3610,7 @@ char * pa_def_path;
 void show_version(void)
 {
   printf(
-    "ries version of %s, Copyright (C) 2000-2013 Robert P. Munafo\n",
+    "ries version of %s, Copyright (C) 2000-2016 Robert P. Munafo\n",
     RIES_VERSION);
 
   printf(
@@ -3542,16 +3649,21 @@ void show_version(void)
 #endif
   );
 
-#ifdef RIES_USE_SA_M64
-  msal_version_info();
-#endif
+  printf("  MAX_ELEN == %d\n", MAX_ELEN);
 
   if (pa_def_path) {
     printf("  profile: %s\n", pa_def_path);
   }
 
+#ifdef RIES_USE_SA_M64
+  printf("\n");
+  msal_version_info();
+#endif
+
+  printf("\n");
   printf("%s",
-"RIES is free software; see the source for copying conditions.  There is NO\n"
+"RIES is provided under the GPL license v3. Source code at mrob.com/ries\n"
+"This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
   );
 }
@@ -3565,20 +3677,23 @@ void brief_help(void)
 "Target value is required and may be any number. Options include:\n"
 "  -l3   Search further (``level-3 search'')\n"
 "  -x    Show matched values as ``x = value'' rather than ``x = T + epsilon''\n"
+"  -s    (Sort of) solve by transforming to ``x = ...'' form\n"
 "  -N+-/ Do not use symbols +, - or /\n"
 "  -S    Show list of all available symbols\n"
+); printf("%s",
+"  -l    Restrict to Liouvillian solutions\n"
 "  -a    Restrict to algebraic solutions\n"
-"  -r    Restrict to rational solutions\n"
-"  -i    Restrict to integer solutions\n"
+"  -c    Restrict to ``constructible'' (straightedge and compass) solutions\n"
+"  -r    Restrict to rational solutions (-re for exact match)\n"
+"  -i    Restrict to integer solutions (-ie for exact match)\n"
 "\n"
-"There are many more options; get the full manual at www.mrob.com/ries\n"
+"There are many more options; get the full manual at mrob.com/ries\n"
 );
 } /* End of brief.help */
 
 /* -------------- formatting and conversion ------------------------------- */
 
 /* Copy a string as if by strncpy */
-void ries_strncpy(char * to, char * fr, int n);
 void ries_strncpy(char * to, char * fr, int n)
 {
   int i;
@@ -3592,7 +3707,6 @@ void ries_strncpy(char * to, char * fr, int n)
 }
 
 /* Raise any value to an integer power. */
-ries_val ries_intpow(ries_val x, int p);
 ries_val ries_intpow(ries_val x, int p)
 {
   int i;
@@ -3638,7 +3752,6 @@ ries_val ries_intpow(ries_val x, int p)
    is done properly. You supply a string with a little bit more than
    the needed amount of space, and (if desired) an integer in which to
    store the exponent. */
-void ries_to_digits(ries_val x, char *s, int *expn, int *sign, int precision);
 void ries_to_digits(ries_val x, char *s, int *expn, int *sign, int precision)
 {
   int dig1 = precision + 1;  /* number of digits to compute */
@@ -3758,7 +3871,6 @@ void ries_to_digits(ries_val x, char *s, int *expn, int *sign, int precision)
 } /* End of ries_to_digits */
 
 /* Format an int into a string as if by snprintf */
-void ries_snprinf_int(char * to, int len, int x);
 void ries_snprinf_int(char * to, int len, int x)
 {
   char * s;
@@ -3817,7 +3929,6 @@ void ries_snprinf_int(char * to, int len, int x)
 } /* End of ries_snprinf_int */
 
 /* Measure the length of a string as if by strlen */
-int ries_strlen(char * s);
 int ries_strlen(char * s)
 {
   int i;
@@ -3827,7 +3938,6 @@ int ries_strlen(char * s)
 }
 
 /* Blank out trailing '0' digits in a string */
-void ries_bltr0(char * s);
 void ries_bltr0(char * s)
 {
   char *t;
@@ -3872,8 +3982,6 @@ void ries_bltr0(char * s)
 
    For the opposite conversion, use ries_sscan.
  */
-void ries_spfg(char *s1, int length, char sign_flag, int precision,
-  ries_val x);
 void ries_spfg(char *s1, int length, char sign_flag, int precision,
   ries_val x)
 {
@@ -4029,10 +4137,10 @@ void ries_spfg(char *s1, int length, char sign_flag, int precision,
      the lead digit, decimal point and exponent. */
   if (length - (1 + 1 + 1 + ries_strlen(sexp)) < 1) {
     ries_strncpy(s, (char *) "fmt-err", length);
-    return;      
+    return;
   }
 
-  /* Reserve space for 'e' and exponent and null */ 
+  /* Reserve space for 'e' and exponent and null */
   length = length - (1 + ries_strlen(sexp) + 1);
 
   *s++ = s2[0]; length--; /* Lead digit */
@@ -4055,7 +4163,6 @@ void ries_spfg(char *s1, int length, char sign_flag, int precision,
 
 /* Print a ries_val as if by printf("%.23g", x) where the precision is
 given by the parameter 'prec'. */
-void spfg(int prec, ries_val x);
 void spfg(int prec, ries_val x)
 {
   char tmp[100];
@@ -4065,12 +4172,11 @@ void spfg(int prec, ries_val x)
 
 /* Print a ries_val as if by printf("%29.23g", x) where the precision is
 given by the parameter 'prec'. */
-void spff(int prec, ries_val x);
 void spff(int prec, ries_val x)
 {
-  char tmp[100]; char fmt[10];
+  char tmp[100]; char fmt[FMT_STR_SIZE];
   ries_spfg(tmp, 100, 0, prec, x);
-  sprintf(fmt, "%%-%ds", prec+6);
+  snprintf(fmt, FMT_STR_SIZE, "%%-%ds", prec+6);
   printf(fmt, tmp);
 }
 
@@ -4079,10 +4185,8 @@ void spff(int prec, ries_val x)
 float g_min_spfg_mbits = 256.0;
 ries_val g_worst_spfg_inpt;
 
-/* Wrapper for ries_spfg that converts the result string bacl to a ries_val
+/* Wrapper for ries_spfg that converts the result string back to a ries_val
 and watches for the worst result */
-void ries_spfg_test(char *s1, int length, char sign_flag, int precision,
-  ries_val x);
 void ries_spfg_test(char *s1, int length, char sign_flag, int precision,
   ries_val x)
 {
@@ -4119,7 +4223,6 @@ void ries_spfg_test(char *s1, int length, char sign_flag, int precision,
 } /* end of ries_spfg_test */
 
 /* Generate a huge number of values and test conversion via ries_spfg */
-void msal_test_spfg(void);
 void msal_test_spfg(void)
 {
   int ei, n;
@@ -4165,7 +4268,7 @@ void msal_test_spfg(void)
   printf("msal_test_spfg: %d tests completed.\n", n);
 }
 
-#endif
+#endif /* RIES_USE_SA_M64 */
 
 /* -------------- profiles and argument parsing --------------------------- */
 
@@ -4178,13 +4281,25 @@ char * file_read(const char * filename)
   char * base_ptr;
   size_t t_len;
 
+  /* We read in binary mode to avoid having the OS change anything. In
+     particular, by definition the RIES profile format is not a "text" file
+     format, it is "a sequence of text-like tokens separated by
+     non-text bytes". Right now we treat all control characters as
+     token-delimiters (and additionally as an end-of-comment delimiter in
+     most cases if after a '#') but I may want to change that in the future.
+   */
   in = fopen(filename, "rb");
   if (in == NULL) {
+    char * name_ext;
     /* Try appending ".ries"
        (Allocation and UNIX compatibility by Markus Milleder, 20120428) */
-    char * name_ext = (char *) malloc(strlen(filename) + 6); /* + ".ries\0" */
+    /* The typecast to "(char *)" avoids the warning "request for implicit
+       conversion from 'void *' to 'char *' not permitted in C++" given by
+       the option -Wc++-compat */
+    t_len = strlen(filename) + 6; /* + ".ries\0" */
+    name_ext = (char *) malloc(t_len);
     if (name_ext) {
-      sprintf(name_ext, "%s.ries", filename);
+      snprintf(name_ext, t_len, "%s.ries", filename);
       in = fopen(name_ext, "rb");
       free(name_ext);
     }
@@ -4200,7 +4315,7 @@ char * file_read(const char * filename)
   buf_sz = FILE_READ_SIZE;
   base_ptr = (char *) malloc(buf_sz);
   t_len = 0;
- 
+
   while (!feof(in) && !ferror(in)) {
     if (t_len + FILE_READ_SIZE > buf_sz) {
       /* The next read might go beyond the allocated memory, so we need to
@@ -4215,7 +4330,7 @@ char * file_read(const char * filename)
       t_len += fread(p, 1, FILE_READ_SIZE, in);
     }
   }
- 
+
   fclose(in);
 
   /* Reallocate again to free up the memory we didn't use. */
@@ -4252,7 +4367,7 @@ void delimit_args(const char *rawbuf, size_t * nargs, char * * * argv)
       while(*p && ((*p <= ' ') || (*p == '\177'))) { *p = ' '; p++; }
       if (*p == '#') {
         /* Comment delimiter. Change everything to space until we get to
-           a control character, which we assume is an end of line */
+           a non-tab control character, which we assume is an end of line */
         while(*p && ((*p == '\t') || (*p >= ' '))) { *p = ' '; p++; }
       } else if (*p && (*p > ' ')) {
         /* A word that doesn't start with '#' is an arg; skip it */
@@ -4376,7 +4491,7 @@ err_str error_strings[] = {
   /* Add any new ones here */
   {EXIT_NO_ERROR, "No error"},
   {ERR_UNKNOWN, "Unknown error"},
-};  
+};
 
 const size_t g_num_errors = sizeof(error_strings) / sizeof(err_str);
 
@@ -4911,6 +5026,12 @@ Sources and notes related to special functions and their algorithms.
 and/or msal_math128.c
 
 Sources:
+   msal_math64.c already contains sin/cos/tan from Sun via Netlib,
+   and my own sinl/cosl/tanl.
+
+   I have the openlibm sources, which include a fairly readable 80-bit ldbl
+   mathlib, at ~/devt/julia/openlibm on SB4
+
    .../libs/f107_o/f107_o.cpp already contains all the "normal" functions
    in high-precision: sqrt, sin, cos, exp, log, sinh, etc.
 
@@ -4923,20 +5044,33 @@ Sources:
    corresponding digamma, however the single-precision digamma will probably
    be good enough)
 
-   I have the Boost C++ Libraries (from www.boost.org); inside the huge
-   tar/zip/bzip file is all the C source code. Most of the code of interest
-   is in "special_functions", e.g. their Lanczos Gamma is in files
+   I have the Boost C++ Libraries (from www.boost.org); the C source code
+   is in "boost_1_53_0.tar.bz2". Most of the code of interest is in
+   "boost/math/special_functions", e.g. their Lanczos Gamma is in files
    .../special_functions/gamma.hpp and .../special_functions/lanczos.hpp
 
    The GNU Scientific Library (GSL) has a lot of special functions that
-   look reasonably easy to adapt (details in .../ries/0-notes.txt).
+   look reasonably easy to adapt. See notes in .../ries/0-notes.txt ; and
+   source code in devt/gcc45/tars/gsl-1.15/specfunc and in gsl-1.16.tar.gz
+
+   I also have the GNU version of the C libraries (which includes the more
+   common functions like exp and tan) in glibc-2.20.tar.gz but a lot of
+   the code is in assembler. See libm_sincosl.S for example. There is also
+   some code that is in C, such as sysdeps/ieee754/ldbl-96/k_cosl.c and
+   .../ldbl-96/t_sincosl.c for the "96-bit" long double version of cosine.
+   And oddly there is "multi-precision" code, e.g. see sincos32.c and
+   mpa.c in .../ieee754/dbl-64 which uses radix-2^24 maths and apparently
+   a Taylor series (see .../ieee754/dbl-64/dosincos.c) and some double-double
+   arithmetic in the style of Dekker 1971 (see .../ieee754/dbl-64/dla.h)
+   all for the purpose of getting a correctly-rounded result (see
+   .../ieee754/dbl-64/s_sin.c)
 
    Cody, William J., Jr., and Waite, William. Software Manual for the
    Elementary Functions. Prentice-Hall (Englewood Cliffs, New Jersey, 1980).
 
 Constants that may also be useful (these could be provided to users as
 a built-in profile, or at least listed on the website). I am giving
-only 35 decimal digits, as that's all we'd need for f103 precision:
+only 35 decimal digits, as that's all we'd need for f107 precision:
 
 0.56714329040978387299996866221035554
   The "omega" constant W(1), with the property : omega e^omega = 1.
@@ -5101,11 +5235,12 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
   ries_dif da = 0;/* Derivatives */
   ries_dif db = 0;
   ries_dif drv;
-  ries_tgs tga;
-  ries_tgs tgb;
-  ries_tgs trv; /* Tags of result */
+  ries_tgs tga;   /* Tags of arg 1 */
+  ries_tgs tgb;   /* Tags of arg 2 */
+  ries_tgs trv;   /* Tags of result */
+  int f1;         /* flag */
 
-  /* set default for differential (overridden if we compute it) */
+  /* set default for derivative (overridden if we compute it) */
   drv = (ries_dif)k_0;
   tga = tgb = trv = TYPE_NONE;
 
@@ -5121,16 +5256,15 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
   case '1' :
     rv = k_1; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
   case 'f' :
-    rv = k_phi;
-    ms_push(ms, rv, (ries_dif) k_0, TYPE_CONS); *undo_count = 1; break;
+    rv = k_phi; ms_push(ms, rv, (ries_dif) k_0, tg_phi); *undo_count = 1; break;
   case '2' :
     rv = k_2; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
   case 'e' :
-    rv = k_e; ms_push(ms, rv, (ries_dif) k_0, TYPE_ELEM); *undo_count = 1; break;
+    rv = k_e; ms_push(ms, rv, (ries_dif) k_0, tg_e); *undo_count = 1; break;
   case '3' :
     rv = k_3; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
   case 'p' :
-    rv = k_pi; ms_push(ms, rv, (ries_dif) k_0, TYPE_ELEM); *undo_count = 1; break;
+    rv = k_pi; ms_push(ms, rv, (ries_dif) k_0, tg_pi); *undo_count = 1; break;
   case '4' :
     rv = k_4; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
   case '5' :
@@ -5297,7 +5431,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       return ERR_EXEC_TRIG_LOW_DX;
     }
     if (FABS(COS(a)) < k_sig_loss) {
-      /* Significance is lost when the value of sin or cos is near +- 1 */
+      /* Significance is lost when the value of sin is near +- 1 */
       return ERR_EXEC_SIG_LOSS;
     }
     if (FABS(rv) < (FABS(a) * k_sig_loss)) {
@@ -5339,7 +5473,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       return ERR_EXEC_SIG_LOSS;
     }
     if (FABS(SIN(a)) < k_sig_loss) {
-      /* Significance is lost when the value of sin or cos is near +- 1 */
+      /* Significance is lost when the value of cos is near +- 1 */
       return ERR_EXEC_SIG_LOSS;
     }
     if (FABS(rv) > k_sin_clip) {
@@ -5396,7 +5530,37 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
 
   /* 'G' Gamma function would go here */
 
-  /* 'W' Lambert W function would go here */
+  case 'W':  /* Lambert W function */
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    if (a < k_ern) {
+      /* If x is less than -1/e, W(x) has complex values. This is kind of like
+         taking the logarithm of a negative number, so we'll use that error. */
+      return ERR_EXEC_LOG_NEG;
+    }
+    rv = LAMBERTW(a);
+    if (do_dx) {
+      if (rv <= -1.0) {
+        /* At W(x) = -1 the derivative is undefined (infinite) and if we get
+           W(x) < -1 there was roundoff error in evaluating W(x) */
+        return ERR_EXEC_ILLEGAL_DERIV;
+      } else if (FABS(a) < 1.0e-30) {
+        /* The derivative calculation involves "W(x)/x" which approaches 1 as x
+           approaches 0 and involves loss of precision, but that's not a
+           problem. However when x gets very small we might have underflow,
+           and when it is exactly 0 we need to avoid the division. We do this
+           by removing "rv" from the numerator and "a" from the denominator. */
+        drv = (ries_dif) (da / (rv + 1.0));
+      } else {
+        drv = (ries_dif) (da * rv / (a * (rv + 1.0)));
+      }
+    }
+    if (!((drv < k_d_inf) && (drv > k_d_ninf))) {
+      return ERR_EXEC_ILLEGAL_DERIV;
+    }
+    /* Values of W(x) are considered "transcendental" */
+    trv = TGMIN(tga, TYPE_TRAN); /* tgs-manip */
+    ms_push(ms, rv, drv, trv); *undo_count = 2;
+    break;
 
     /* seft 'c' ( arg1 arg2 -- val ) symbols */
   case '-' :
@@ -5432,7 +5596,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       /* 20120505: Similarly, when a sum is of lesser magnitude
          than both of the addends, it is sometimes an exact result. This
          is particularly common if the smaller addend was an integer,
-         as in 143 + (-1). */         
+         as in 143 + (-1). */
       if (((rv - b) != a) || ((rv - a) != b)) {
         return ERR_EXEC_SIG_LOSS;
       }
@@ -5553,7 +5717,14 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       return ERR_EXEC_SIG_LOSS;
     }
     a = ms_pop(ms, &da, &tga); *undo_count = 2;
-    if (a < k_0) {
+    f1 = 0;
+    if (1 && (b == k_3)) {
+      /* Cube root can handle any argument */
+      if (a < k_0) {
+        a = -a;
+        f1 = 1;
+      }
+    } else if (a < k_0) {
       return ERR_EXEC_ROOT_NEG;
     }
     rv = POW(a, k_1 / b);
@@ -5562,6 +5733,9 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       if ((da || db) && (drv == k_0)) {
         return ERR_EXEC_ZERO_DERIV;
       }
+    }
+    if (f1) {
+      rv = -rv;
     }
     if (!((drv < k_d_inf) && (drv > k_d_ninf))) {
       return ERR_EXEC_ILLEGAL_DERIV;
@@ -5585,7 +5759,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 3;
     break;
 
-  case 'L' :       /* log base b of a, that is, ln(a)/ln(b) */
+  case 'L' :       /* [<a><b>L] is the log base b of a, that is, ln(a)/ln(b) */
     b = ms_pop(ms, &db, &tgb); *undo_count = 1;
     if (g_restrict_exponents) {
       if ((db != 0) /* b is a subexpression containing x */
@@ -6452,7 +6626,7 @@ void expr_print_infix(symbol * expr, int justify)
   char fscratch[F_ALLOC];
   char gscratch[MAX_ELEN * MAX_SYM_NAME_LEN];
   symbol ss;
-  
+
   infix_preproc(expr, escratch);
   infix_1(escratch, fscratch, &ss);
   infix_expand(fscratch, gscratch);
@@ -6593,7 +6767,7 @@ by manipulating the lhs and rhs strings in-place. [L] is an exception:
 extra temp buffer "rtmp[]".
  */
 #define TS_ALLOC_L EXPR_ALLOC
-#define TS_ALLOC_R (EXPR_ALLOC*2)
+#define TS_ALLOC_R (EXPR_ALLOC*4)
 void try_solve(symbol * l, symbol * r,
   symbol * l_out, int l_len, symbol * r_out, int r_len)
 {
@@ -6605,8 +6779,9 @@ void try_solve(symbol * l, symbol * r,
   symbol part1[TS_ALLOC_L];
   symbol part2[TS_ALLOC_L];
   symbol rhs[TS_ALLOC_R];
+  symbol tmpc[TS_ALLOC_R];
 
-  int gg;
+  int gg, l1;
 
   symstrncpy0(lhs, l, TS_ALLOC_L);
   symstrncpy0(rhs, r, TS_ALLOC_R);
@@ -6778,12 +6953,49 @@ void try_solve(symbol * l, symbol * r,
         symstrncat(rhs, ((symbol *) "n"), TS_ALLOC_R);
       }
 
+    } else if (op == 'W') {
+
+      /* The inverse of y=W(x) is x=w e^y, thus we solve this one by
+      /  changing "W(x)=RHS" by "x = RHS*e^RHS". This causes the RHS
+      /  to become more than twice as long. In theory if the LHS is of
+      /  the form [xWWWWW], TS_ALLOC_R would need to be something like
+      /  TS_ALLOC_L*2^(TS_ALLOC_L+1). We're not going to do that so
+      /  instead we declare TS_ALLOC_R to be something like 4*EXPR_ALLOC,
+      /  and we check to see if there is enough room to generate a
+      /  "RHS*e^RHS" here. */
+      l1 = symstrlen(rhs) * 2 + 2;
+      if (l1 >= TS_ALLOC_R) {
+        /* We can't handle this 'W', so we're done solving. */
+        gg = 0;
+      } else {
+        if (debug_S) {
+          printf("transforming: ");
+          eqn_print_infix(lhs, rhs);
+          printf("\n  by replacing 'W(a) = b' with 'a = b e^b'\n");
+        }
+        /* if (debug_S){printf(">> start: lhs=[%s], rhs=[%s]\n",lhs,rhs);} */
+        /* Keep a copy of the RHS prior to manipulation */
+        symstrncpy0(tmpc, rhs, TS_ALLOC_R);
+        /* if (debug_S) { printf(">> step1 tmpc=[%s]\n", tmpc); } */
+        /* Add the entire thing to the end, e.g. [1pq+] becomes [1pq+1pq+] */
+        symstrncat(rhs, tmpc, TS_ALLOC_R);
+        /* if (debug_S) { printf(">> step2 rhs=[%s]\n", rhs); } */
+        /* Add an 'E' and a '*', so we have [1pq+1pq+E*] */
+        symstrncat(rhs, (symbol *) "E*", TS_ALLOC_R);
+        /* if (debug_S) { printf(">> step3 rhs=[%s]\n", rhs); } */
+        /* Replace LHS with the argument, i.e. remove 'W' from the end */
+        symstrncpy0(lhs, part1, TS_ALLOC_L);
+        /* if (debug_S) { printf(">> result: lhs=[%s], rhs=[%s] len %d\n",
+                         lhs, rhs, l1); } */
+      }
+
     /* ------------------ Unhandled symbols ------------------- */
     /* Some symbols, e.g. sine and tangent, are not tested for at
        all. These functions have no inverse in RIES, so they cannot
        be moved to the right-hand-side. */
 
     } else {
+      /* We get here if the symbol 'op' is not one of the handled symbols */
       gg = 0;
     }
   }
@@ -6974,10 +7186,13 @@ s16 cv_simplify(symbol * lhs, symbol * rhs, ries_val *root, ries_dif *diff_dx,
   s16 err;
 
   if (debug_Q) {
-    printf("cv_simplify: [%s]=[%s]\n", lhs, rhs);
+    printf("cv.simplify: [%s]=[%s]\n", lhs, rhs);
   }
 
   gg = 1;
+  if (g_no_cv_simplify) {
+    gg = 0;
+  }
   while(gg) {
     gg = 0;
 
@@ -7081,7 +7296,7 @@ s16 cv_simplify(symbol * lhs, symbol * rhs, ries_val *root, ries_dif *diff_dx,
     return err;
   }
   return rv;
-} /* End of cv_simplify */
+} /* End of cv.simplify */
 
 void defsym_used(symbol * expr)
 {
@@ -7200,16 +7415,16 @@ char pfw_buf[40];
 char * pf_intfloat_wid(stats_count x, int width)
 {
   int i, w;
-  char fmt1[20];
-  char fmt2[20];
+  char fmt1[FMT_STR_SIZE];
+  char fmt2[FMT_STR_SIZE];
 
   w = (x < 0) ? (width-1) : width;
-  sprintf(fmt1, "%%.%dg", w);
-  sprintf(fmt2, "%%.%de", w-6);
+  snprintf(fmt1, FMT_STR_SIZE, "%%.%dg", w);
+  snprintf(fmt2, FMT_STR_SIZE, "%%.%de", w-6);
 
-  sprintf(pfw_buf, fmt1, x);
+  snprintf(pfw_buf, 40, fmt1, x);
   if (strchr(pfw_buf, 'e') || strchr(pfw_buf, 'E')) {
-    sprintf(pfw_buf, fmt2, x);
+    snprintf(pfw_buf, 40, fmt2, x);
   } else if (strchr(pfw_buf, '.')) {
     for (i=0; pfw_buf[i]; i++) { }
     i--;
@@ -7425,12 +7640,17 @@ void init_formats(void)
     gstr = "g";
   }
 
-  sprintf(fmt_g_nominal, "%%.%d%s", k_nominal_digits, gstr);
-  sprintf(fmt_g_nom_fixed, "%%-%d.%d%s", k_nominal_digits+6, k_nominal_digits, gstr);
-  sprintf(fmt_g_usable, "%%.%d%s", k_usable_digits, gstr);
-  sprintf(fmt_g_usa_fixed, "%%-%d.%d%s", k_usable_digits+6, k_usable_digits, gstr);
-  sprintf(fmt_g_diff, "%%.%dg", k_usable_digits-8);
-  sprintf(fmt_g_dif_fixed, "%%-%d.%dg", k_usable_digits-2, k_usable_digits-8);
+  snprintf(fmt_g_nominal, FMT_STR_SIZE, "%%.%d%s", k_nominal_digits, gstr);
+  snprintf(fmt_g_nom_fixed, FMT_STR_SIZE,
+                     "%%-%d.%d%s", k_nominal_digits+6, k_nominal_digits, gstr);
+  snprintf(fmt_g_usable, FMT_STR_SIZE,
+                                             "%%.%d%s", k_usable_digits, gstr);
+  snprintf(fmt_g_usa_fixed, FMT_STR_SIZE,
+                       "%%-%d.%d%s", k_usable_digits+6, k_usable_digits, gstr);
+  snprintf(fmt_g_diff, FMT_STR_SIZE, "%%.%dg", k_usable_digits-8);
+  snprintf(fmt_g_dif_fixed, FMT_STR_SIZE,
+                            "%%-%d.%dg", k_usable_digits-2, k_usable_digits-8);
+
 #ifdef RIES_DEBUG_FORMATS
   printf("formats: fmt_g_nominal '%s', fmt_g_nom_fixed '%s'\n",
     fmt_g_nominal, fmt_g_nom_fixed);
@@ -7473,7 +7693,7 @@ void check_exit(int is_exact)
       t);
   } else if (g_num_matches >= g_max_matches) {
     printf("  (Stopping now because %ld matches were found.)\n",
-                                                       (long) g_num_matches);  
+                                                       (long) g_num_matches);
   } else {
     /* No exit condition was matched. */
     return;
@@ -7510,6 +7730,14 @@ int unique_eqn(symbol * lhs, symbol * rhs, int addit)
   return 1;
 }
 
+/* This field size is big enough for certain parts of a result output,
+   including the "delta" part of an answer like "1.23456789 = T + 0.1234"
+   and the "(1 part in 1023)" bit of a wide output */
+#define REPORT_FIELD_SIZE 30
+
+/* Must be big enough for largest value of k_usable_digits */
+#define FROOT_SIZE 40
+
 /* report.match does the formatting to print out a match. You can either
    supply an LHS and RHS that are already in the tree, or just one tree
    member and a pe (which you would do if reporting an exact match and
@@ -7520,8 +7748,8 @@ void report_match(symbol * lhs, symbol * rhs, symbol * exm,
   symbol * le;
   symbol * re;
   s16 i;
-  char fval[30];  /* formatted numerical value (before manual left-justify) */
-  char froot[30]; /* formatted root of equation (value of X, not delta from T) */
+  char fval[REPORT_FIELD_SIZE];  /* formatted numerical value (before manual left-justify) */
+  char froot[FROOT_SIZE]; /* formatted root of equation (value of X, not delta from T) */
   char * x_T_intro;
   s16  posn = 0;  /* "cursor position" for column padding */
   int width;      /* A column width */
@@ -7771,7 +7999,7 @@ void report_match(symbol * lhs, symbol * rhs, symbol * exm,
     }
   }
 
-  ries_spfg(froot, 30, 0, k_usable_digits, root); /* sprintf(froot, fmt_g_usable, root); */
+  ries_spfg(froot, FROOT_SIZE, 0, k_usable_digits, root); /* sprintf(froot, fmt_g_usable, root); */
 
   x_T_intro = (char *) "for x ";
   if (g_enable_output && g_wide_output) {
@@ -7794,18 +8022,18 @@ void report_match(symbol * lhs, symbol * rhs, symbol * exm,
     got_exact = B_TRUE;
   } else if (g_enable_output && (!(g_relative_x))) {
     printf("for x = ");
-    ries_spfg(fval, 30, 0, k_usable_digits, root); /* sprintf(fval, fmt_g_usable, root); */
+    ries_spfg(fval, REPORT_FIELD_SIZE, 0, k_usable_digits, root); /* sprintf(fval, fmt_g_usable, root); */
     posn = (s16) (8 + strlen(fval));
   } else if (g_enable_output && (delta < k_0)) {
     /* Delta is negative */
     delta = - delta;
     printf("%s= T - ", x_T_intro);
-    sprintf(fval, "%.6g", delta);
+    snprintf(fval, REPORT_FIELD_SIZE, "%.6g", delta);
     posn = (s16)(6 + strlen(x_T_intro) + strlen(fval) );
   } else if (g_enable_output) {
     /* Delta is positive */
     printf("%s= T + ", x_T_intro);
-    sprintf(fval, "%.6g", delta);
+    snprintf(fval, REPORT_FIELD_SIZE, "%.6g", delta);
     posn = (s16)(6 + strlen(x_T_intro) + strlen(fval) );
   }
 
@@ -7830,22 +8058,23 @@ void report_match(symbol * lhs, symbol * rhs, symbol * exm,
     if (g_enable_output && g_wide_output) {
       /* Show delta as ratio with respect to T */
       ries_dif ratio;
-      char temp[30];
+      char temp[REPORT_FIELD_SIZE];
       ratio = 0;
       if (delta != 0) {
         ratio = (ries_dif) (FABS(g_target / delta));
       }
       if (delta == 0) {
-        sprintf(temp, "%s", "(1 part in infinity)");
+        snprintf(temp, REPORT_FIELD_SIZE, "%s", "(1 part in infinity)");
       } else if (ratio < 100) {
         int r10, r1;
         r10 = (int) ((ratio * 10) + 0.5);
         r1 = r10 % 10; r10 = (r10-r1) / 10;
-        sprintf(temp, "(1 part in %d.%d)", r10, r1);
+        snprintf(temp, REPORT_FIELD_SIZE, "(1 part in %d.%d)", r10, r1);
       } else if (ratio < 100000000) {
-        sprintf(temp, "(1 part in %d)", ((int) (ratio+0.5)));
+        snprintf(temp, REPORT_FIELD_SIZE,
+                                       "(1 part in %d)", ((int) (ratio+0.5)));
       } else {
-        sprintf(temp, "(1 part in %.3e)", ratio);
+        snprintf(temp, REPORT_FIELD_SIZE, "(1 part in %.3e)", ratio);
       }
       printf("%-22s", temp);
     }
@@ -8162,7 +8391,7 @@ void check_sides(expr *it)
       }
     }
   }
-} /* end of check_sides */
+} /* end of check.sides */
 
 void check_exact_match(expr * it, ries_dif new_dx, pe *ex)
 {
@@ -8243,7 +8472,7 @@ void check_exact_match(expr * it, ries_dif new_dx, pe *ex)
   report_match(lhs, rhs, ex->sym, g_target, (ries_dif) k_0, 0);
 }
 
-/* bt_insert adds an expression to the tree. The dx parameter
+/* bt.insert adds an expression to the tree. The dx parameter
    is used to determine if it's an RHS or an LHS expression. */
 s16 bt_insert(ries_val x, ries_dif dx, ries_tgs tg, pe *ex, s16 * res1)
 {
@@ -8508,7 +8737,7 @@ s16 canonval(
   *p_x = x; *p_dx = dx; *p_tg = tg;
   *muc_ptr = muc;
   return 0;
-}
+} /* End of canon.val */
 
 void decanon(metastack * ms, s16 muc)
 {
@@ -8600,7 +8829,7 @@ stats_count ge_2(
     /* Prune non-integer subexpressions if the -i option was given. */
     if (g_restrict_subexpr == TYPE_INT) {
       if (!TAG_INT_P(cttg)) {
-       if (debug_C & g_dbg_side) {
+        if (debug_C & g_dbg_side) {
           bpe->sym[ip] = 0;
           printf("prune partial noninteger [%s) = ", bpe->sym);
           spfg(k_nominal_digits, curtop); /* printf(fmt_g_nominal, curtop); */
@@ -8611,6 +8840,24 @@ stats_count ge_2(
         prune_count += 1.0;
         return 0;
       }
+    }
+
+    /* Similar pruning for less-restrictive values of g_restrict_subexpr.
+       If an option like "-a" is used without modification, this test is
+       redundant because the other restrictions e.g. g_restrict_exponents
+       and the symbolset ensure that functions results remain within the
+       restricted class. */
+    if (cttg < g_restrict_subexpr) {
+      if (debug_C & g_dbg_side) {
+        bpe->sym[ip] = 0;
+        printf("prune partial g_restr_sub [%s) = ", bpe->sym);
+        spfg(k_nominal_digits, curtop);
+        printf(" %s", tagname(cttg));
+        printf("\n");
+      }
+      while(muc) { ms_undo(ms); muc--; }
+      prune_count += 1.0;
+      return 0;
     }
 
     /* %%% here we could do a bt_find to search for the value curtop, and
@@ -8624,7 +8871,7 @@ stats_count ge_2(
 
     /* %%% this could be done more efficiently inside exec() */
     /* Any subexpression that overflows either in value or in the
-       differential causes pruning. */
+       derivative causes pruning. */
     if ((curtop >= p_ovr) || (curtop <= n_ovr)) {
       if (debug_D & g_dbg_side) {
         bpe->sym[ip] = 0; /* Do not display not-yet-exec'd symbols */
@@ -8643,8 +8890,10 @@ stats_count ge_2(
       /* formerly tested "(fabs(ctdx) > k_0) && (fabs(ctdx) < k_prune_deriv)"
          pp. 20111228 was "(fabs(ctdx)/(1.0 + fabs(curtop)) < k_prune_deriv)"
          Test the current top of stack for bogus derivative. We have to
-         test ctdx != 0 to ensure we don't prune constants, like pruning the 
-         "2" in "x2+" before the "+" has been executed. */
+         test ctdx != 0 to ensure we don't prune constants, like pruning the
+         "2" in "x2+" before the "+" has been executed. The check for
+         full-expression tautologies, e.g. pruning "x^2-x*x", happens
+         in the next block. */
       if ( (ctdx != k_0) && (FABS(ctdx)/(1.0 + FABS(curtop)) < k_vanished_dx) )
       {
         bpe->sym[ip] = 0; /* Do not display not-yet-exec'd symbols */
@@ -8679,7 +8928,7 @@ stats_count ge_2(
         prune_count += 1.0;
         return 0;
       }
-    }
+    } /* End of "if (using_x)" */
   } /* End of "if (ip > 0)" */
 
   /* ' " ' " ' " ' " ' " ' " ' " ' " ' " ' " ' " ' " ' " ' " ' " ' " ' " ' "
@@ -8694,7 +8943,7 @@ stats_count ge_2(
 
     /* We still have values of curtop, dx, and cur_sp from calling
        ms_peek() above */
-    bpe->sym[ip] = 0; /* Needed by bt_insert */
+    bpe->sym[ip] = 0; /* Needed by bt.insert */
 
     /* Implement the --find.expression option */
     if (g_num_find_expr) {
@@ -8724,6 +8973,24 @@ stats_count ge_2(
       while(muc) { ms_undo(ms); muc--; }
       prune_count += 1.0;
       return 0;
+    } else if (curtop < g_min_equ_val) {
+      if (debug_B & g_dbg_side) {
+        printf("prune equval [%s) = ", bpe->sym);
+        spfg(k_usable_digits, curtop);
+        printf(" too low\n");
+      }
+      while(muc) { ms_undo(ms); muc--; }
+      prune_count += 1.0;
+      return 0;
+    } else if (curtop > g_max_equ_val) {
+      if (debug_B & g_dbg_side) {
+        printf("prune equval [%s) = ", bpe->sym);
+        spfg(k_usable_digits, curtop);
+        printf(" too high\n");
+      }
+      while(muc) { ms_undo(ms); muc--; }
+      prune_count += 1.0;
+      return 0;
     } else {
       s16 uc; /* Metastack undo count for canonval operation */
       s16 oip;
@@ -8739,7 +9006,7 @@ stats_count ge_2(
         return 0; /* Don't count this as a valid generated expression. */
       }
       /* Looks good so far, now try to insert in tree */
-      bpe->sym[bpe->elen] = 0; /* Needed by bt_insert */
+      bpe->sym[bpe->elen] = 0; /* Needed by bt.insert */
       if (bt_insert(curtop, ctdx, cttg, bpe, &res1)) { /* this is in ge_2 */
         fprintf(stderr, "%s: Out of memory\n", g_argv0);
         print_end(1);
@@ -8765,7 +9032,7 @@ stats_count ge_2(
           printf(fmt_g_diff, ctdx);
         }
         printf(" %s", tagname(cttg));
-        printf(", comp {%d}\n", bpe->cplx);
+        printf(" {%d}\n", bpe->cplx);
       }
 
       /* Undo the canonval ops */
@@ -8822,7 +9089,7 @@ stats_count ge_2(
   if (ip > 0) {
     if (debug_H & g_dbg_side) {
       bpe->sym[ip] = 0;
-      printf("attributes for [%s): ", bpe->sym);
+      printf("attributes for [%s)%c: ", bpe->sym, seft);
     }
   }
   atts = using_x ? 0 : AM_RHS;
@@ -8852,6 +9119,25 @@ stats_count ge_2(
 
   if (ip > 1) {
     /* two-symbol patterns */
+
+    if (seft == 'c') {
+      s16 a1i;
+
+      /* next symbol will be a binary operator; look at arg1 */
+      a1i = base->arg1[ip];
+      if (a1i >= 0) {
+        if (bpe->sym[a1i] == 'e') {
+          atts |= AM_a1_e;
+          if (debug_H & g_dbg_side) { printf(" e..<op>"); }
+        } else if (bpe->sym[a1i] == '1') {
+          atts |= AM_a1_1;
+          if (debug_H & g_dbg_side) { printf(" 1..<op>"); }
+        } else if (bpe->sym[a1i] == 'r') {
+          atts |= AM_a1_r;
+          if (debug_H & g_dbg_side) { printf(" r..<op>"); }
+        }
+      }
+    }
 
     /* currently, all two-symbol patterns are for (aa) forms */
     if ((base->sym[ip-1] == 'a')
@@ -8993,7 +9279,8 @@ stats_count ge_2(
         if (ip > 2) putchar(bpe->sym[ip-3]);
         if (ip > 1) putchar(bpe->sym[ip-2]);
         if (ip > 0) putchar(bpe->sym[ip-1]);
-        printf(":%c atts %x & mask %x != 0\n", sym, atts, sym_attrs[sym].sa_mask);
+        printf(":%c atts %x & mask %x == %x reject\n", sym, atts,
+          sym_attrs[sym].sa_mask, atts & sym_attrs[sym].sa_mask);
       }
       recurse = 0;
 
@@ -9150,6 +9437,8 @@ stats_count ge_1(form *base, s16 e_minw, s16 e_maxw, s16 using_x,
   return n;
 }
 
+/* long g_dstats[MAX_ELEN]; */
+
 /* generate forms by simple recursive algorithm.
 
    ------base------  ------next------
@@ -9189,6 +9478,8 @@ stats_count gf_1(form *base, s16 e_minw, s16 e_maxw, s16 using_x,
   blen = base->flen;
   for(i=0; i<blen; i++) {
     next.sym[i] = (*base).sym[i];
+    next.stk[i] = (*base).stk[i];
+    next.arg1[i] = (*base).arg1[i];
   }
   next.sym[i] = 0;
 
@@ -9207,6 +9498,8 @@ stats_count gf_1(form *base, s16 e_minw, s16 e_maxw, s16 using_x,
     slim = (symbol)'c';
   }
 #ifdef NO_IDENTITY_OPTIMIZATION
+  /* We have no seft-b symbols, not even the identity 'I', thus we can
+     loop on just seft 'a' and 'c'. */
   sincr = 1;
   if (n_bsym == 0) {
     sincr = 2;
@@ -9221,6 +9514,7 @@ stats_count gf_1(form *base, s16 e_minw, s16 e_maxw, s16 using_x,
     }
     /* Stack changes by 1 for a, 0 for b, -1 for c */
     next.stack = (s16)(base->stack + (((symbol)'b') - s));
+
     /* Compute the minimum and maximum possible weights, including the
        symbols we got from base plus the symbol we just added */
     if (s == 'a') {
@@ -9266,10 +9560,30 @@ stats_count gf_1(form *base, s16 e_minw, s16 e_maxw, s16 using_x,
       recurse_forms = 0;
     }
 
+    /* Fill in the stack-height and arg1 arrays. Here are some examples:
+    expr  xsE1Exs^-   xsEexs^-   34+
+    ix    012345678   01234567   012
+    form  abbababcc   abbaabcc   aac
+    stk   111223321   11123321   121
+    arg1  .......42   ......32   ..0
+     */
+    next.stk[blen] = next.stack;
+    next.arg1[blen] = ARG1_NA; /* Default value is "not applicable" */
+    if (s == ((symbol)'c')) {
+      /* Find where the first argument is */
+      for (i=(s16)(blen-2); i>=0; i--) {
+        if (next.stk[i] == next.stack) {
+          next.arg1[blen] = i;
+          i = -1; /* we found it, make the loop exit */
+        }
+      }
+    }
+
     /* check viability for expressions */
     gen_expr = 0;
     if (next.stack == 1) {
       gen_expr = 1;
+      /* if (next.flen < MAX_ELEN) { g_dstats[next.flen]++; } */
       if (next.min_weight > e_maxw) {
         if (debug_w) {
           printf("gf_1 [%s] min weight too big for expressions\n", next.sym);
@@ -9287,6 +9601,7 @@ stats_count gf_1(form *base, s16 e_minw, s16 e_maxw, s16 using_x,
       if (debug_w) {
         printf("gf_1 generating expressions on form [%s]\n", next.sym);
       }
+
       g_ne += ge_1(&next, e_minw, e_maxw, using_x,
         a_minw, a_maxw, b_minw, b_maxw, c_minw, c_maxw); /* this is in gf_1 */
     }
@@ -9318,6 +9633,7 @@ stats_count gen_forms(s16 e_minw, s16 e_maxw, s16 using_x,
 {
   form base;
   stats_count n;
+/* int i; for(i=0; i<MAX_ELEN; i++) { g_dstats[i] = 0; } */
 
   n = 0;
   base.flen = 0;
@@ -9327,8 +9643,17 @@ stats_count gen_forms(s16 e_minw, s16 e_maxw, s16 using_x,
   n = gf_1(&base, e_minw, e_maxw, using_x,
                           a_minw, a_maxw, b_minw, b_maxw, c_minw, c_maxw);
 
+/*  if (debug_y) {
+    printf("%s", "nforms[i] >= {");
+    for(i=0; i<MAX_ELEN; i++) {
+      if (i > 0) { printf(", "); }
+      printf("%ld", g_dstats[i]);
+    }
+    printf(", ...}\n");
+  } */
+
   return(n);
-}
+} /* End of gen.forms */
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   Routines for initializing the data structures and variables used for the
@@ -9458,7 +9783,7 @@ void setup_abc_mmw(void)
 
   for (i=0; i<SYMBOL_RANGE; i++) {
     if (sym_attrs[i].sa_known) {
-      /* This symbol was enabled at init2() time */
+      /* This symbol was enabled at init.2() time */
       if (sym_attrs[i].sa_alwd) {
         /* We want this symbol for this petit cycle. %%% For proper solve-for-x
            with restricted symbol sets, this part of the test will
@@ -9724,6 +10049,7 @@ void somesyms_set(symbol * s, s16 n)
 {
   while (s && *s) {
     sym_attrs[*s].sa_alwd = n;
+    /* if (*s == 'W') { printf("Set W to %d\n", n); } */
     s++;
   }
 }
@@ -9750,7 +10076,7 @@ void set_anagram(char * anagram)
       }
     }
   }
-}
+} /* End of set.anagram */
 
 /* init1() sets defaults (anything that can be overridden or changed by
    command-line arguments) */
@@ -9769,42 +10095,35 @@ void init1()
   g_num_find_expr = 0;
   g_eval_expr = 0;
 
-  /* There are three command-line options for specifying the symbolset:
-     -S, -O, and -N. -S means "use only these symbols"; -O means "use
-     at most one of these per expression" and -N means "don't use these
-     symbols at all".
+  /* There are four command-line options for specifying the symbolset:
+     -S, -O, -E, and -N. -S means "use only these symbols"; -O means "use
+     at most one of these per expression"; -E and -N enable and disable
+     certain symbols without affecting any others.
 
-     These options are stored into the three arrays sym_yes, sym_once,
-     and sym_no respectively while scanning the command-line. However,
-     during actual expression generation only the array sa.alwd (FKA
-     sym_allowed) is used. sa.alwd speficies how many of each symbol is
-     allowed in each expression. In sa.alwd, a value of 0 is used for
-     -N symbols, 1 for -O symbols, and MAX_ELEN for -S symbols.
+     Initially all symbols are enabled except 'W'. While scanning the
+     command-line, when any of these symbolset-selection arguments is
+     encountered they cause the sa.alwd fields (FKA an array "sym_allowed")
+     to be modified. sa.alwd speficies how many of each symbol is
+     allowed in each expression. -N changes the sa.alwd value to 0,
+     -O sets it to 1, -E and -S set it to MAX_ELEN, and -S also sets all
+     other symbols' sa.alwd value to 0.
 
-     If there is no -S option, the default for any symbols not mentioned
-     in -O or -N is that they are enabled in the normal way. Also, when
-     there are conflicts -S takes precedence over -O and -O takes
-     precedence over -N. This is implemented in 5 steps as follows:
-
-     - start with all entries of sa.alwd = MAX_ELEN
-
-     - if there was a -S argument, clear all entries to 0
-
-     - set all entries specified by -N to 0
-
-     - set all entries specified by -O to 1
-
-     - set all entries specified by -S to MAX_ELEN
-
+     These are done in the order the options are given. (In earlier versions of
+     RIES, there were only the options -S, -N and -O; their parameters
+     were remembered until all command-line options were parsed, and then
+     they were handled as if they had been given in the order: -N, then
+     -O, then -S).
   */
   for(i=0; i<SYMBOL_RANGE; i++) {
     sym_attrs[i].preempt_weight = -1;
   }
   allsyms_set(MAX_ELEN, 1);
+  somesyms_set((symbol *) "W", 0);
   S_option = B_FALSE;
   NOS_options = B_FALSE;
   g_show_ss = B_FALSE;
   x_lhs_only = B_FALSE;
+  g_no_cv_simplify = B_FALSE;
   g_one_sided = B_FALSE;
   g_solve_for_x = B_FALSE;
   g_reported_exhaustion = B_FALSE;
@@ -9874,6 +10193,15 @@ void init2()
   } else {
     sym_attrs['x'].sa_alwd = MAX_ELEN;
   }
+
+#ifdef DUMMY_LAMBERT
+  if (sym_attrs['W'].sa_alwd) {
+    printf("%s: The Lambert W function 'W' requires the stand-alone maths library.\n",
+      g_argv0);
+    brief_help();
+    print_end(1);
+  }
+#endif
 
   for(i=0; i<SYMBOL_RANGE; i++) {
     sym_attrs[i].seft = 0;
@@ -9956,7 +10284,7 @@ void init2()
                                            "tanpi(X) = tan(pi * x)", "tanpi");
   } else {
     /* With any other scale factor we just call it "sin", etc. and let
-       the user fend for himself (there are two many possibilities to
+       the user fend for himself (there are too many possibilities to
        test for: degrees, grads, and of course natural units, plus all
        the nonstandard units). Presumably if the user gave a scale factor,
        she knows what the definition is. */
@@ -9965,8 +10293,13 @@ void init2()
     add_symbol(ADDSYM_NAMES('C', "cos",  "cos"),
       'b',  3,  "C(x) = cosine", 0, "cosine");
     add_symbol(ADDSYM_NAMES('T', "tan",  "tan"),
-      'b',  3,  "T(x) = tangent", 0, "tangent");
+      'b',  6,  "T(x) = tangent", 0, "tangent");
   }
+
+  add_symbol(ADDSYM_NAMES('W', "W", "W"),
+	     'b', 5, "W(x) = LambertW(x) = inverse(x=w*e^w)",
+	     "W(x) = LambertW(x) = inverse(x=w*e^w)", "W");
+
 
   /* seft 'c' symbols */
   add_symbol(ADDSYM_NAMES('+', "+",    "+"),
@@ -10170,6 +10503,21 @@ void init2()
 
   /* 20130130: [AB^q] = sqrt(A^B) is the same as [AqB^] = sqrt(A)^B */
   add_rule("",     'q', AM_pow);  /* [AB^q] -> [AqB^]       */
+
+  /* 20141212: [2E]->[es], e.g. 1.07822380518236 finds xfLr = 2E1- */
+  add_rule("es",   'E', AM_2);    /* [2E] => [es]           */
+  add_rule("E",    '^', AM_a1_e); /* [e..^] => [..E]        */
+
+  /* 20141213 If I disable these I can find examples with the
+     #search1# script, e.g. the command ./search1 es '1ab/'
+     found that "ries 3.31130856083748 -F0 -n999 -l3 --no-refinement --max-match-distance 1e-6" gave the result "x4xr-+ = 31pq/v" */
+  add_rule("",     '*', AM_a1_1); /* [1..*] => [..]         */
+  add_rule("r",    '/', AM_a1_1); /* [1../] => [..r]        */
+
+  /* 20141215 More redundancy found via ./search1 es '[1r]ab*[v^]' */
+  add_rule("",     'v', AM_a1_r); /* [r..v] => [..vr]       */
+  add_rule("",     '^', AM_a1_r); /* [r..^] => [..^r]       */
+  add_rule("e",    'E', AM_1);    /* [1E] => [e]            */
 
   /* Compute the weight of the most complex expression that could possibly
      fit in the available MAX_ELEN symbols */
@@ -10386,7 +10734,7 @@ int parse_target(char *str)
 
   /* Tell the caller whether we got something */
   return nv;
-}
+} /* End of parse.target */
 
 void set_debug_opts(char * str)
 {
@@ -10440,7 +10788,24 @@ void set_debug_opts(char * str)
     }
     str++;
   }
-}
+} /* End of set.debug_opts */
+
+/* Summary of how each of the restricted class options is implemented
+
+  Option                            -i   -r   -c   -a   -l
+  g_restrict_subexpr                INT  RAT CONS  ALG  TRAN
+  g_restrict_exponents                             RAT  ELEM
+  g_restrict_trig_args                             RAT  ELEM
+  set_restrict_rat                        *
+  set_restrict_alg                                  1    0
+  somesyms_set:
+    digits                           *    *    *    *    *
+    +-* /nr                          *    *    *    *    *
+    sqf                                        *    *    *
+    x                                1    1    1    *    *
+    ^vSCT                                           *    *
+    eplEL                                                *
+ */
 
 /* Restrict to rational subexpressions. This is invoked by the -r
 option and when we switch to -r after getting -i with a non-integer
@@ -10448,7 +10813,7 @@ target. */
 void set_restrict_rat(void)
 {
   g_restrict_subexpr = TYPE_RAT;
-  somesyms_set((symbol *) "pefqSCTlvLE", 0);
+  somesyms_set((symbol *) "pefqSCTlvLEW", 0);
   somesyms_set((symbol *) "+-*/nr", MAX_ELEN);
   somesyms_set((symbol *) "x", 1);
   somesyms_set((symbol *) "s^", 0); /* %%% Once I improve LHS vs RHS
@@ -10465,13 +10830,17 @@ void set_restrict_alg(int restrict_trig)
   g_restrict_subexpr = TYPE_ALG;
   /* This option is mostly achieved by turning off transcendental
      functions. */
-  somesyms_set((symbol *) "pelLE", 0);
+  somesyms_set((symbol *) "pelLEW", 0);
   /* Unlike with the smaller classes (constructible, rational) we allow
      more than one x in the solution */
   somesyms_set((symbol *) "+-*/nrsqfx", MAX_ELEN);
   /* Exponents are okay as long as we use only rational exponents.
      The implementation of g_restrict_exponents also disallows x
      in an exponent. */
+  /* %%% It might be nice to have a restriction permitting integer exponents
+     of x if the exponent is 5 or less, which would let us offer an
+     "algebraic closed-form" class. For now, -Ox is the only way to get
+     a guarantee of closed-form roots. */
   somesyms_set((symbol *) "^v", MAX_ELEN);
   g_restrict_exponents = TYPE_RAT;
   /* Trig functions are okay as long as we restrict their arguments
@@ -10483,7 +10852,7 @@ void set_restrict_alg(int restrict_trig)
     k_sincos_arg_scale = k_pi;
     g_trig_scale_default = B_TRUE;
   }
-}
+} /* End of set.restrict_alg */
 
 # define MAX_FILE_DEPTH 27
 size_t stk_nargs[MAX_FILE_DEPTH];
@@ -10510,27 +10879,29 @@ char * pa_defaults_path(void)
   sep = '/';
 #endif
   if (hd) {
+    size_t plen;
     /* Allocate enough space to copy the directory, plus a leading "-p",
        a directory separator character '/' or '\\', and filename e.g.
        "ries_profile.txt" plus trailing null */
-    pdp = (char *) malloc(sizeof(char) * (strlen(hd) + 100));
+    plen = sizeof(char) * (strlen(hd) + 100);
+    pdp = (char *) malloc(plen);
     if (pdp) {
       /* Copy the environment variable while adding all the rest */
-      sprintf(pdp, "-p%s%c%s", hd, sep, "ries_profile.txt");
+      snprintf(pdp, plen, "-p%s%c%s", hd, sep, "ries_profile.txt");
       /* Try to open it */
       if (f = fopen(pdp+2,"r"), f) {
         /* Successful: close the file and return the string pointer */
         fclose(f); return pdp;
       }
       /* That filename did not work; try again with ".ries_profile" */
-      sprintf(pdp, "-p%s%c%s", hd, sep, ".ries_profile");
+      snprintf(pdp, plen, "-p%s%c%s", hd, sep, ".ries_profile");
       if (f = fopen(pdp+2,"r"), f) {
         fclose(f); return pdp;
       }
     }
   }
   return 0;
-}
+} /* End of pa.defaults_path */
 
 /* Return a pointer to the next argument, or a null string if there
    are no more arguments on the present stack. */
@@ -10588,7 +10959,7 @@ char * pa_stk_pop(void)
     pa_this_arg = *(stk_argv[pa_sp]);
   }
   return pa_this_arg;
-}
+} /* End of pa_stk_pop */
 
 /* Scan argv, parsing and executing arguments. When a --include/-p argument
    is encountered, open and scan the indicated file. Recursion is implemented
@@ -10721,126 +11092,154 @@ void parse_args(size_t nargs, char *argv[])
          command that gives an expression's complexity score */
 
 
-      } else if (strcmp(pa_this_arg, "--any-exponents") == 0) {
-        g_restrict_exponents = TYPE_NONE;
+    } else if (strcmp(pa_this_arg, "--any-exponents") == 0) {
+      g_restrict_exponents = TYPE_NONE;
 
-      } else if (strcmp(pa_this_arg, "--any-trig-args") == 0) {
-        g_restrict_trig_args = TYPE_NONE;
+    } else if (strcmp(pa_this_arg, "--any-subexpressions") == 0) {
+      g_restrict_subexpr = TYPE_NONE;
 
-      } else if (strcmp(pa_this_arg, "--canon-reduction") == 0) {
-        if (pa_next_isparam()) {
-          /* Set which types of canonval reduction to use. */
-          char * s;
-          s = pa_get_arg();
-          if (s) {
-            g_canon_ops = 0;
-            while(*s) {
-              switch(*s) {
-                case 'n': ; g_canon_ops |= CANONVAL_NEGATE; break;
-                case 'r': ; g_canon_ops |= CANONVAL_RECIPROCAL; break;
-                case '2': ; g_canon_ops |= CANONVAL_MUL2; break;
-                case '5': ; g_canon_ops |= CANONVAL_DIV2; break;
-                default: ; break;
-              }
-              s++;
+    } else if (strcmp(pa_this_arg, "--any-trig-args") == 0) {
+      g_restrict_trig_args = TYPE_NONE;
+
+    } else if (strcmp(pa_this_arg, "--canon-reduction") == 0) {
+      if (pa_next_isparam()) {
+        /* Set which types of canonval reduction to use. */
+        char * s;
+        s = pa_get_arg();
+        if (s) {
+          g_canon_ops = 0;
+          while(*s) {
+            switch(*s) {
+              case 'n': ; g_canon_ops |= CANONVAL_NEGATE; break;
+              case 'r': ; g_canon_ops |= CANONVAL_RECIPROCAL; break;
+              case '2': ; g_canon_ops |= CANONVAL_MUL2; break;
+              case '5': ; g_canon_ops |= CANONVAL_DIV2; break;
+              default: ; break;
             }
+            s++;
           }
-        } else {
-          printf("%s: --canon-reduction requires a set of reduction types, "
+        }
+      } else {
+        printf("%s: --canon-reduction requires a set of reduction types, "
             "e.g. 'nr25'\n"
             "\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
+
+    } else if (strcmp(pa_this_arg, "--canon-simplify") == 0) {
+      g_no_cv_simplify = B_FALSE;
+
+    } else if (strcmp(pa_this_arg, "--derivative-margin") == 0) {
+      /* Override default value of k_vanished.dx */
+      ries_dif t;
+      pa_get_arg();
+      if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
+        if (t < 0) {
+          printf("%s: --derivative-margin must be positive (I got %g).\n"
+              "\n", g_argv0, t);
           brief_help();
           print_end(-1);
-        }
-
-      } else if (strcmp(pa_this_arg, "--derivative-margin") == 0) {
-        /* Override default value of k_vanished.dx */
-        ries_dif t;
-        pa_get_arg();
-        if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
-          if (t < 0) {
-            printf("%s: --derivative-margin must be positive (I got %g).\n"
-              "\n", g_argv0, t);
-            brief_help();
-            print_end(-1);
-          } else if (t > 1.0e-4) {
-            /* Too large */
-            printf("%s: --derivative-margin value should be at most 1.0e-4.\n"
+        } else if (t > 1.0e-4) {
+          /* Too large */
+          printf("%s: --derivative-margin value should be at most 1.0e-4.\n"
               "\n", g_argv0);
+          brief_help();
+          print_end(-1);
+        } else {
+          k_derivative_margin = t;
+          printf("Allowing d/dx to be as small as value times %g.\n",
+              k_derivative_margin);
+        }
+      } else {
+        printf("%s: --derivative-margin should be followed by a numeric "
+            "argument.\n"
+            "\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
+
+    } else if (strcmp(pa_this_arg, "--eval-expression") == 0) {
+      if (pa_next_isparam()) {
+        /* This is used to check FORTH expression syntax; it is a complement
+           to --find-expression and some of the other command options
+           like -F0 and -DGg */
+        while(pa_next_isparam()) {
+          if (g_num_find_expr > MAX_FIND_EXPR) {
+            printf("%s: --eval-expression takes at most %d arguments.\n",
+                g_argv0, MAX_FIND_EXPR);
             brief_help();
             print_end(-1);
-          } else {
-            k_derivative_margin = t;
-            printf("Allowing d/dx to be as small as value times %g.\n",
-              k_derivative_margin);
           }
+          g_find_expr[g_num_find_expr] = (symbol *) pa_get_arg();
+          g_num_find_expr++;
+        }
+        g_enable_output = 0;
+        g_eval_expr = 1;
+      } else {
+        printf("%s: --eval-expression should be followed by compact "
+            "postfix expression(s).\n"
+            "\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
+
+    } else if (strcmp(pa_this_arg, "--explicit-multiply") == 0) {
+      g_explicit_multiply = B_TRUE;
+
+    } else if (strcmp(pa_this_arg, "--find-expression") == 0) {
+      if (pa_next_isparam()) {
+        /* This is used to scan for one of more expression(s) and print
+           out their stats, in whatever order they happen to be found. This
+           is an easier-to-use replacement for the -DGg option filtered
+           through grep. */
+        while(pa_next_isparam()) {
+          if (g_num_find_expr > MAX_FIND_EXPR) {
+            printf("%s: --find-expression takes at most %d arguments.\n",
+                g_argv0, MAX_FIND_EXPR);
+            brief_help();
+            print_end(-1);
+          }
+          g_find_expr[g_num_find_expr] = (symbol *) pa_get_arg();
+          g_num_find_expr++;
+        }
+        g_enable_output = 0;
+      } else {
+        printf("%s: --find-expression should be followed by compact "
+            "postfix expression(s).\n"
+            "\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
+
+    } else if ((strcmp(pa_this_arg, "--match-all-digits") == 0)
+            || (strcmp(pa_this_arg, "--mad") == 0)
+    ) {
+      g_match_all_digits = B_TRUE;
+      k_max_match_dist = -0.01; /* This will be calculated from the target
+                                   by init.2 */
+
+      } else if (strcmp(pa_this_arg, "--max-equate-value") == 0) {
+        ries_val t;
+        pa_get_arg();
+        if (pa_this_arg && sscanf(pa_this_arg, RV_SS_FMT, &t)) {
+          if (t <= g_min_equ_val) {
+            printf("%s: --max-equate-value argument cannot be greater than "
+              "--min-equate-value argument.\n", g_argv0);
+            brief_help();
+            print_end(-1);
+          }
+          g_max_equ_val = t;
+          printf("Equations will have both sides at most ");
+          spfg(k_usable_digits, g_max_equ_val);
+          printf("\n");
         } else {
-          printf("%s: --derivative-margin should be followed by a numeric "
+          printf("%s: --max-equate-value should be followed by a numeric "
             "argument.\n"
             "\n", g_argv0);
           brief_help();
           print_end(-1);
         }
-
-      } else if (strcmp(pa_this_arg, "--eval-expression") == 0) {
-        if (pa_next_isparam()) {
-          /* This is used to check FORTH expression syntax; it is a complement
-             to --find-expression and some of the other command options
-             like -F0 and -DGg */
-          while(pa_next_isparam()) {
-            if (g_num_find_expr > MAX_FIND_EXPR) {
-              printf("%s: --eval-expression takes at most %d arguments.\n",
-                g_argv0, MAX_FIND_EXPR);
-              brief_help();
-              print_end(-1);
-            }
-            g_find_expr[g_num_find_expr] = (symbol *) pa_get_arg();
-            g_num_find_expr++;
-          }
-          g_enable_output = 0;
-          g_eval_expr = 1;
-        } else {
-          printf("%s: --eval-expression should be followed by compact "
-            "postfix expression(s).\n"
-            "\n", g_argv0);
-          brief_help();
-          print_end(-1);
-        }
-
-      } else if (strcmp(pa_this_arg, "--explicit-multiply") == 0) {
-        g_explicit_multiply = B_TRUE;
-
-      } else if (strcmp(pa_this_arg, "--find-expression") == 0) {
-        if (pa_next_isparam()) {
-          /* This is used to scan for one of more expression(s) and print
-             out their stats, in whatever order they happen to be found. This
-             is an easier-to-use replacement for the -DGg option filtered
-             through grep. */
-          while(pa_next_isparam()) {
-            if (g_num_find_expr > MAX_FIND_EXPR) {
-              printf("%s: --find-expression takes at most %d arguments.\n",
-                g_argv0, MAX_FIND_EXPR);
-              brief_help();
-              print_end(-1);
-            }
-            g_find_expr[g_num_find_expr] = (symbol *) pa_get_arg();
-            g_num_find_expr++;
-          }
-          g_enable_output = 0;
-        } else {
-          printf("%s: --find-expression should be followed by compact "
-            "postfix expression(s).\n"
-            "\n", g_argv0);
-          brief_help();
-          print_end(-1);
-        }
-
-      } else if ((strcmp(pa_this_arg, "--match-all-digits") == 0)
-              || (strcmp(pa_this_arg, "--mad") == 0)
-      ) {
-        g_match_all_digits = B_TRUE;
-        k_max_match_dist = -0.01; /* This will be calculated from the target
-                                     by init.2 */
 
       } else if (strcmp(pa_this_arg, "--max-match-distance") == 0) {
         ries_dif t;
@@ -10931,7 +11330,31 @@ void parse_args(size_t nargs, char *argv[])
           print_end(-1);
         }
 
+      } else if (strcmp(pa_this_arg, "--min-equate-value") == 0) {
+        ries_val t;
+        pa_get_arg();
+        if (pa_this_arg && sscanf(pa_this_arg, RV_SS_FMT, &t)) {
+          if (t >= g_max_equ_val) {
+            printf("%s: --min-equate-value argument cannot be greater than "
+              "--max-equate-value argument.\n", g_argv0);
+            brief_help();
+            print_end(-1);
+          }
+          g_min_equ_val = t;
+          printf("Equations will have both sides at least ");
+          spfg(k_usable_digits, g_min_equ_val);
+          printf("\n");
+        } else {
+          printf("%s: --min-equate-value should be followed by a numeric "
+            "argument.\n"
+            "\n", g_argv0);
+          brief_help();
+          print_end(-1);
+        }
+
       } else if (strcmp(pa_this_arg, "--min-match-distance") == 0) {
+        /* %%% I might want to have "-ee" be a synonym for
+               "--max-match-distance 0" */
         ries_dif t;
         pa_get_arg();
         if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
@@ -10973,6 +11396,9 @@ void parse_args(size_t nargs, char *argv[])
           brief_help();
           print_end(-1);
         }
+
+      } else if (strcmp(pa_this_arg, "--no-canon-simplify") == 0) {
+        g_no_cv_simplify = B_TRUE;
 
       } else if (strcmp(pa_this_arg, "--no-refinement") == 0) {
         g_refinement = 0;
@@ -11164,16 +11590,23 @@ void parse_args(size_t nargs, char *argv[])
         g_relative_x = B_TRUE;
 
       /* Single-character arguments:
+       { %% those in braces are not yet implemented }
          -0 to -9    target number with leading - sign
+         -a          Algebraic class
+         -c          Constructible class
                -D    Debug
+       { -e          Elementary class (between algebraic and Liouvillian) }
+       { -ee         Exact exit (might be confused with -e plus 'exact') }
                -F    Format
-         -i          integer
-         -l          level
+         -i          Integer class (and -ie)
+         -l          Liouvillian (if bare); level (if with digit)
                -N    Not these symbols
                -O    Once-only symbols
          -p          profile/parameters (parsed above)
+         -r          Rational class (and -re)
          -s          (try to) solve for x
                -S    Symbolset
+       { -t          Transcendental class (enable [W], [G], etc.) }
          -x          Show X, not T+epsilon
        */
       /* Next we check the "-xN" type options, in which the "opcode" is a
@@ -11206,7 +11639,7 @@ void parse_args(size_t nargs, char *argv[])
         }
         /* This option is just shorthand for turning off a bunch of
            functions. */
-        somesyms_set((symbol *) "peSCTl^vLE", 0);
+        somesyms_set((symbol *) "peSCTl^vLEW", 0);
         somesyms_set((symbol *) "+-*/nrsqf", MAX_ELEN);
         somesyms_set((symbol *) "x", 1);
         /* %%% Once I add an integer arguments option for ^, I can enable it
@@ -11241,6 +11674,7 @@ void parse_args(size_t nargs, char *argv[])
               || (strcmp(pa_this_arg, "--integer-subexpressions") == 0)) {
         /* Integer subexpressions */
         g_restrict_subexpr = TYPE_INT;
+        somesyms_set((symbol *) "pefqSCTlvLEW", 0);
         if (pa_this_arg[2] == 'e') {
           /* They gave "-ie" */
           g_exact_exit = B_TRUE;
@@ -11263,13 +11697,14 @@ void parse_args(size_t nargs, char *argv[])
             print_end(-1);
           }
         } else {
-          /* Bare "-l" selects Liouvillian roots */
+          /* We have a bare "-l", or "--liou..." without the "--"; in either
+             case this means we want to restrict to Liouvillian roots */
           set_restrict_alg(0);
           /* Enable exponential and logarithmic functions (but not Gamma or
              LambertW) */
           somesyms_set((symbol *) "eplEL", MAX_ELEN);
           /* To disallow x within an exponent, but still allow anything
-             else in an exponent, we set g_restrict_subexpr to TYPE_TRAN
+             else in an exponent, we set g_restrict.subexpr to TYPE_TRAN
              which causes g_target to be tagged as transcendental. Then
              we restrict exponents and trigonometric arguments to elementary,
              allowing even something like e^(2^(1/phi)). This allows
@@ -11354,7 +11789,7 @@ void parse_args(size_t nargs, char *argv[])
   /* At this point pa_sp <= 0 and stk_nargs[pa_sp] == 0, so we're out of
      args */
 
-}
+} /* End of parse.args */
 
 /* We use precise and sized datatypes (e.g. 16-bit integer), and
 /  in some cases (old compilers) we need to define these with a custom
@@ -11421,7 +11856,36 @@ void validate_types(void)
     }
     print_end(-1);
   }
-}
+} /* End of validate.types */
+
+/* Try to make a guess as to whether a value is integer or rational.
+   Due to the main purpose of the rational tags (filtering the types of
+   arguments to transcendental functions) we only count it as rational
+   if it's a half or quarter-integer.
+       %%% tgs-manip: We could really go nuts and run a continued
+   fraction series calculation, but that's second-guessing the user. I'd
+   rather add a syntax allowing the user to explicitly give a fraction as
+   the target number, and that's sort of counter to the purpose of RIES.
+   Note that if the user knows what type the target is, she can use an
+   option like -a or -c to specify it as such. */
+ries_tgs guess_valtype(ries_val v)
+{
+  if (v == FLOOR(v)) {
+    return TYPE_INT;
+  } else if (FLOOR(v*4.0) == (v*4.0)) {
+    /* Target is a half-integer or quarter-integer */
+    return TYPE_RAT;
+  }
+  /* Set target class based on selected restriction, but not better than
+     rational since we know it's not an integer. We are giving it
+     the benefit of the doubt: in fact, *every* target value is
+     rational because it is specified in terms of a finite number of
+     decimal digits.
+       If they set --rational-exponents (including the -a option),
+     g_restrict_exponents will be set to TYPE_RAT and if this target
+     type is also lower than RAT, we'll prohibit x in the exponent. */
+  return TGMIN(TYPE_RAT, g_restrict_subexpr);
+} /* End of guess.valtype */
 
 int main(int nargs, char *argv[])
 {
@@ -11473,27 +11937,19 @@ int main(int nargs, char *argv[])
   }
 
   if (g_got_target) {
-    /* Try to make a guess as to whether the target is integer or rational.
-       Due to the main purpose of the rational tags (filtering the use of
-       x as an argument to transcendental functions) we only count it as
-       rational if it's a half or quarter-integer.
-         %%% tgs-manip: We could really go nuts and run a continued fraction
-       series calculation, but that's second-guessing the user. I'd rather
-       add a syntax allowing the user to explicitly give a fraction as the
-       target number, and that's sort of counter to the purpose of RIES. */
-    if (g_target == FLOOR(g_target)) {
-      g_targ_tags = TYPE_INT;
-    } else if (FLOOR(g_target*4.0) == (g_target*4.0)) {
-      g_targ_tags = TYPE_RAT;
-    } else {
-      /* Set target class based on selected restriction, but not better than
-         rational since we know it's not an integer. We are giving it
-         the benefit of the doubt: in fact, *every* target value is
-         rational because it is specified in terms of a finite number of
-         decimal digits. If they set --rational-exponents (including the
-         -a option), we prohibit x in the exponent. */
-      g_targ_tags = TGMIN(TYPE_RAT, g_restrict_subexpr);
-    }
+    g_targ_tags = guess_valtype(g_target);
+  }
+
+  /* printf("valtype of pi is %s", tagname(tg_pi)); */
+  if (g_restrict_subexpr > tg_pi) {
+    tg_pi = TGMIN(TYPE_RAT, g_restrict_subexpr);
+  }
+  /* printf(" -> %s\n", tagname(tg_pi)); */
+  if (g_restrict_subexpr > tg_phi) {
+    tg_phi = TGMIN(TYPE_RAT, g_restrict_subexpr);
+  }
+  if (g_restrict_subexpr > tg_e) {
+    tg_e = TGMIN(TYPE_RAT, g_restrict_subexpr);
   }
 
   /* Execute the --eval-expression option */
@@ -11684,10 +12140,15 @@ int main(int nargs, char *argv[])
   -------------------------------------------------------------------------- */
 
   if (g_enable_output) {
+    char fmt1[FMT_STR_SIZE];
     printf("\n");
     printf("   Your target value: T = ");
     spff(k_usable_digits, tgt_to_print); /* printf(fmt_g_usa_fixed, tgt_to_print) */
-    printf("%s", "           www.mrob.com/ries\n\n");
+    /* If robustness were not important we could use the "%*" printf
+       extension to get the variable width */
+    snprintf(fmt1, FMT_STR_SIZE, "%s%d%s", "  %", 44 - k_usable_digits, "s"); /* "  %27s" */
+    printf(fmt1, "mrob.com/ries");
+    printf("%s", "\n\n");
   }
 
   /* printing symbol weight limits for debugging */
@@ -11728,7 +12189,11 @@ int main(int nargs, char *argv[])
 #ifdef RIES_USE_SA_M64
   /* Test of new Lambert W function in msal_math64.c */
   if (debug_z) {
+# ifdef RIES_VAL_LDBL
+    msal_test_lambertl();
+# else
     msal_test_lambert();
+# endif
     msal_test_gamma();
     msal_test_spfg();
   }
@@ -11785,7 +12250,7 @@ int main(int nargs, char *argv[])
       genf = gen_forms(rmin, rmax, 0,
                   g_a_minw, g_a_maxw, g_b_minw, g_b_maxw, g_c_minw, g_c_maxw);
       if (debug_y) {
-        printf("finished RHS from {%d} to {%d}: %g forms, %g expressions.\n",
+        printf("finished RHS from {%d} to {%d}: %g forms expanded, %g expressions.\n",
                rmin, rmax, genf, g_ne);
       }
       rhs_gen += g_ne;
@@ -11800,7 +12265,7 @@ int main(int nargs, char *argv[])
       genf = gen_forms(lmin, lmax, 1,
                   g_a_minw, g_a_maxw, g_b_minw, g_b_maxw, g_c_minw, g_c_maxw);
       if (debug_y) {
-        printf("finished LHS from {%d} to {%d}: %g forms, %g expressions.\n",
+        printf("finished LHS from {%d} to {%d}: %g forms expanded, %g expressions.\n",
                lmin, lmax, genf, g_ne);
         printf("\n");
       }
@@ -11932,7 +12397,7 @@ int main(int nargs, char *argv[])
 /*
     ries.c
     RIES -- Find Algebraic Equations, Given Their Solution
-    Copyright (C) 2000-2013 Robert P. Munafo
+    Copyright (C) 2000-2016 Robert P. Munafo
 
     See copyright notice at beginning of this file.
  */
