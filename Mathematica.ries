@@ -1,0 +1,70 @@
+# Mathematica format for RIES        a.k.a. "Stump Wolfram Alpha" mode
+#
+# Use these settings to get RIES output in a format that can be cut and
+# pasted directly into Wolfram Alpha.
+#
+# To use this file:
+#
+#   Put it in your current directory and give it a name, like "Mma.ries"
+#   To use it, use the option "-pMma", for example:
+#
+#   ries 2.50618 -pMma
+#
+#   Your target value: T = 2.50618                         www.mrob.com/ries
+#
+#                   x^x == 1+9                    for x = T + 4.14559e-06 {59}
+#              Log[x]^5 == Sqrt[3/7]              for x = T + 2.08332e-06 {93}
+#                 E^x-E == Pi*E+1                 for x = T + 9.45041e-08 {92}
+#             [x+x^2]/E == E*Sqrt[Sqrt[2]]        for x = T - 1.76964e-08 {105}
+#     x-Sqrt[Sqrt[x+1]] == 1/Sqrt[Sqrt[Pi]-1]     for x = T + 1.44938e-08 {111}
+#
+# Try it with your favorite irrational number, then take a few of the
+# equations RIES gives you and see if Wolfram Alpha can get your number back.
+# (You may need to select a button that says "Approximate form" or "More
+# digits").
+#   For Mathematica, add "Solve[ ... ,x]" or "FindRoot[ ... , {x, K}]"
+# around the RIES equation, where K is a starting value.
+#
+# 20130206: First version. We format everything we can, and exclude the
+#   operators we can't handle.
+# 20130207: Use '=='; add example and FindRoot[] syntax.
+
+--no-solve-for-x    # It's fun to copy the whole equation into WolframAlpha and
+                    # see if they can solve it (-:
+
+--symbol-weights    # Make multiple 'x's more likely so the resulting
+  10:x              # equations are more of a challenge to Mathematica.
+  #
+  15:S 15:C 15:T    # I don't care much for trig functions (-:
+
+--max-match-distance 0.0001 # Ask RIES for closer matches, just to make
+                            # it interesting.
+
+-NLv # RIES can't (yet) do the necessary fixity for these two operators
+
+-F2  # Infix format
+
+--explicit-multiply  # Make sure multiply is always shown as '*'
+
+--trig-argument-scale 1.0  # There's no way to get RIES to outout
+                           # "Cos[Pi*...]", so we'll remove the Pi
+
+# Now redefine the symbol names for all the functions and constants
+--symbol-names
+  :=:==
+  :q:Sqrt
+  :v:_Root_  # Needs to be a two-argument function rather than an infix symbol
+  :p:Pi
+  :f:GoldenRatio
+  :e:E
+  :L:Log_    # Needs to be the two-argument function Log[a,b]
+  :l:Log
+  :S:Sin
+  :C:Cos
+  :T:Tan
+  # We can also tell RIES to use brackets instead of parentheses
+  # %%% this does not work, I need to distinguish function-argument brackets
+  # from precedence-level-grouping brackets. MMA needs parentheses for the
+  # latter.
+  :(:[
+  :):]

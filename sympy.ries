@@ -1,0 +1,3 @@
+--explicit-multiply
+-Nv
+--symbol-names :1:S.One :^:** :e:E :f:GoldenRatio :W:LambertW

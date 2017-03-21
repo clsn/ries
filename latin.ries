@@ -1,0 +1,67 @@
+# RIES output in Latin
+#
+# To use this file:
+#
+#   Put it in your current directory and call it "latin.ries"
+#   Use the option "-platin", for example:
+#
+#   ries 2.50618 -platin -x
+#
+#      Your target value: T = 2.50618                    www.mrob.com/ries
+#
+#      hoc duo multiplici est quinque               for x = 2.5
+#     hoc octo multiplici est tres exponenta        for x = 2.51069211539846
+#     hoc quadrantur est circulus duo multiplici    for x = 2.506628274631
+#      hoc hoc suscitavit est novem unum atque      for x = 2.50618414558877
+#
+#   Copy one of more of the "equations" into Google Translate. Enjoy!
+#
+# Inspired by the work of Damian Conway:
+#   http://www.csse.monash.edu.au/~damian/papers/HTML/Perligata.html
+#   "Lingua::Romana::Perligata -- Perl for the XXI-imum Century"
+#
+# Additional translation from Google
+#
+# 20130306 First version
+# 20130307 A few better translations, and use 'est' for =
+#
+-F  # Use postfix format because it is closer to Latin grammar
+--symbol-names
+  :.:.      # Use '.' for blank space
+  :x:hoc
+  :=:est
+  :1:unum
+  :2:duo
+  :3:tres
+  :4:quattuor
+  :5:quinque
+  :6:sex
+  :7:septem
+  :8:octo
+  :9:novem
+  # If you prefer Roman numerals, un-comment the following line
+  # :1:I :2:II :3:III :4:IV :5:V :6:VI :7:VII :8:VIII :9:IX  
+  :p:circulus
+  :e:Eulerus
+  :+:atque
+  :-:deme
+  :n:nega
+  :*:multiplici
+  :/:divide
+  :r:reciproca
+  :s:quadrantur
+  :q:radix.quadrata
+  :^:suscitavit
+  :v:radix
+  :E:exponenta
+  :L:succide
+  :l:succide.naturalis
+  :S:oppone
+  :C:accuba
+  :T:tangentem
+
+--ries-arguments-end
+
+You may end a RIES profile with the option '--ries-arguments-end', causing
+RIES to ignore anything in the file that comes after it (such as this
+text).
