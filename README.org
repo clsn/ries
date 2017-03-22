@@ -1,0 +1,53 @@
+* RIES
+
+This is a repository made from Robert Munafo's fascinating [[http://mrob.com/pub/ries/index.html][ries]] program, which tries to find equations/approximations given a number.  So it can find fun approximations to π, or ℯ, or your phone number with a decimal point in front of it.  It was used in the making of https://xkcd.com/1047/.  Seriously, go check out the page.
+
+Munafo's official ries source is not (yet) on github, but I've been playing with it and wanted to make my tweaks available, at least.  Maybe I should make a =munafo= branch to track his official code--but then I'd have to remember to update that somewhat regularly.
+
+** Contents of Repository
+
+So, what's available here (at first) is:
+
+ + =ries.c= :: The source file for =ries=.  This contains *copious* comments, comprising Munafo's Changelog (but not mine), thoughts, compilation instructions, and everything else.
+
+ + =msal_math64.c= :: A standalone math library (also from Robert Munafo) that can optionally be used in =ries= to provide some more functionality (some transcendental functions.)
+
+ + =ries.1= :: The manual page for =ries=.  Also from Munafo.  I have not necessarily updated this to reflect any new features I may have added.
+
+ + =latin.ries= :: Now we are into =ries= profiles, which are settings of particular sets of =ries= options, including how to display the results, etc (=--symbol-names=).  This is from Munafo, supposed to display the results in Latin text.
+
+ + =Mathematica.ries= :: Another profile, also from Munafo, for producing output that could be pasted into Mathematica (perhaps with minor changes.)
+
+ + =constants.ries= :: Now we get into files that are from me (Mark Shoulson) and not Robert Munafo.  The main feature I've added is the ability to define additional constants to be used in =ries= equations.  So instead of only being able to generate equations made from single digits, π, ℯ, φ, and functions of them, you can decide, for example, that [[https://en.wikipedia.org/wiki/Ap%C3%A9ry%27s_constant][Apéry's constant]], ζ(3)≈1.20205690315959, is a "base" constant that can be used in your equations.  Or the [[https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant][Euler-Mascheroni constant], γ≈0.57721566490153286, or anything else you like.  This profile contains a selection of such constants:
+
+   + [[https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant][Euler-Mascheroni constant]] :: lim_{n→∞} (sum_{i=1}^n 1/i) - ln(n).  Approximately 0.5772156649
+
+   + [[https://en.wikipedia.org/wiki/Plastic_number][Plastic Number]] :: The unique real root of /x³-x-1/.  Approximately 1.324717957244746
+
+   + [[https://en.wikipedia.org/wiki/Ap%C3%A9ry%27s_constant][Apéry's constant]] :: ζ(3) (Riemann Zeta function).  Approximately 1.20205690315959
+
+   + [[https://en.wikipedia.org/wiki/Khinchin%27s_constant][Khinchin's constant]] :: The geometric mean of the partial quotients in the continued fraction expansion for "almost all" real numbers.  Approximately 2.6854520010653
+
+   + [[http://mathworld.wolfram.com/ContinuedFractionConstant.html][Continued Fraction constant]] :: The value of the continued fraction [0; 1, 2, 3, 4, …].  Equal to /I₁(2)/I₀(2)/, where the /I/-s refer to Bessel I-functions.  Approximately 0.697774657964
+
+   + [[https://en.wikipedia.org/wiki/L%C3%A9vy%27s_constant][Lévy's constant]] :: The limit as n→∞ of /qₙ^(1/n)/, where /qₙ/ is the /n/-th partial quotient of the continued fraction for "almost all" real numbers.  Equal to exp(π²/(12·ln 2)); approximately 3.275822918721811
+
+   + [[http://mathworld.wolfram.com/ReciprocalFibonacciConstant.html][Reciprocal Fibonacci constant]] :: The sum of the reciprocals of all the Fibonacci numbers.  Approximately 3.359885666243
+
+   + [[http://mathworld.wolfram.com/CatalansConstant.html][Catalan's Constant]] :: (Anyone know a simple description that indicates its utility?)  Approximately 0.9159655941772190
+
+   + Γ(γ) :: The [[https://en.wikipedia.org/wiki/Gamma_function][Gamma function]] applied to the Euler-Mascheroni constant (see above).  Because it's lots of gammas.
+
+ + =pretty.ries= :: A =ries= profile for replacing a few of the mathematical symbols with pretty unicode characters.  The main non-obvious one is that =ries='s n-th root operator (represented "/ in =ries=) is shown as √, while a true square root is ²√.
+
+ + =sympy.ries= :: A profile for use with the python symbolic math package [[http://www.sympy.org/][sympy]].  Does only a few very simple substitutions, like constant names, =**= for =^=, and =S.One= for =1=, so reciprocals (at least) won't get evaluated to floating-point numbers and sympy can keep them as rationals.
+
+ + =Makefile= :: A simple Makefile for building =ries=, as well as =riesw=, which is a name I gave to the version of =ries= with the =msal_math64.c= extensions included (because it supports the /W/-function), and processing the manual page to text, cleaning, etc.
+
+I hope Robert Munafo will eventually move =ries= onto github, and maybe we can do collaboration a little more smoothly.  But in the meantime, at least this is a way he can look at anything I've changed.
+
+** Extensions to =ries=
+
+As mentioned above, the one thing I've added to =ries= myself is the ability to add more constants.  You do this with the =-X= option, followed by a string of the form =symbol:weight:value=.  The symbol should be one character long and not already in use by =ries= (or other added constants).  The weight is used by =ries= to decide how "expensive" it is to use this constant, i.e. how much more "complicated" it makes the resulting expression.  I usually set this at 4, mostly just to pick a number.
+
+I think Munafo has not added this to =ries= yet because he's actually working on a more general solution allowing you to define your own /functions/, not just constants.  Which is good, and I'll be glad to remove this when we have something better, but this is just one more thing to play with--and playing is what =ries= does best.

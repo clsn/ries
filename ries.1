@@ -1,0 +1,1596 @@
+.TH RIES 1L "Manual version: 2017 Feb 12" \" -*- nroff -*-
+.\"
+.\"  This manpage uses the groff font family escape, as documented here:
+.\"
+.\"    gnu.org/software/groff/manual/html_node/Font-Families.html
+.\"
+.\"  If your system cannot handle it, you can get this manual in several
+.\"  other formats from:
+.\"
+.\"    mrob.com/ries
+.\"
+
+.SH NAME
+
+ries \- find algebraic equations, given their solution
+
+.SH SYNOPSIS
+
+\fBries\fR
+[\fB-l\fIn\fR] [\fB-i[e]\fR] [\fB-s\fR] [\fB-x\fR] [\fB-F\fIn\fR]
+[\fB-S\fIsss\fR] [\fB-N\fIsss\fR] [\fB-O\fIsss\fR]
+[\fB-D\fIxxx\fR] [\fB-p\fIfilename\fR]
+[\fB--extended-options\fR [...]] \fIvalue\fR
+
+.B ries --find-expression \fR[\fIexpression\fR [...]]
+
+.B ries --eval-expression \fR[\fIexpression\fR [...]]
+
+.SH DESCRIPTION
+
+Given a number, \fBries\fR searches for algebraic equations in one
+variable that have a solution (root) near that number. It avoids
+trivial or reducible solutions like ``\fIx\fR/\fIx\fR = 1''. If
+\fIvalue\fR is an integer, \fBries\fR can find an exact solution
+expressed in terms of single-digit integers.
+
+For example, if you supply the value 2.5063, the first part of
+\fBries\fR's output will resemble the following:
+
+.fam C
+.ps -2
+  $ ries 2.5063
+
+      Your target value: T = 2.5063              mrob.com/ries
+
+              2 x = 5              for x = T - 0.0063       {49}
+              8 x = e^3            for x = T + 0.00439212   {66}
+              x^2 = 2 pi           for x = T + 0.000328275  {55}
+              x^x = 1+9            for x = T - 0.000115854  {69}
+            x^2+e = 9              for x = T + 3.56063e-05  {63}
+          ln(6) x = sqrt(pi)+e     for x = T + 2.73037e-05  {93}
+            x/4+1 = 4,/7           for x = T + 6.24679e-06  {91}
+   sinpi(ln(x))^2 = 1/(5 pi)       for x = T + 2.75665e-06  {92}
+.ps +2
+.fam T
+
+The output gives progressively ``more complex'' solutions (as described
+below) that come progressively closer to matching your number. There
+are four columns: equations in symbolic form (two columns of
+expressions with '=' in the middle), solution of equation (value of
+\fIx\fR expressed as \fIT\fR plus a small error term), and total complexity
+score (described below).
+
+Each match is checked by solving for \fIx\fR using the Newton-Raphson
+method, and the closeness of the match is judged by the difference
+between the root (the value of \fIx\fR for which the two sides are
+equal) and your target value \fIT\fR.
+
+Options allow complete control over what symbols, constants
+and functions are used in solutions, or to limit solutions to
+integer, rational, constuctible, or algebraic values.
+
+.SH OPTIONS
+
+Options must be separate: `\FCries -l1 -i -Ox 27\FT',
+not `\FCries -l1iOx 27\FT'.
+
+.IP \fB-p\fIname\fR
+Profile (or Parameters): Load one or more options from file
+\fIname\fR. \fB-p\fIname\fR is equivalent to \fB--include\fR
+\fIname\fR, which is described in the EXTENDED OPTIONS section below.
+\fB-p\fR alone (with no \fIname\fR) has special meanings, also
+described under \fB--include\fR.
+
+
+.IP \fB-l\fIn\fR
+Level: Specifies the level of the search (default 2).
+With each increment of \fB-l\fR, \fBries\fR
+will search about 10 times as many equations, use
+3.5 times as much memory and take at least 4 times as long.
+Use higher levels to add more factors of 10.
+The level can be fractional or negative.
+Here are typical figures, measured on a Core i7 at 3.2 GHz
+(using only one thread) invoked by the command
+\fBries -l\fR\fIn\fR\fB 2.5063141592653589\fR
+for different values of searchlevel \fIn\fR:
+
+.fam C
+.ps -2
+           memory    equations tested  digits    run time
+       -l0  1.2M           89,400,000    6+       0.025 sec
+       -l1  4.0M          932,000,000    7+       0.08 sec
+       -l2  14 M       11,400,000,000    8+       0.33 sec
+       -l3  45 M      134,000,000,000    9+       1.8 sec
+       -l4  158M    1,600,000,000,000   11+       8.8 sec
+       -l5  490M   15,000,000,000,000   12+      37.1 sec
+       -l6  1.7G  184,000,000,000,000   13+      190 sec
+.ps +2
+.fam T
+
+(these times are a little quicker than a 2.33-GHz Core 2 Duo; on a
+733-MHz Pentium 3, the times were about 5 times longer. If compiled
+for an environment with 32-bit pointers, memory usage figures are about 20% lower.
+\fBries\fR also works on much older and smaller systems, and can test
+billions of equations in less than a minute on 1990's hardware)
+
+Use a fractional argument (like \fB-l5.5\fR) for more precise control
+of how much memory \fBries\fR will use before stopping its search.
+When free memory is exhausted; performance will degrade significantly
+and \fBries\fR might exit, depending on your operating system. Under
+Linux and Mac OS, \fBries\fR keeps running but the system slows to a
+crawl.
+If you don't know what your OS will do, be careful before running
+\fBries\fR with higher levels. In extreme cases your computer's
+response might slow down so much that you are unable to save your work in
+other applications.
+
+The memory limits are not reached nearly as quickly when the symbolset
+is greatly limited with \fB-S\fR, \fB-O\fR and \fB-N\fR or when
+\fB-i\fR is specified. \fB-i\fR in particular should allow about two
+more levels in any given amount of memory. Large arguments tend to
+lengthen runtime: for example, \FCries -l4 1058073667\FT takes about
+three times as long as \FCries -l4 1.058073667\FT.
+
+
+.SH Options to Select Symbols
+
+Several options are used to choose which symbols (constants,
+operations, and functions) \fBries\fR is allowed to use when searching
+for equations.
+
+
+.IP \fB-N\fIsss\fR
+Never use these: \fB-N\fR followed by one or more characters specifies
+symbols (constants and operators) that \fBries\fR
+should not use in its equations. The symbols are as follows:
+.RS 0.7i
+.IP 1-9
+The integers 1 through 9. (\fBries\fR constructs all larger
+integers from combinations of these.)
+.IP p
+pi = 3.14159...
+.IP e
+e = 2.71828...
+.IP f
+phi = (1+sqrt(5))/2 = 1.61803...
+.IP n
+Negative
+.IP r
+Reciprocal
+.IP s
+Squared
+.IP q
+Square root
+.IP "S C"
+Sine, Cosine
+.IP T
+Tangent
+.IP l
+ln (natural logarithm, also called log)
+.IP E
+e to the power of x
+.IP "+ -"
+Add, Subtract
+.IP "* /"
+Multiply, Divide
+.IP ^
+Power: 2 ^ 3 = 8
+.IP v
+Root (the ``v'' resembles part of the radical symbol): 3 v 27 = cube root of 27
+.IP L
+Logarithm to base A of B
+.IP W
+Lambert W function. Only available if using the stand-alone maths library,
+described in the section ``STAND-ALONE MATHS LIBRARY'' below. In addition,
+one must explicitly choose it with \fB\-EW\fR.
+.RE
+.IP
+
+There are lots of potential uses for \fB\-N\fR. For example,
+if you invoke \fBries\fR on a small irrational number,
+you might get several solutions that involve
+the unary and binary logarithm operators 'ln' (natural logarithm) and 'log_'
+(log to base A of B). If you decide
+you aren't interested in such solutions you can just
+add \fB-NlL\fR to your command line, and all such solutions
+will be skipped.
+
+If you are checking an unknown number that you found in the context of
+some larger problem, you probably have some idea what
+constants and operators may be involved, or not involved,
+in the phenomenon that produced your number. Use \fB-N\fR to
+rule out functions you don't think are relevant.
+
+Note that \fBries\fR will often run considerably slower when you limit
+it to a very small set of symbols, mainly because it cannot
+use its optimization rules (described below under
+ALGORITHM). Also, with fewer symbols the average length of
+expressions is longer, and that makes the search slower.
+
+
+.IP \fB-S\fIsss\fR
+permitted Symbol Set: Specifies a symbol set, as with \fB\-N\fR, but has the
+opposite effect: \fIonly\fR these symbols will be used. A \fB-S\fR also
+cancels any \fB\-E\fR, \fB\-N\fR or \fB\-O\fR options that were given;
+meaning that if you wish to combine these options, the \fB\-S\fR
+should come first.
+
+\fB\-S\fR can be used to solve those old problems of the
+sort ``How can the number 27 be expressed using only the
+four basic operators and the digit 4?'' The answer is
+given by:
+
+    \FCries '-S4+-*/' 27 -Ox\FT
+
+(The \fB-Ox\fR option is described next).
+To solve the same problem using the \fB-N\fR
+option, you'd have to type:
+
+    \FCries -Npef12356789rsqlL^v 27 -Ox\FT
+
+If you give the \fB\-S\fR option with no symbols, \fBries\fR will
+display a table of all available symbols (as modified by any \fB-E\fR,
+\fB-N\fR, \fB-O\fR and \fB-S\fR options) with their definition and
+weights. This lone \fB\-S\fR can be given along with a normal
+\fB\-S\fR option, but in any case \fBries\fR will exit after showing
+the table.
+
+
+.IP \fB-E\fIsss\fR
+Enable: Enables (or re-enables) the use of symbols that may have been
+disabled by an earlier \fB-S\fR or \fB-N\fR option. This is mainly
+intended for use in combination with the \fB--include\fR option. If
+one include file disables some symbols, this option can be used to
+re-enable some or all of them. It is also required for use of the
+Lambert W function, which is disabled by default. See ``STAND-ALONE
+MATHS LIBRARY'' for instructions and use the option \fB-EW\fR to
+request use of the Lambert W function in a \fBries\fR command.
+
+
+.IP \fB-O\fIsss\fR
+Only One: Specifies symbols which should appear no more than once
+on \fIeach side\fR of the equation. This option can be combined with \fB-E\fR
+or \fB\-N\fR, in which case they augment each other.
+If used with \fB-S\fR with the same symbol, the latter option
+takes effect.
+
+One additional symbol is available with \fB-O\fR:
+
+.RS 1.2i
+.IP x
+The variable on the left-hand-side
+.RE
+.IP
+
+Thus, you can use \fB-Ox\fR to limit \fBries\fR's output to equations
+that have only one '\fIx\fR' in them and are therefore easy to
+solve for \fIx\fR using only the most basic algebra techniques.
+This also makes \fBries\fR's output more like that of
+traditional expression-finders, which search for
+expressions equal to \fIx\fR rather than equations in \fIx\fR. Here's an
+example: \FCries -i 16\FT gives the answer
+``\fIx\fR^2 - \fIx\fR = 3^5'' with \fIx\fR very close to 16,
+because 16^2-16 is close to 3^5. \FCries -i 16 -Ox\FT replaces
+that answer with ``5 \fIx\fR^2 = 6^4''.
+
+
+.SH Options Limiting the Type of Solutions
+
+Several options are used to choose what types of expression can be
+used in the equations that are presented as solutions.
+
+
+.IP \fB-i\fR
+Integer: Require that all expressions, and all subexpressions, must
+have integer values. This is primarily useful if you are searching for
+an exact solution for a large integer. Note that inexact solutions
+will still be given, but both sides of the equation will be integers.
+An example of this is ``2 \fIx\fR = 7^3'' where \fIx\fR=173.
+\fB-i\fR is interpreted as \fB-r\fR (described below) if the supplied
+target value is not an integer.
+
+
+.IP \fB-ie\fR
+Integer, Exact. Like \fB-i\fR, but exits after reporting an exact
+match (if found). This equivalent to \fB-i\fR combined with
+\fB--min-match-distance 0\fR. To not report any inexact matches at
+all, use \fB--max-match-distance 0\fR (described in more detail
+below).
+
+
+.IP \fB-r\fR
+Rational: Require that all equations have a single \fIx\fR and that
+all subexpressions not involving \fIx\fR are rational (an exact ratio
+of two integers). This is primarily useful if you are searching for
+rational approximations. This option is essentially just shorthand for
+using the \fB-N\fR and \fB-E\fR options to allow only addition,
+subtraction, multiplication and division, excluding irrational
+constants and transcendental functions, etc.
+
+
+.IP \fB-re\fR
+Rational, ``Exact''. Like \fB-r\fR, but exits after reporting an
+``exact'' match (if found). This equivalent to \fB-r\fR combined with
+\fB--min-match-distance 0\fR.
+     Note that computers are (famously) unable to make exact
+calculations with fractions as simple as 1/3. To exit on a match
+within some ``epsilon'', use \fB--max-match-distance\fR with a nonzero
+epsilon; to reject inexact matches use \fB--max-match-distance\fR
+(these options are described in detail below).
+
+
+.IP \fB-c\fR
+Constructible: Require that all equations have a single \fIx\fR and
+that all subexpressions are ``constructible'' in the sense of
+Euclid's \fIElements\fR, given a unit interval. This is
+like the \fB-r\fR option except that squares, square roots and the
+golden ratio \fIphi\fR are also allowed. All results will be easily
+solvable for \fIx\fR and will use only addition, subtraction,
+multiplication, division, and square roots.
+     If you add the option \fB-Ex\fR, more than one \fIx\fR may appear
+in the solution. This gives answers that, when solved for \fIx\fR, are
+not constructible from the unit interval, but both sides of the
+(unsolved) equation \fIare\fR constructible given \fIx\fR and a unit
+interval. For example \FCries 1.3263524026321 -c -Ex\FT finds the
+solution ``\fIx\fR \fIx\fR^2 = 7/3''; \fIx\fR is the cube root of
+7/3 which is not itself constructible. \fBries\fR's answer reflects
+the fact that 7/3 can be constructed from its cube root (although the
+opposite construction is impossible).
+
+
+.IP \fB-a\fR
+Algebraic: Generate equations whose roots are ``algebraic numbers''.
+This is similar to the \fB-c\fR option, but also allows \fIn\fR^th
+powers and roots. The trigonometric functions (sine, cosine, and
+tangent) are allowed but their arguments will always be rational
+multiples of \fIpi\fR. More than one \fIx\fR is allowed (unless you
+follow \fB-a\fR with the option \fB-Ox\fR) so the equations might not
+be easy to solve.
+
+
+.IP \fB-Ox\fR
+Using the \fB-O\fR option (described above) with the symbol 'x' tells
+\fBries\fR to limit its search to solutions that can be expressed in
+``closed form'' using the basic constants, elementary and
+transcendental functions. This concept of ``closed-form number'' is
+described by Timothy Chow in his 1998 paper \fIWhat is a closed-form
+number?\fR.
+
+
+.IP \fB-l\fR
+Liouvillian: Generate equations whose roots are ``Liouvillian
+numbers'', as described by Timothy Chow in his 1998 paper \fIWhat is a
+closed-form number?\fR.
+
+
+.SH Options Affecting Output Format
+
+
+.IP \fB-s\fR
+Sorta Solve, by Shifting to right-hand side: With this option,
+\fBries\fR will display equations with just a single ``\fIx\fR'' on
+the left-hand side of the equal sign. It isn't ``solving'' the
+equations, but merely performing algebraic transformations to move
+everything except one \fIx\fR to the right-hand side:
+``\fIx\fR(\fIx\fR+1) = 7'' becomes ``\fIx\fR = 7/(\fIx\fR+1)''. You
+can combine this option with \fB-Ox\fR to eliminate this issue, but
+with that option \fBries\fR will no longer find solutions that require
+more than one ``\fIx\fR'', like ``\fIx\fR^\fIx\fR = 2'' for 1.55961.
+
+
+.IP \fB-x\fR
+X Values: Print actual values of \fIx\fR (the roots of the equations
+found) rather than expressing \fIx\fR as \fIT\fR plus/minus a small
+number, where \fIT\fR is your target number.
+``\fB--absolute-roots\fR'' is a synonym for \fB-x\fR.
+
+
+.IP \fB-F\fIn\fR
+Format: Controls the way expressions are formatted in the main output.
+If \fIn\fR is omitted it is 3 (``-F'' for ``FORTH Format''); if
+\fB-F\fR is not specified at all, the format will be 2. The following
+formats are available; each shows the output of \FCries 1.506591651
+-F\FT\fIn\fR:
+
+Format 0: Compressed FORTH-like postfix format: Each operator and
+constant is just a single symbol. The symbols are as listed above under
+the \fB-N\fR option.
+
+.fam C
+.ps -2
+          x1- = 2r         for x = T - 0.00659165  {50}
+          xlr = 6q         for x = T - 0.00241106  {62}
+          x4^ = p2+        for x = T - 0.000766951 {68}
+         x1+s = p2*        for x = T + 3.66236e-05 {69}
+.ps +2
+.fam T
+
+Format 1: Infix format, but with single-letter symbols. If this format
+is specified, a table of symbols will be printed after the main table
+of results. The rest of the expression syntax is the same as the normal
+format. For example, ``q(l(\fIx\fR)) = p-1'' means ``sqrt(ln(\fIx\fR))
+= pi - 1''.
+
+.fam C
+.ps -2
+          x-1 = 1/2        for x = T - 0.00659165  {50}
+       1/l(x) = q(6)       for x = T - 0.00241106  {62}
+          x^4 = 2+p        for x = T - 0.000766951 {68}
+      (x+1)^2 = 2.p        for x = T + 3.66236e-05 {69}
+.ps +2
+.fam T
+
+Format 2: Standard infix expression format (this is the default).
+
+.fam C
+.ps -2
+          x-1 = 1/2        for x = T - 0.00659165  {50}
+      1/ln(x) = sqrt(6)    for x = T - 0.00241106  {62}
+          x^4 = 2+pi       for x = T - 0.000766951 {68}
+      (x+1)^2 = 2 pi       for x = T + 3.66236e-05 {69}
+.ps +2
+.fam T
+
+Format 3: Print solutions in postfix format, similar to that used
+in FORTH and on certain old pocket calculators. This is close to the
+format used internally by \fBries\fR (to get the exact, condensed format,
+use \fI-F0\fR). This is intended mainly for
+use by scripts that use \fBries\fR as an engine to generate
+equations and then perform further manipulation on them. However,
+this option will also help you distinguish
+what symbols were actually used internally to generate an answer.
+For example, 'squared' and 'to the power of 2' both show up as '^2' in
+the normal output, but in postfix they appear as "dup*" and "2 **"
+respectively.
+
+.fam C
+.ps -2
+        x 1 - = 2 recip    for x = T - 0.00659165  {50}
+   x ln recip = 6 sqrt     for x = T - 0.00241106  {62}
+       x 4 ** = pi 2 +     for x = T - 0.000766951 {68}
+   x 1 + dup* = pi 2 *     for x = T + 3.66236e-05 {69}
+.ps +2
+.fam T
+
+Most of the symbols used by \fB-F3\fR are self-explanatory. The
+nonobvious ones are:
+\fBneg\fR for negate,
+\fBrecip\fR for reciprocal,
+\fBdup*\fR for square,
+\fBsqrt\fR for square root,
+\fB**\fR for power (A^B),
+\fBroot\fR for Bth root of A,
+\fBlogn\fR for logarithm (to base B) of A.
+For these last three, \fIA\fR is the first
+operand pushed on the stack and \fIB\fR is the second.
+
+The setting of \fB-F\fR does not affect expressions displayed by the
+various \fB-D\fR diagnostic options (most of these use \fB-F0\fR,
+and \fB-Ds\fR (``show your work'') uses \fB-F2\fR).
+     You may use the \fB--symbol-names\fR option (described below)
+to redefine the appearance of formats 2 and 3.
+
+
+.IP \fB-D\fIxx\fR
+Display Diagnostic/Debugging Data: A detailed understanding of the
+\fBries\fR algorithms (described below) is assumed. \fB-D\fR is
+followed by one or more letters specifying the messages you want to
+see. Options \fBA\fR through \fBL\fR and \fBa\fR through \fBl\fR
+(except \fBE\fR and \fBe\fR) apply to the LHS and RHS respectively.
+For each option, the number of lines of output that you can expect
+from a command like \FCries -l2 2.5063141592653589 -D\FT\fIx\fR (with
+\fIx\fR replaced by a single letter) is shown:
+
+.RS 0.7i
+.IP A,a
+\fB[42836; 87770]\fR show partial expressions that are ``pruned'' (ignored) because of arithmetic error (e.g. divide by zero)
+.IP B,b
+\fB[3173; 2714]\fR show partial expressions pruned for being zero, or derivative nearly zero; or outside range given by \fB--min-equate-value\fR and \fB--max-equate-value\fR
+.IP C,c
+\fB[81056; 697227]\fR show partial expressions pruned for being non-integer (and -i option was given); or irrational (and -r option given); etc. (sample command is \FCries -l2 1047 -i -DC\FT )
+.IP D,d
+\fB[1751; 4350]\fR show partial expressions pruned because of overflow
+.IP E,e
+\fB[102356; 272746]\fR show expressions pruned because their value matches one already in database
+.IP F,f
+\fB[349368; 848882]\fR show \fB--canon-reduction\fR operations on expressions before adding to database (sample command is \FCries -l2 2.50631415926 --canon-reduction nr25 -DF\FT )
+.IP G,g
+\fB[96112; 97337]\fR show expressions added to database
+.IP H,h
+\fB[409175; 816240]\fR show attributes of each partial expression tested
+.IP I,i
+\fB[3904331; 7759741]\fR show each new symbol to be added before complexity pruning
+.IP J,j
+\fB[2579116; 5102516]\fR show symbols skipped by complexity pruning
+.IP K,k
+\fB[257302; 558199]\fR show symbols skipped by redundancy and tautology rules
+.IP L,l
+\fB[61994; 114453]\fR show symbols skipped to obey -O option  (sample command is \FCries -l2 2.50631415926 '-O-+/^v*qsrlLeEpf' -DL\FT )
+.IP m
+\fB[10247603]\fR show all metastack operations
+.IP M
+\fB[46]\fR show memory allocation benchmarks, and enable automatic exit when memory gets slow (see \fB--memory-abort-threshold\fR option)
+.IP n
+\fB[136]\fR show Newton iteration values and errors if any
+.IP N
+\fB[461]\fR show work in detail: operator/symbol, x and dx at each step
+.IP o
+\fB[539235]\fR show match checks
+.IP p
+\fB[112]\fR show preprocessing transformations prior to conversion to infix
+.IP Q
+\fB[51]\fR show manipulations to remove \fB--canon-reduction\fR from equations before root-finding
+.IP q
+\fB[140]\fR show close matches dispatched to Newton and results of test
+.IP r
+\fB[1806085]\fR show results (value and derivative of operands and result) for each opcode executed
+.IP S
+\fB[100]\fR show solve-for-x work: displays all operations performed by the \fB--try-solve-for-x\fR option to transform an equation into ``solved'' form
+.IP s
+\fB[277]\fR show your work: displays values of each subexpression for every reported answer. Subexpressions are shown in normal (infix) syntax, which is useful in combination with \fB-F0\fR to see the postfix format used with options like \fB--eval-expression\fR
+.IP t
+\fB[11017]\fR show all abc-forms passed to expression generation
+.IP u
+\fB[48895]\fR show steps of min/max complexity ranging for each abc-form
+.IP v
+\fB[5525]\fR show number of expressions generated by each abc-form
+.IP w
+\fB[32922]\fR show details of abc-form generation (pruning, weights, etc.)
+.IP x
+\fB[91]\fR show all rules used (varies with the \fB-N\fR, \fB-O\fR, and \fB-S\fR options)
+.IP y
+\fB[736]\fR statistics and decisions made in main loop
+.IP z
+\fB[55]\fR initialization and other uncategorized messages
+.IP 0
+\fB[1712490]\fR list the entire expression database after every pass
+through the main loop
+.RE
+.IP
+
+Of these, \fB-Ds\fR is probably the most useful and fun to look at.
+\fB-Dy\fR gives a nice top-level view of the statistics of the search.
+Most of the options that generate lots of output are useful if
+filtered through \FCgrep\FT; this can tell you why a certain
+subexpression is or is not appearing in results. \fB-DG\fR and
+\fB-Dg\fR can be useful if you want to use \fBries\fR to generate a
+massive list of expressions for processing by another program; for
+this reason its output uses infix notation. Most other \fB-D\fR
+options print subexpressions in the \fB-F0\fR terse postfix format.
+
+
+.SH EXTENDED OPTIONS
+
+Longer names are used for options that are thought to be less commonly
+wanted, or are more likely to be used only within \fB--include\fR files.
+
+.IP \fB--include\fR\ \fIfilename\fR
+.IP \fB-p\fIfilename\fR
+.IP \fB-p\fR
+Load one or more options from file \fIfilename\fR. The options
+``\fB--include\fR \fIfilename\fR'' and ``\fB-p\fIfilename\fR'' are
+equivalent; note that one requires a space before \fIfilename\fR and
+the other cannot have a space (\fB-p\fR alone has a related function,
+described below). \fBries\fR will attempt to open the named file
+(which may be a simple filename or a path), or the given name with
+``\FC.ries\FT'' appended. If either is found, \fBries\fR will scan it
+for parameters and arguments separated by whitespace. Any control
+characters count as whitespace. Any '#' character that comes at the
+beginning of a line or immediately after blank space denotes a comment
+and the rest of the line will be ignored. For example, if there is a
+file ``\FChst.ries\FT'' containing the following:
+
+.fam C
+.ps -2
+   # hst.ries:  High School Trigonometry settings
+   --trig-argument-scale 1.74532925199433e-2    # pi/180
+   -NLleEv      # No log, ln, e, e^x or arbitrary roots
+   -Ox      # Only allow one 'x' on the left-hand-side
+   -x      # Show equation roots as "x = 123.456"
+           #            rather than "x = T + 1.23e-4"
+.ps +2
+.fam T
+
+then giving the option ``\fB-phst\fR'' is equivalent to giving the
+options ``\fB--trig-argument-scale 1.74532925199433e-2 -NLleEv -Ox -x\fR'',
+in that order.
+     A parameter file may additionally invoke another parameter file
+with the \fB--include\fR option. When it encounters this option,
+\fBries\fR will apply the options in the included file, then continue
+with the rest of the first file. These may be nested up to 25 levels
+deep. If a file includes itself recursively (either directly or
+indirectly) \fBries\fR will exit with an error.
+     It is an error for \fB--include\fR or the end of an included file
+to come between an option and its arguments. For example, ``\FCries
+1.2345 --eval-expression --include expressions.txt\FT'' will produce
+an error regardless of the contents of ``\FCexpressions.txt\FT'',
+because \fB--eval-expression\fR must be followed immediately by its
+argument(s). On the other hand, if ``\FCexpressions.txt\FT'' contains
+the \fB--eval-expression\fR option, like so:
+
+.fam C
+.ps -2
+   # expressions.txt:  Useful functions of one argument
+   --eval-expression
+     xsr    # 1/(x^2)
+     1xq-r  # 1/(1-sqrt(x))
+     2xl1+^ # 2^(ln(x)+1)
+.ps +2
+.fam T
+
+then the command ``\FCries 1.2345 --include expressions.txt\FT''
+works, and shows the values of the three expressions where \fIx\fR is
+1.2345.
+     If you have a file called ``\FC.ries_profile\FT'' or
+``\FCries_profile.txt\FT'' in your home directory, \fBries\fR will
+load it as if you specified it with a \fB--include\fR at the very
+beginning of the parameters. If you have such a file and wish to
+prevent it from being used, give a bare \fB-p\fR (without a filename)
+at the very beginning of your \fBries\fR options. If you wish to give
+some parameters and have \FC.ries_profile\FT loaded \fIafter\fR your
+parameters, include \fB-p\fR again at the point where you want
+\fBries\fR to use the profile. For example, if your
+\FC.ries_profile\FT contains ``\fB--trig-argument-scale 1\fR'' and you
+have a \FChst.ries\FT with contents as shown above, then giving the
+optiions ``\fB-phst\fR \fB-p\fR'' will use all of the settings in
+\FChst.ries\FT except the \fB--trig-argument-scale\fR.
+     Two more example profiles are the ``Latin'' and ``Mathematica''
+settings files linked from the top of the main RIES webpage.
+
+
+.IP \fB--absolute-roots\fR
+This is a synonym for the \fB-x\fR option, described above.
+
+
+.IP \fB--algebraic-subexpressions\fR
+This is a synonym for the \fB-a\fR option, described above.
+
+
+.IP \fB--any-exponents\fR
+This option cancels any restrictions on subexpressions used as an
+exponent, such as those set by the \fB--algebraic-subexpressions\fR
+and \fB--liouvillian-subexpressions\fR options.
+
+
+.IP \fB--any-subexpressions\fR
+This option cancels any restrictions on subexpressions, as imposed by
+options such as \fB--algebraic-subexpressions\fR. This might be useful
+if you are using one of the class selectors like \fB-a\fR or \fB-c\fR
+as shorthand for all the restrictions of that particular class, and
+then re-enable a function like \fIe\fR^\fIx\fR using \fB-EE\fR.
+
+
+.IP \fB--any-trig-args\fR
+This option cancels any restrictions on subexpressions used as an
+argument to one of the trigonometric function, such as those set by
+the \fB--algebraic-subexpressions\fR and
+\fB--liouvillian-subexpressions\fR options.
+
+
+.IP \fB--canon-reduction\fR\ \fIsymbols\fR
+Apply simple transformations in an effort to make all expression
+values fall in the range [1 ... 2). This option improves the
+efficiency of the \fBries\fR algorithm (described in the ``ALGORITHM''
+section below) by increasing the chances of two expressions forming a
+match. This allows it to use less memory and time to achieve any given
+amount of precision.
+     This option should be followed by one or more symbols which
+represent the operations \fBries\fR will try to apply to expressions:
+
+.RS 0.7i
+.IP n
+Negate expressions when possible to make all values positive.
+.IP r
+Take the reciprocal when possible to make all expressions fall outside
+the range (-1 ... 1).
+.IP 2
+Multiply by 2 when possible to increase the magnitude of
+expressions in the range (-1 ... 1).
+.IP 5
+Divide by 2 (i.e. multiply by 0.5) when possible to decrease the
+magnitude of expressions that fall outside the range (-2 ... 2).
+.RE
+.IP
+
+In these descriptions, the words \fIwhen possible\fR refer to the fact
+that \fB--canon-reduction\fR will respect any limits imposed by the
+symbolset options \fB-N\fR, \fB-O\fR and \fB-S\fR. So if you use the
+option \fB-On\fR together with \fB--canon-reduction n\fR, the negation
+operator will still be used only once per expression.
+     Although it makes \fBries\fR more efficient, this option also
+causes the printed results to have greater complexity scores, and
+complexity scores will increase somewhat more erratically. \fBries\fR
+will try to simplify its printed results by undoing
+\fB--canon-reduction\fR transformations on both sides of the equal
+sign. For example, \FCries 2.50618 --canon-reduction nr25\FT might
+yield the result ``\fIx\fR^\fIx\fR/2 = (1+9)/2'', which simplifies
+to ``\fIx\fR^\fIx\fR = 1+9''. But when only one side has a ``/2'',
+\fBries\fR cannot fix it, so the same example gives an overly complex
+``1/(\fIpi\fR-\fIx\fR) = \fIpi\fR/2''.
+
+
+.IP \fB--canon-simplify\fR
+When reporting a match, remove common factors or terms from both sides
+of the equation. This is the default.
+
+
+.IP \fB--constructible-subexpressions\fR
+This is a synonym for the \fB-c\fR option, described above.
+
+
+.IP \fB--derivative-margin\fR\ \fIvalue\fR
+Specify the limit to how small the derivative of any expression or
+subexpression containing \fIx\fR can be in relation to the
+expression's value. By default this is 10^-6, so that an expression
+containing \fIx\fR is rejected if its value is more than a million
+times its derivative. For really large target values, this doesn't
+work because the expression ``\fIx\fR'' (with a derivative of 1.0)
+would be rejected. So if the magnitude of your target is larger than
+10^5, \fBries\fR will set this limit correspondingly lower. For
+example, if your target value is 10^8, \fBries\fR automatically sets
+a \fB--derivative-margin\fR value of 10^-9.
+     If you do not consider these defaults suitable, use this option
+to pick your own value. For example in the command \FCries 12345
+--derivative-margin 8e-5\FT, derivatives of expressions can be as
+small as 8x10^-5 times the expression's value. In calculating any
+possible answers, \fBries\fR would allow ``\fIx\fR^2'' because the
+ratio between d/d\fIx\fR \fIx\fR^2 and \fIx\fR^2 is about 1.62e-4,
+which is big enough to surpass the margin. However, any answers
+involving ``sqrt(\fIx\fR)'' would be rejected beause the ratio between
+d/d\fIx\fR sqrt(\fIx\fR) and sqrt(\fIx\fR) is only 4.05e-5:
+
+.ta 1.2iC 2.2iC 3.4iC 4.4iC
+	expression	value	d/d\fIx\fR(expr.)	ratio
+.br
+	\fIx\fR^2	152399025	24690	1.62e-4
+.br
+	\fIx\fR	12345	1.0	8.1e-5
+.br
+	sqrt(\fIx\fR)	111.108	0.0045	4.05e-5
+
+Indeed, the results of \FCries 12345\FT include the equation
+``2(sqrt(\fIx\fR)-9) = (2 e)^pi'', but with the option
+\fB--derivative-margin 8e-5\fR that answer is left out.
+
+
+.IP \fB--explicit-multiply\fR
+Always use the ``*'' symbol when displaying results, rather than the
+default behavior of omitting ``*'' when multiplicaton can be implied
+by writing the multiplicands next to each other. This is useful if you
+need to copy \fBries\fR output into a calculator, computer program or
+spreadsheet formula.
+
+
+.IP \fB--integer-subexpressions\fR
+This is a synonym for the \fB-i\fR option, described above.
+
+
+.IP \fB--match-all-digits\fR
+.IP \fB--mad\fR
+Request that all reported matches should match all of the supplied
+digits. This is equivalent to adding a '5' to the end of your target
+value, along with a \fB--max-match-distance\fR value equal to the
+magnitude of this appended '5' digit. It also selects the \fB--x\fR
+option, unless the \fB--wide\fR option is also given.
+     For example, the command \FCries 2.5063 --mad\FT is equivalent to
+\FCries 2.50635 --max-match-distance 0.00005 -x\FT, and the first
+reported match is \fIx\fR^2+e = 9, which is true for \fIx\fR =
+2.506335... Without \fB--mad\fR it reports 2 \fIx\fR = 5 and a few
+other answers that do not match all of the digits in 2.5063.
+
+
+.IP \fB--max-equate-value\fR\ \fIvalue\fR
+.IP \fB--min-equate-value\fR\ \fIvalue\fR
+Specify the maximum and minimum values for the LHS and RHS of any
+reported equations. For example, the command \FCries 2.50618\FT would
+normally give ``2 \fIx\fR = 5'' as the first solution; both sides of
+that equation are about 5. But the command \FCries 2.50618
+--max-equate-value 3\FT instead gives ``\fIx\fR-2 = 1/2'' as the first
+answer: this is an equivalent solution, but expressed as an equation
+in which both sides of the equal sign are less than 3. Similarly,
+\FCries 2.50618 --min-equate-value 27\FT gives the answer
+``(\fIe\fR^\fIx\fR)^2 = \fIe\fR^5''.
+
+
+.IP \fB--max-match-distance\fR\ \fIvalue\fR
+Specify the maximum distance between your given target value \fIT\fR
+and the roots \fIx\fR of any reported equations. This sets a minumum
+level of accuracy, overriding the default, which is 1% of the
+size of your target value. For example, the command \FCries 2.5063\FT
+will use a threshold that is 1% of 2.5063, or about 0.025. It
+gives as its first answer the equation 2\fIx\fR = 5, an equation whose
+root (solution) is 2.5. This differs from the target value 2.5063 by
+0.0063. If you specify an initial threshold of 0.001 with the command
+\FCries 2.5063 --max-match-distance 0.001\FT, then 2\fIx\fR = 5
+is not reported because 0.0063 is bigger than your threshold 0.001;
+instead the first match will be ``\fIx\fR^2 = 2 \fIpi\fR''
+(which comes within about 0.0003 of the target 2.5063).
+     Use a zero argument to specify that \fBries\fR should only report
+an ``exact'' match, if any (and note that this ``exact'' match might
+be more complex than the obvious answer, because of roundoff errors;
+see UNEXPECTED BEHAVIOR and BUGS below). Note that this is different
+from \fB--min-match-distance 0\fR, which prints inexact matches and
+stops after the ``exact'' match.
+     Use a negative argument to specify a match threshold in
+proportion to your target value. For example, \FC--max-match-distance
+-0.001\FT specifies that the first match must be within 1 part in
+1000 (or 1/10 of one percent) of the magnitude of the target.
+     If your choice of \fB--max-match-distance\fR is so stringent that
+the first match takes longer than 2 seconds, \fBries\fR will display
+progress messages until a match is found. Use the \fB--no-slow-messages\fR
+option to suppress these.
+     There is also a \fB--min-match-distance\fR option (described
+below), which serves an entirely different purpose.
+
+
+.IP \fB--max-matches\fR\ \fIN\fR
+.IP \fB-n\fIN\fR
+Limit the number of reported matches to a positive integer \fIN\fR.
+This is particularly useful with certain options (such as
+\fB--no-refinement\fR) that generate a lot of matches. The default
+\fIN\fR is 100.
+
+
+.IP \fB--max-memory\fR\ \fIsize\fR
+This option tells \fBries\fR not to use more than the given amount of
+memory (size specified in bytes). This is particularly useful in
+combination with a
+high \fB-l\fR (search level) option. For example, if you typically
+have about 2 gigabytes of free memory on your machine, you could
+invoke \fBries\fR with the option \fB--max-memory\fR \fB1.0e9\fR,
+to ensure that it never uses more than 1 gigabyte of memory regardless
+of the search level.
+     \fBries\fR also has an (experimental) feature that can
+automatically detect when your system is slowing down; see the
+\fB--memory-abort-threshold\fR option for details.
+
+
+.IP \fB--memory-abort-threshold\fR\ \fIN\fR
+This option is used with the \fB-DM\fR option, and overrides the
+default slowness measurement after which \fBries\fR will automatically
+exit. With the \fB-DM\fR option, \fBries\fR measures how fast it is
+running, as compared to an estimate of how fast it ``should'' be
+running. If this ratio is greater than the
+\fI--memory-abort-threshold\fR for more than 3 of the past 10
+measurements, \fBries\fR will exit. The default
+\fI--memory-abort-threshold\fR is 2.0. The value must be at least 1.0,
+and values less than about 1.5 are unlikely to be of much use.
+     \fINOTE\fR: \fB--memory-abort-threshold\fR is an experimental
+\fBries\fR feature and is likely to change in future versions of
+\fBries\fR.
+
+
+.IP \fB--min-match-distance\fR\ \fIvalue\fR
+Specify the minimum distance between your given target value \fIT\fR
+and the roots \fIx\fR of any reported equations. This is useful for
+finding approximate formulas for constants that have a known, simple
+formula. For example, using the command \FCries 3.141592653589 -x
+--min-match-distance 1e-8 -NSCT\FT one can discover the following approximate
+formulas for \fIpi\fR :
+
+.fam C
+.ps -2
+                  x-3 = 1/6            for x = 3.16666666666667
+                  x-3 = 1/7            for x = 3.14285714285714
+            ln(ln(x)) = 1/e^2          for x = 3.14219183392327
+                x^2+1 = 4 e            for x = 3.14215329254258
+                e^x+2 = 8 pi           for x = 3.14124898321672
+              x/phi^2 = 1/5+1          for x = 3.14164078649987
+               e^x-pi = 4*5            for x = 3.14163154625921
+            e^(x^2)+1 = e^(pi^2)       for x = 3.14158442136535
+                 pi-x = 1/e^(4^2)      for x = 3.14159254105462
+         sqrt(1+pi) x = e^3/pi         for x = 3.14159272240341
+              x^2/e^3 = 1/sqrt(1+pi)   for x = 3.1415926879966
+              9(x-pi) = 1/-(e^(4^2))   for x = 3.14159264108588
+.ps +2
+.fam T
+
+Among these results (after solving for \fIx\fR) are the ancient
+approximations 19/6 and 22/7, and the more modern curiosity
+\fIe\fR^\fIpi\fR \o"~=" 20 + \fIpi\fR (which is called
+``\fIGelfond's constant\fR''). Other interesting results can be found
+by omitting symbols with \fB-N\fR or by using restriced classes. For
+example \fBries 3.1415926 -NSCTlLfEevp --min-match-distance 1e-8\fR
+(excluding most of the scientific functions) gives the fraction
+approximation 355/113 in the form ``1/(\fIx\fR-3)-1 = 1/4^2+6''; and
+\fBries 3.1415926 -r --min-match-distance 1e-8\fR (requesting only
+rational approximations) gives 355/113 in the form ``1/(\fIx\fR-3)-3 =
+1/(4*4)+4''.
+     You will often get multiple equivalent results. In the above
+example, the equations sqrt(1+\fIpi\fR) \fIx\fR = e^3/\fIpi\fR and
+\fIx\fR^2/e^3 = 1/sqrt(1+\fIpi\fR) can both be converted into the
+approximate relation:
+
+.RS 1.2i
+\fIpi\fR \o"~=" sqrt(sqrt(\fIe\fR^6/(\fIpi\fR+1)))
+.RE
+.IP
+
+(which does \fInot\fR converge on the true value of \fIpi\fR if iterated).
+     If you give a value of 0: ``\FC--min-match-distance 0\FT'', and
+\fBries\fR finds an ``exact'' match, it will exit and report no further
+results.  Note that this is different from \fB--max-match-distance 0\fR,
+which will only print the ``exact'' match and will not print any inexact
+matches.
+     There is also a \fB--max-match-distance\fR option (described
+above), which serves an entirely different purpose.
+
+
+.IP \fB--min-memory\fR\ \fIsize\fR
+If \fBries\fR is given the debug option \fB-DM\fR, it will try to
+measure the responsiveness of the system and automatically exit if it
+gets very slow. This is intended as an automatic safeguard against
+virtual memory ``thrashing'' that will happen if \fBries\fR is allowed
+to use all of your system's memory. (This feature is only active with
+the \fB-DM\fR option because it is still being tested).
+     When \fB--min-memory\fR is given in combination with \fB-DM\fR, it
+will ensure that \fBries\fR does not exit because of slow memory
+response until at least \fIsize\fR bytes of memory have been used. For
+example, if you know that you always have about 1 gigabyte of free
+memory on your machine, and your machine often gets slow for other
+compute-intensive tasks, you could invoke \fBries\fR with the options
+\fB-DM\fR \fB--min-memory\fR \fB1.0e9\fR, and slow system detection
+would be enabled but would not trigger (if at all) until a gigabyte of
+memory has been used.
+     For more direct control over \fBries\fR' memory usage, use the
+\fB--max-memory\fR option (without \fB-DM\fR) or use a suitably small
+\fB-l\fR search level.
+
+
+.IP \fB--no-canon-simplify\fR
+When reporting a match, do \fInot\fR remove common factors or terms
+from both sides of the equation. This is useful mainly in combination
+with \fB--max-equate-value\fR and \fB--min-equate-value\fR. For
+example, the command \FCries -Ox 2.6905\FT would normally give the
+answer ``\fIx\fR-2 = ln(2)'' in which both sides of the equation are
+about 0.693. Adding the options \fB--no-canon-simplify\fR and
+\fB--min-equate-value 1\fR reports the same answer as ``1/(\fIx\fR-2)
+= 1/ln(2)'' in which both sides of the equation are about 1.443.
+
+
+.IP \fB--no-refinement\fR
+After reporting a match, do \fInot\fR require that the next match come
+closer to the target. This causes \fBries\fR to emit many more matches
+than it normally would. The matches will not be given in order of
+closeness, but they will still be (roughly) ordered by increasing
+``complexity''. Many will be equivalent to one another, for example
+the command \FCries 1.51301 --no-refinement\FT yields the solutions
+\fIe\fR^(\fIx\fR^2) = pi^2 and \fIx\fR/sqrt(2) = sqrt(ln(pi)),
+both with the root 1.513096088... This option is most effective in
+combination with \fB--max-matches\fR along with
+\fB--match-all-digits\fR or \fB--max-match-distance\fR (using a
+stricter argument than the default -0.01).
+
+
+.IP \fB--no-slow-messages\fR
+Suppress the ``Still searching'' messages that \fBries\fR would normally
+print if a search takes longer than 2 seconds without giving any results.
+
+
+.IP \fB--no-solve-for-x\fR
+This option cancels the ``\fB--try-solve-for-x\fR'' option.
+
+
+.IP \fB--numeric-anagram\fR\ \fIdigits\fR
+Give a specific set of digits that can be used as constants in a
+solution; this forces the \fB--one-sided\fR option. It will use only
+as many of each digit as you specify. For example, if you give
+``111223'' as the digits, \fBries\fR will use up to three 1's, two
+2's, and/or a single 3. This is meant to aid in solving certain
+puzzles of the ``four fours'' variety:
+
+.fam C
+.ps -2
+  ries 17 -ie --numeric-anagram 4444
+       x = 4*4+4/4               ('exact' match)       {92}
+
+  ries 17 -ie --numeric-anagram 111223
+       x = 2^(1+3)+1             ('exact' match)       {77}
+
+  ries 12 --numeric-anagram 44s
+       x = 4^2-4
+
+  ries 12 --numeric-anagram 442
+       x = 2*4+4
+.ps +2
+.fam T
+
+\fB--numeric-anagram\fR can be used to set hard limits on the digits,
+the constants \fIe\fR, \fIphi\fR, and \fIpi\fR, and the ``squared''
+and ``reciprocal'' symbols. When you use \fB--numeric-anagram\fR, any
+of these symbols that you do not list will be forbidden just as if you
+had used the \fB-N\fR option. The last two examples here show the use
+of ``s'' to specify the squaring operation \fIx\fR^2 as
+distinguished from any use of ``2''.
+
+
+.IP \fB--one-sided\fR
+Force \fBries\fR to ignore all LHS expressions except \fIx\fR. This
+results in ``one-sided equations'' with \fIx\fR on the left-hand side.
+This makes \fBries\fR much slower, but all of its output will be
+``solved for \fIx\fR''.
+     This option is intended as a convenience for very special problems
+(for example, \fB--numeric-anagram\fR automatically turns on
+\fB--one-sided\fR), but it is not generally useful because the speed
+advantage of the normal RIES bidirectional search algorithm is lost.
+If you want \fBries\fR to give answers that are solved for \fIx\fR,
+use the \fB--try-solve-for-x\fR option possibly along with \fB-Ox\fR.
+     If you use this option, \fBries\fR will be a lot slower and its
+solutions for a given search level will not be nearly as accurate.
+Whereas a normal \fBries\fR search might quickly match your target
+value to the first 10 decimal places, a search with the
+\fB--one-sided\fR option, taking the same amount of computation time,
+will only match the first 5 decimal places. Sometimes this is
+acceptable, particularly when used with other options that restrict
+the search, such as \fB-i\fR, \fB-N\fR, \fB-O\fR, and \fB-S\fR.
+
+
+.IP \fB--rational-exponents\fR
+Require any exponent to be a rational subexpression. For example
+sqrt(2) is allowed because it is 2 to the power of 1/2, but 2 to the
+power of sqrt(2) is not allowed because sqrt(2) is not rational. This
+option exists mainly to support the \fB-a\fR or
+\fB--algebraic-subexpressions\fR option (described above).
+
+
+.IP \fB--rational-subexpressions\fR
+This is a synonym for the \fB-r\fR option, described above.
+
+
+.IP \fB--rational-trig-args\fR
+Require any argument to a trigonometric function be a rational
+subexpression. The restriction applies to the argument's value before
+multiplying by the \fB--trig-argument-scale\fR (if any). This 
+option exists mainly to support the \fB-a\fR or
+\fB--algebraic-subexpressions\fR option (described above).
+
+
+.IP \fB--relative-roots\fR
+When printing each equation, show the root as \fIT\fR plus/minus a
+small number (where \fIT\fR is your target number) rather than as the
+actual value of the root. This is the refault, so you'll only need to
+use \fB--relative-roots\fR to cancel a \fB-x\fR or
+\fB--absolute-roots\fR option in your \FC.ries_profile\FT or another
+\fB--include\fR file.
+
+
+.IP \fB--ries-arguments-end\fR
+This `option' signals the end of options and arguments; any that come
+after it will be ignored. If it occurs within a profile (described under
+the \fB--include\fR option above) \fBries\fR will ignore the rest of the
+contents of that file and continue with the next option after the
+\fB--include\fR or \fB-p\fR option that invoked the profile.
+
+
+.IP \fB--show-work\fR
+This is a synonym for the \fB-Ds\fR option, described in the \fB-D\fR
+(debugging/diagnostic) option above.
+
+
+.IP \fB--significance-loss-margin\fR\ \fIdigits\fR
+Specify the number of significant digits that may be lost in a
+calculation. By default, \fBries\fR tolerates a loss of 2 digits in
+any calculation. For example, if \fIx\fR is 0.906402477... (the value
+of Gamma[5/4]), \fBries\fR would not use \fIx\fR+e^5 in any of its
+expressions, because \fIe\fR^5 is more than 100 times as large as
+\fIx\fR. Due to round-off, more than 2 digits of the value of \fIx\fR
+would be lost in the addition. This restriction applies to constant
+expressions too, so \fBries\fR also avoids 1+e^5 and 1+e^-5.
+Similar restrictions apply to any function that can cause precision to
+be lost (if evaluated at a point where the function's derivative is
+very low).
+     The normal \fBries\fR behavior corresponds to a
+\fB--significance-loss-margin\fR option with an argument of 2.0. Give
+a higher value to allow more digits to be lost in calculations.
+     Conversely, if you suspect \fBries\fR is generating meaningless
+results due to round-off error, you can look at its calculations in
+detail with the options \fB-Ds\fR and \fB-F0\fR, then evaluate specific
+expressions with \fB--eval-expression\fR (described below). If
+it seems appropriate, make \fBries\fR more strict by giving
+\fB--significance-loss-margin\fR with a lesser argument.
+
+
+.IP \fB--symbol-names\fR\ :\fIsym\fR:\fIname\fR\ [\ :\fIsym\fR:\fIname\fR\ ...\ ]
+This option allows you to set the ``names'' of individual symbols.
+This affects how the expressions and equations are printed in any of
+the \fB-F\fR formatting modes, and by special commands such as
+\fB--eval-expression\fR. In addition to the symbols listed above
+in the \fB-N\fR option, you may also define these symbols:
+.RS 0.7i
+.IP (\ )
+brackets to group sub-expressions
+.IP =
+equality symbol
+.RE
+.IP
+Here are examples of the normal \fBries\fR output, modified by
+changing the appearance of the exponentiation operator and
+parentheses. The single-quotes around each option are to avoid
+substitution by the shell:
+
+.fam C
+.ps -2
+   ries -l0 2.5063
+                    2 x = 5                      for x = T - 0.0063      {49}
+                    8 x = e^3                    for x = T + 0.00439212  {66}
+                    x^2 = 2 pi                   for x = T + 0.000328275 {55}
+                    x^x = 1+9                    for x = T - 0.000115854 {69}
+                  x^2+e = 9                      for x = T + 3.56063e-05 {63}
+                ln(6) x = sqrt(pi)+e             for x = T + 2.73037e-05 {93}
+
+   ries -l0 2.5063 --symbol-names ':^:**' ':(:[' ':):]'
+                    2 x = 5                      for x = T - 0.0063      {49}
+                    8 x = e**3                   for x = T + 0.00439212  {66}
+                   x**2 = 2 pi                   for x = T + 0.000328275 {55}
+                   x**x = 1+9                    for x = T - 0.000115854 {69}
+                 x**2+e = 9                      for x = T + 3.56063e-05 {63}
+                ln[6] x = sqrt[pi]+e             for x = T + 2.73037e-05 {93}
+.ps +2
+.fam T
+
+More examples of the use of \fB--symbol-names\fR are found in the
+``Latin'' and ``Mathematica'' settings files linked from the top
+of the main RIES webpage.
+
+
+.IP \fB--symbol-weights\fR\ \fIN\fR:\fIsym\fR\ [\ \fIN\fR:\fIsym\fR\ ...\ ]
+This option allows you to adjust the ``weights'', or complexity
+ratings, of individual symbols. Use the option \fB-S\fR to see the
+normal weights, then use this option to change one or more. Compare
+these two examples; in the second one the cost of the symbol \fIx\fR
+is reduced, and the costs of \fB2\fR and \fBs\fR (squared) are
+increased.
+
+.fam C
+.ps -2
+   ries -l0 2.5063
+                    2 x = 5                      for x = T - 0.0063      {49}
+                    8 x = e^3                    for x = T + 0.00439212  {66}
+                    x^2 = 2 pi                   for x = T + 0.000328275 {55}
+                    x^x = 1+9                    for x = T - 0.000115854 {69}
+                  x^2+e = 9                      for x = T + 3.56063e-05 {63}
+
+   ries -l0 2.5063 --symbol-weights 5:x 25:2 15:s
+              x sqrt(x) = 4                      for x = T + 0.0135421   {39}
+                   -x-x = -5                     for x = T - 0.0063      {46}
+                  x/x^x = 1/4                    for x = T + 0.00150933  {49}
+                  x x^x = 5^2                    for x = T - 0.00118185  {57}
+                    x^x = 1+9                    for x = T - 0.000115854 {49}
+              x (1/x-x) = e-8                    for x = T + 3.56063e-05 {71}
+.ps +2
+.fam T
+
+With the smaller weight of 5, \fIx\fR is considered ``less
+expensive'', and \fBries\fR uses \fIx\fR more often in its answers;
+and with the number \fB2\fR and squaring more expensive, these show up
+less often in the results. In many cases the new results are
+equivalent, and \fBries\fR has simply found a different way to get
+there.
+     Since the arguments of \fB--symbol-weights\fR start with a digit, your
+target value will be treated as a symbol-weight specifier unless you
+place it somewhere else in the parameter list (as shown in the
+example), or use a single dash ``-'' to signal the end of the
+parameters.
+     \fINOTE\fR: Changing the symbol weights can greatly reduce
+\fBries\fR's efficiency, causing it to run for a very long time and
+giving little or no output. If this happens, it usually can be fixed
+by using weights closer to the default values. You can also experiment
+with changing just one symbol-weight at a time to find which is
+causing the problem.
+
+
+.IP \fB--trig-argument-scale\fR\ \fIvalue\fR
+Specify a constant by which the argument of the sine, cosine and
+tangent functions should be multiplied. By default this value is
+\fIpi\fR and the trig functions are called \FCsinpi\FT, \FCcospi\FT
+and \FCtanpi\FT. sinpi(\fIx\fR) is the sine of \fIpi\fR times \fIx\fR;
+so for example sinpi(1/3) is the sine of \fIpi\fR/3, which is half the
+square root of 3. A full circle is 2 in these units: sinpi(\fIx\fR) =
+-sinpi(\fIx\fR+1) = sinpi(\fIx\fR+2) for all \fIx\fR.
+     If you give this option, arguments will be multiplied by the number
+you give instead of by \fIpi\fR. Useful values to give are:
+
+.RS 0.7i
+.IP \fB6.2831853071795864769\fR
+This is ``tau'' (2 \fIpi\fR); use it to get units of 1 per ``full turn'':
+``sin(1/16)'' will give 0.382683...
+.IP \fB1\fR
+Use 1 to get natural units (radians): ``sin(pi/8)'' will give 0.382683...
+.IP \fB1.74532925199432957692e-2\fR
+This is \fIpi\fR/180, and is used for degrees: ``sin(22.5)'' will
+give 0.382683...
+.IP \fB1.57079632679489661923e-2\fR
+This is \fIpi\fR/200, and is used for grads (gradians or gons):
+``sin(25)'' will give 0.382683...
+.RE
+.IP
+
+If you use this option, \fBries\fR will call the functions
+\FCsin\FT, \FCcos\FT and \FCtan\FT in its output, and the scale will
+be displayed after the function definitions at the end.
+
+
+.IP \fB--try-solve-for-x\fR
+.IP \fB-s\fR
+\fB--try-solve-for-x\fR is equivalent to ``\fB-s\fR'', which is
+described in the OPTIONS section above.
+
+
+.IP \fB--version\fR
+Displays information about the version of \fBries\fR, the calculation
+precision and math library, any optional module(s), the currently
+enabled profile (see the \fB--include\fR option at the beginning of
+the EXTENDED OPTIONS section above), and a brief copyright notice. The
+version is a date, such as ``2013 Jun 3''.
+
+
+.IP \fB--wide-output\fR
+Use a wider (132-column) output format. This shows the roots of
+equations (values of \fIx\fR) both in terms of the the actual value of
+\fIx\fR, and as \fIT\fR plus/minus a delta; it also shows the ratio
+between this delta and \fIx\fR as ``(1 part in \fIN\fR)'' where \fIN\fR
+is the delta divided by \fIx\fR. For example, if \fIx\fR is 2.5 and
+target value is 2.501, the delta is 0.001, which is ``1 part in
+2500''.
+
+
+.SH SPECIAL COMMANDS
+
+\fBries\fR provides some functions that supplement its main purpose.
+Commands and their parameters must be separate:
+`\FCries 1.23 --trig-argument-scale 0.5\FT',
+not `\FCries 1.23 --trig-argument-scale 0.5\FT'. Because the parameters
+are given separately, your target value might be interpreted as a parameter
+if you give it right after a special command. To avoid this, use a single
+dash ``-'' to signal the end of the parameters.
+
+.IP \fB--eval-expression\fR\ \fIforth-expr\fR\ [\fIforth-expr\fR\ ...]
+Evaluate one or more expressions, showing intermediate values,
+derivatives, and the complexity score of the full expression. The
+expression(s) should be given in the FORTH-like postfix syntax that is
+displayed when
+you use the -F0 option. The symbols are as listed above under the
+\fB-N\fR option. For example, \FCxxq-\FT is the syntax for
+\fIx\fR-sqrt(\fIx\fR). Syntax errors and computation errors such as
+overflow are reported; however successful execution by \fB--eval-expression\fR
+does not guarantee that the expression will be found in an actial
+\fBries\fR search. For example, an expression containing \fIx\fR
+only appears as the left-hand-side of an equation if the \fIx\fR is the
+first symbol in the postfix form: \fBries\fR will use \FCx2+\FT (\fIx\fR+2)
+but will not use \FC2x+\FT (2+\fIx\fR).
+
+.IP \fB--find-expression\fR\ \fIforth-expr\fR\ [\fIforth-expr\fR\ ...]
+Perform the normal equation-finding search algorithm, and report
+specific expressions when they are found, along with their value,
+derivative, and complexity. The expression(s) should be given in the
+FORTH-like postfix syntax that is displayed when you use the -F0
+option. The symbols are as listed above under the \fB-N\fR option. For
+example, \FCxxq-\FT is the syntax for \fIx\fR-sqrt(\fIx\fR). This
+command is useful for diagnostics; an example is given below in the
+UNEXPECTED BEHAVIOR section.
+
+
+.SH STAND-ALONE MATHS LIBRARY
+
+The \fBries\fR source code includes an auxiliary file,
+\FCmsal_math64.c\FT, which can be downloaded from the same place as the
+main RIES source code and this manual. It provides some of the
+standard trignonmetric functions, whose implementation have been found
+to vary across different releases of the standard \FClibm\FT. This is
+useful if you are running \fBries\fR on a variety of newer or older
+systems and want to be able to rely on consistent results.
+
+\FCmsal_math64.c\FT also provides the Lambert W function, defined to
+the symbol 'W'.
+
+To use \FCmsal_math64.c\FT, compile \fBries\fR in the normal way but
+with the additional compiler option \FC-DRIES_USE_SA_M64\FT. The
+resulting \fBries\fR binary will report ``mathlib: stand-alone''
+when given the \FC--version\FT option.
+
+Once \fBries\fR has been compiled with the stand-alone maths library,
+the Lambert W function is available by giving the option \FC-EW\FT on
+the \fBries\fR command-line. Its default weight is set to make it
+occur a little more often than the two-argument exponential and root
+functions; use the \fB--symbol-weights\fR option if you want to change
+this.
+
+
+.SH ALGORITHM
+
+\fBries\fR begins its search with small, simple equations and proceeds
+to longer, more complex ones. It uses a set of \fIcomplexity rules\fR
+to compute a measure (similar to Kolmogorov complexity), which
+determines the order in which various candidate expressions are
+considered by \fBries\fR. For example:
+
+.IP 1.
+If you add a symbol to an equation, the result is more
+complex:
+
+    \fIx\fR + 1 = 3   is more complex than     \fIx\fR = 3
+
+  \fIx\fR + 1 = ln(3) is more complex than   \fIx\fR + 1 = 3
+
+   \fIx\fR - 7 = 4^2  is more complex than   \fIx\fR - 7 = 4
+
+.IP 2.
+If two equations are the same except for one number, the
+equation with the higher number is more complex:
+
+    \fIx\fR + 1 = 5   is more complex than   \fIx\fR + 1 = 3
+
+   \fIx\fR^3 + 1 = 3  is more complex than  \fIx\fR^2 + 1 = 3
+
+.IP 3.
+If two equations are the same except for one symbol, the
+equation with the "more exotic" symbol is more complex:
+
+    \fIx\fR ^ 5 = 3   is more complex than   \fIx\fR + 5 = 3
+
+.P
+As \fBries\fR searches it finds solutions -- these are equations for
+which \fIx\fR is close to being an exact answer. Each time it finds a
+solution it prints it out. Then \fBries\fR raises its standard for
+the next answer: The next answer \fBries\fR prints must be a closer
+match to your supplied value than all the answers it has given so
+far. (The only exception to this rule is an 'exact' match, one for which
+both sides match to within the limits of numerical precision. \fBries\fR
+will print at most one of these, and will then continue to
+print more inexact solutions. Sometimes the approximations are
+of greater interest than the exact match.)
+
+Instead of trying complete equations, \fBries\fR
+actually constructs half-equations, called
+\fIleft-hand-side expressions\fR
+and \fIright-hand-side expressions\fR, abbreviated LHS's and RHS's.
+It keeps a list of LHS's and a list of RHS's, and it keeps
+these lists in numerical order at all times. This enables \fBries\fR
+to find matches much faster. All LHS's contain \fIx\fR and all
+RHS's do not. Thus, 1000 LHS's and 1000 RHS's make a total of
+1000000 possible equations, and all 1000000 combinations can be quickly checked
+just by scanning through the two lists in numerical order. This is why
+\fBries\fR is able to check billions of equations in such a short time.
+
+The closeness of an LHS match depends on the value of \fIx\fR,
+and also on the derivative with respect to \fIx\fR of the LHS
+expression. Because of this, \fBries\fR
+calculates derivatives of LHS's as well as their values.
+
+There are dozens of optimization rules \fBries\fR
+uses, like the following:
+
+.IP \fBa+\fR
+Don't try ``K + K'' for any constant \fBK\fR because ``K * 2''
+is equivalent.
+.IP \fBb+\fR
+Don't try ``3 + 4'' (or any two unequal integers from 1 to 5)
+because another single integer (in this case ``7'') is shorter.
+.IP \fBa*\fR
+Don't try ``1 * K'' for any constant \fBK\fR because ``K'' is shorter.
+.IP \fBb*\fR
+Don't try both ``2 * 4'' and ``4 * 2'' because they are equivalent.
+.IP \fBc*\fR
+Don't try ``K * K'' because ``K ^ 2'' is shorter.
+.IP \fBar\fR
+Don't try ``1 / (1 / expr))'' for any expression \fBexpr\fR
+because ``expr'' is shorter.
+.IP \fBa^\fR
+Don't try ``2 ^ 2'' or ``2 squared'' because ``4'' is shorter.
+.IP \fBb^\fR
+Don't try ``expr ^ 2'' for any expression \fBexpr\fR
+because ``expr squared'' is shorter.
+.RE
+
+There are over 50 rules like this, and together they make the search about
+10 times faster. However, if the symbol set is limited via \fB-N\fR,
+\fB-O\fR or \fB-S\fR, some of these rules cannot be used. For each
+optimization rule there are one or more symbolset exclude rules
+like the following:
+
+.RS 0.6i
+Don't use rule \fBa+\fR if either of the symbols '*' or '2' is disabled.
+.RE
+
+In order to maintain maximum efficiency, \fBries\fR
+checks each rule individually against the symbolset,
+and uses as many rules as it can.
+You can see this process in action by trying a command like
+\FCries 1.4142135\FT, which gives the answer ``\fIx\fR^2 = 2''.
+If you disable the 's' (squared) and '^' (power) symbols with
+\FCries 1.4142135 -Ns^\FT, rule \fBb^\fR goes
+away, and the answer becomes ``\fIx x\fR = 2''.
+If you also disable '*' (multiplication) the answer
+becomes ``\fIx\fR = sqrt(2)''.
+Disable 'q' (square root) and you get ``log_2(\fIx\fR)
+= 1/2'' (the logarithm to base 2 of \fIx\fR is 1/2).
+Disable 'L' and it becomes ``\fIx\fR = 2,/2'' (square root of 2, this time
+using the generalized root function). Disable 'v' and you
+get ``\fIx\fR/(1/\fIx\fR) = 2''. Disabling '/', we get a trignometric
+identity involving \fIpi\fR/4; disabling the trig functions as well, the
+command becomes \FCries 1.4142135 '-Ns^q*Lv/SCT'\FT and we finally get an
+answer that most people probably would not guess:
+\fIx\fR-1/(\fIx\fR+1) = 1 (note that the '/' in this answer is
+actually part of '1/', which is the reciprocal operator 'r'). Throughout
+this progression the complexity score of the equation increases as
+the solution becomes more and more obscure, and simpler but poorly
+matching ``solutions'' like 1/cos(\fIx\fR) = 6 begin to appear.
+
+.SH UNEXPECTED BEHAVIOR
+
+Sometimes a more complex equation will be given before the (simpler)
+equation that you expect. For example, tan(sqrt(2)) =
+sin(sqrt(2))/cos(sqrt(2)) is 6.334119167042..., so you might expect
+the command \FCries 6.334119167042 --trig-argument-scale 1 -NT\FT to
+report something like ``cos(sqrt(2)) \fIx\fR = sin(sqrt(2))''.
+Instead, \fBries\fR gives ``sqrt(\fIx\fR^2+1) = 1/cos(sqrt(2))'',
+which is equivalent by
+trigonometric identity, because it considers this equation to be
+``more balanced'' (complexity score 45+38) than the other (which
+has a score of 48+29). Please read the preceding section ``ALGORITHM''
+for more details.
+
+Adding or changing the symbolset with the \fB-S\fR, \fB-O\fR and
+\fB-N\fR options often causes unexpected changes in the output. For
+example, \FCries 2.2772\FT yields the solution ``1/(\fIx\fR-2) =
+2+\fIphi\fR'' but \FCries 2.2772 '-N*/T'\FT does not give this
+solution in any form. This seems counterintuitive: there was no *, /,
+or tan() in the ``1/(\fIx\fR-2) = 2+\fIphi\fR'' solution, so why did
+\fBries\fR decide not to report it?
+     In fact, the solution is still generated internally, but because
+you have told it to exclude some operators, \fBries\fR has to try
+other, more exotic expressions sooner than it otherwise would. As it
+happens, the next solution ``\fIx\fR+1/e = sqrt(7)'' (which matches
+the target value 2.2772 more closely than ``1/(\fIx\fR-2) =
+2+\fIphi\fR'') ends up getting found earlier.
+     The mysterious behavior results from the fact that \fBries\fR
+always tries to keep the number of LHS and RHS expressions equal as it
+performs its search. Eliminating operators with the \fB-N\fR option
+means that more complex expressions must be generated to reach the
+``quota''. In this particular case, the symbolset restriction has a
+greater effect on the LHS than on the RHS, so as the search is
+progressing, LHS complexity grows a little more quickly than RHS
+complexity. The complexity of ``1/(\fIx\fR-2)'' is 40, while the
+complexity of ``\fIx\fR+1/e'' is only a little more complex at 42. But
+the right-hand-side ``sqrt(7)'' is considered less complex (27) than
+``2+\fIphi\fR'' (35). Since both pieces of an equation need to be
+found before an equation can be reported, \fBries\fR is able to locate
+both pieces of ``\fIx\fR+1/e = sqrt(7)'' sooner when the \FC-N\FT
+option is given.
+     This is all made plain with the \fB--find-expression\fR option,
+giving the expressions ``1/(\fIx\fR-2)'', ``2+\fIphi\fR'',
+``\fIx\fR+1/e'' and ``sqrt(7)'' in postfix form, to reveal the order
+in which they are generated by the search algorithm:
+
+.fam C
+.ps -2
+    ries 2.2772 --find-expression x2-r f2+ xer+ 7q
+     [7q] = 2.64575131106459, complexity = {27}
+     [x2-r] = 3.60750360750361, d/dx = -13.0141, complexity = {40}
+     [f2+] = 3.61803398874989, complexity = {35}
+     [xer+] = 2.64507944117144, d/dx = 1, complexity = {42}
+.ps +2
+.fam T
+
+Then, repeating the same command with \fB'-N*/T'\fR shows that the
+\FC[xer+]\FT is generated before \FC[f2+]\FT.
+
+In the case of two equivalent solutions (like the 6.334119167042...
+example earlier in this section), both equations come equally close to
+the supplied value, but only one can be found first. Once the
+first one is reported, the other is not, because \fBries\fR only
+reports solutions that are at least a 0.1% closer match than the
+previously-reported solution.
+
+The \fB-l\fR option is meant to give control over the
+number of solutions searched, but it actually controls the
+number of LHS and RHS expressions generated. Because two RHS's
+often have the same value, and only one (the first) gets kept,
+the number of solutions checked (which is the RHS count
+times the LHS count) depends on how often you get two LHS's or RHS's
+with the same value. This happens particularly often when the
+symbol set is severely restricted. If \fBries\fR tried to compensate
+for this, the result would be that severely limited symbolsets would
+take a very long time to run and would generate really long
+equations. This is an important issue for those using \fBries\fR
+to solve special problems, like the ``four fours problem''
+exemplified by the command \FCries --numeric-anagram 4444 -Ox 17\FT.
+The current implementation represents the author's
+attempt at a reasonable tradeoff.
+
+.SH BUGS
+
+Performance does not degrade gracefully when the physical memory limit
+is hit, because expression nodes are allocated in sequential order in
+memory, without regard to where they will end up in the tree. This
+could be improved in the future with percentile demographics and a
+sort performed one time only, after the tree reaches a healthy (but
+not excessive) size.
+
+Although it tries to avoid it, \fBries\fR will often print more than
+one equivalent solution. It misses the fact that the multiple
+solutions are equivalent because of roundoff error. For example,
+\FCries '-S4+-*/' -Ox 17\FT gives ``x-4*4 = 4/4'' and ``(4/(4-4*4))
+x+4 = (4*4+4)/(4-4*4)'' (or a similar long form), only recognizing the
+first as an exact match (the more complex one involves divisions by
+multiples of 3, which require rounding).
+     This problem is common when the target is already known very
+precisely by the user. For example, \FCries 0.00088953230706449\FT
+gives the (correct) answer ``ln(x)/pi = -sqrt(5)'', followed by
+redundant/equivalent answers such as ``ln(x)/pi-2 = -(phi^3)'' (if
+\fBries\fR was compiled with regular precision) or ``sqrt(5),/x+4 =
+1/e^pi+4'' (if compiled with the \FC-DRIES_WANT_LDBL\FT option); but
+\FCries 0.000889532307\FT only gives the first, simplest form of the
+answer.
+
+Related to this, \fBries\fR sometimes gives an overly-complex answer,
+again because of roundoff error. For example, \fBries\fR gets slightly
+different values for ``2/3'' and ``1-1/3'', and stores both of these
+in its database of RHS values. When reporting a solution in which both
+sides of the equation equal 2/3, it might give ``1-1/3'' for
+the right-hand side if it is closer to the (rounded) value of the
+left-hand side.
+     This is particularly common if you request an exact match with a
+zero or very small \fB--max-match-distance\fR value,
+while giving an imprecise target value.
+For example, \FCries 1.9739208802178 --max-match-distance 0\FT
+might give ``cospi(1/(5 x)^2) = cospi(1/pi^4)'' whereas
+\FCries 1.9739208802178715 --max-match-distance 0\FT gives the expected
+``5 x = pi^2''. However, I've only gotten complaints about this from
+users who give \fBries\fR a problem to which they already know an answer.
+     If you know that 1.9739208802178... is \fIpi\fR^2/5, then you don't
+really need \fBries\fR to tell you that, do you? And if you're searching
+for things that approximate \fIpi\fR^2/5, such as sqrt(sqrt(e^2+1)+1)
+= 1.9739267..., you can use the \fB--min-match-distance\fR option.
+
+In deeper searches or with target values larger than 10^5,
+\fBries\fR might occasionally report ``solutions'' that are actually
+tautologies empty in meaning. A typical example is
+``\fIx\fR^(4/ln(sqrt(\fIx\fR))) = sqrt(e)^(4^2)'' (which is true
+for any value of \fIx\fR), but \fBries\fR handles that case and most
+others like it. If you suspect the solutions it gives, use the
+\fB-Ds\fR option to show all calculations behind each proposed
+solution. The options \fB--derivative-margin\fR,
+\fB--min-match-distance\fR, and \fB--significance-loss-margin\fR may
+help avoid meaningless results.
+    You can also use \fB-Ox\fR to force \fBries\fR to use only a
+single \fIx\fR in each equation, which will prevent these tautologies
+entirely, but will also prevent the discovery of interesting solutions
+like \fIx\fR^\fIx\fR = 10.
+
+.SH ACRONYM
+
+\fBries\fR (pronounced ``reese'' or ``reeze'') is an acronym for
+``RILYBOT Inverse Equation Solver''. The expansion of
+\fIRILYBOT\fR includes two
+more acronyms whose combined length is greater than 11. The full
+expansion of \fBries\fR grows without limit and is well-defined but not
+primitive-recursive. Contact the author for more information.
+
+.SH AUTHOR
+
+Robert P. Munafo (contact information on mrob.com)
+
+.SH LICENSES
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts and no Back-Cover Texts.
+
+\fBries\fR itself is free software: you can redistribute it and/or
+modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+\fBries\fR and this document are distributed in the hope that they
+will be useful, but WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+the GNU General Public License for more details.
+
+If you got \FCries.c\FT from the website \FCmrob.com\FT, the GNU
+General Public License may be retrieved at
+\FCmrob.com/ries/COPYING.txt\FT and the GNU Free Documentation
+License may be found at \FCmrob.com/ries/FDL-1.3.txt\FT ; you may
+also find copies of both licenses at \FCwww.gnu.org/licenses/\FT

@@ -1,3 +1,6 @@
+# For use with python package sympy.
 --explicit-multiply
+# Can't make this something sympy can process, without doing sneaky infix
+# operators.
 -Nv
 --symbol-names :1:S.One :^:** :e:E :f:GoldenRatio :W:LambertW
