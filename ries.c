@@ -1,8 +1,8 @@
 /* ries.c
 
     RIES -- Find Algebraic Equations, Given Their Solution
-    Copyright (C) 2000-2017 Robert P. Munafo
-    This is the 2017 Feb 12 version of "ries.c"
+    Copyright (C) 2000-2018 Robert P. Munafo
+    This is the 2018 Aug 05 version of "ries.c"
 
 
     This program is free software: you can redistribute it and/or modify
@@ -2462,6 +2462,9 @@ signed-vs.-unsigned cleanup.
 parse.args()
 
 20170211 Add '--show-work' as a synonym for '-Ds'
+20180713 Add '--max-trig-argument' option.
+
+20180802 Rename '--max-trig-argument' to '--max-trig-cycles'
 
 */ /*
 
@@ -2707,7 +2710,7 @@ variants. */
 
 /* -------------- defines ------------------------------------------------- */
 
-#define RIES_VERSION "2017 Feb 12"
+#define RIES_VERSION "2018 Aug 05"
 
 /* Default search level. For backwards compatibility, the -l option adds
    a number to the DEFAULT_LEV_BASE value. Without a -l option, it acts as if
@@ -3304,6 +3307,7 @@ size_t symbol_count=0;
 
 ries_val k_sincos_arg_scale = 0;
 b001 g_trig_scale_default;
+ries_val k_sincos_max_arg = 1.0;
 
 /* These constants are used to set legal limits in various functions */
 ries_val k_sin_clip = (ries_val)0.99999L;
@@ -3649,7 +3653,7 @@ char * pa_def_path;
 void show_version(void)
 {
   printf(
-    "ries version of %s, Copyright (C) 2000-2017 Robert P. Munafo\n",
+    "ries version of %s, Copyright (C) 2000-2018 Robert P. Munafo\n",
     RIES_VERSION);
 
   printf(
@@ -5464,8 +5468,14 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       }
     }
     a *= k_sincos_arg_scale;
-    if ((a >= k_pi) || (-a >= k_pi)) {
-      /* This is to eliminate nonsense "solutions" like "sin(X^9) = 1/4" */
+    /* This is to eliminate nonsense "solutions" like "sin(X^9) = 1/4"
+       Note that if we're comparing to pi, the "equal" case doesn't matter
+       because sin(pi)=0 and cos(pi)=-1, etc. so we can generate the error
+       when a==pi without losing ny useful solutions. However if the max_arg
+       option is not 1, then the foregoing no longer applies. */
+    if ((a > (k_pi * k_sincos_max_arg))
+     || (-a > (k_pi * k_sincos_max_arg)))
+    {
       return ERR_EXEC_TRIG_RANGE;
     }
     rv = SIN(a);
@@ -5511,8 +5521,10 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       }
     }
     a *= k_sincos_arg_scale;
-    if ((a >= k_pi) || (-a >= k_pi)) {
-      /* This is to eliminate nonsense "solutions" like "sin(X^9) = 1/4" */
+    /* Same comment as above (in SIN function section) */
+    if ((a > (k_pi * k_sincos_max_arg))
+     || (-a > (k_pi * k_sincos_max_arg)))
+    {
       return ERR_EXEC_TRIG_RANGE;
     }
     rv = COS(a);
@@ -5550,8 +5562,10 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       }
     }
     a *= k_sincos_arg_scale;
-    if ((a >= k_pi) || (-a >= k_pi)) {
-      /* This is to eliminate nonsense "solutions" like "tan(X^9) = 1/4" */
+    /* Same comment as above (in SIN function section) */
+    if ((a > (k_pi * k_sincos_max_arg))
+     || (-a > (k_pi * k_sincos_max_arg)))
+    {
       return ERR_EXEC_TRIG_RANGE;
     }
     rv = TAN(a);
@@ -6047,7 +6061,7 @@ s16 infix_1(
       if ((sym_attrs[op_a].seft == 'a') && (op_b >= '0') && (op_b <= '9')) {
         swap = 1;
       } else if ((op_a == 'x') &&
-		 ( (op_b == 'e') || (op_b == 'f') || (op_b == 'p')) ) {
+          ( (op_b == 'e') || (op_b == 'f') || (op_b == 'p')) ) {
         /* "x pi" -> "pi x" */
         swap = 1;
       }
@@ -7764,7 +7778,7 @@ void check_exit(int is_exact)
     if (g_num_matches == 1) {
       printf("  (Stopping now because 1 match was found.)\n");
     } else {
-    printf("  (Stopping now because %ld matches were found.)\n",
+      printf("  (Stopping now because %ld matches were found.)\n",
                                                        (long) g_num_matches);
     }
   } else {
@@ -10375,8 +10389,8 @@ void init2()
   }
 
   add_symbol(ADDSYM_NAMES('W', "W", "W"),
-	     'b', 5, "W(x) = LambertW(x) = inverse(x=w*e^w)",
-	     "W(x) = LambertW(x) = inverse(x=w*e^w)", "W");
+      'b', 5, "W(x) = LambertW(x) = inverse(x=w*e^w)",
+                               "W(x) = LambertW(x) = inverse(x=w*e^w)", "W");
 
 
   /* seft 'c' symbols */
@@ -11309,116 +11323,116 @@ void parse_args(size_t nargs, char *argv[])
       k_max_match_dist = -0.01; /* This will be calculated from the target
                                    by init.2 */
 
-      } else if (strcmp(pa_this_arg, "--max-equate-value") == 0) {
-        ries_val t;
-        pa_get_arg();
-        if (pa_this_arg && sscanf(pa_this_arg, RV_SS_FMT, &t)) {
-          if (t <= g_min_equ_val) {
-            printf("%s: --max-equate-value argument cannot be greater than "
+    } else if (strcmp(pa_this_arg, "--max-equate-value") == 0) {
+      ries_val t;
+      pa_get_arg();
+      if (pa_this_arg && sscanf(pa_this_arg, RV_SS_FMT, &t)) {
+        if (t <= g_min_equ_val) {
+          printf("%s: --max-equate-value argument cannot be greater than "
               "--min-equate-value argument.\n", g_argv0);
-            brief_help();
-            print_end(-1);
-          }
-          g_max_equ_val = t;
-          printf("Equations will have both sides at most ");
-          spfg(k_usable_digits, g_max_equ_val);
-          printf("\n");
-        } else {
-          printf("%s: --max-equate-value should be followed by a numeric "
-            "argument.\n"
-            "\n", g_argv0);
           brief_help();
           print_end(-1);
         }
+        g_max_equ_val = t;
+        printf("Equations will have both sides at most ");
+        spfg(k_usable_digits, g_max_equ_val);
+        printf("\n");
+      } else {
+        printf("%s: --max-equate-value should be followed by a numeric "
+            "argument.\n"
+            "\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
 
-      } else if (strcmp(pa_this_arg, "--max-match-distance") == 0) {
-        ries_dif t;
-        pa_get_arg();
-        if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
-          k_max_match_dist = t;
-          g_match_all_digits = B_FALSE; /* Cannot use both options together */
-          if (k_max_match_dist < 0) {
-            printf(
+    } else if (strcmp(pa_this_arg, "--max-match-distance") == 0) {
+      ries_dif t;
+      pa_get_arg();
+      if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
+        k_max_match_dist = t;
+        g_match_all_digits = B_FALSE; /* Cannot use both options together */
+        if (k_max_match_dist < 0) {
+          printf(
               "First match must be closer than %g times your target value.\n",
               -k_max_match_dist);
-          } else if (k_max_match_dist == 0) {
-            printf("Only give an 'exact' match (if any) then exit.\n");
-          } else {
-            printf("First match must be closer than %g.\n", k_max_match_dist);
-          }
+        } else if (k_max_match_dist == 0) {
+          printf("Only give an 'exact' match (if any) then exit.\n");
         } else {
-          printf("%s: --max-match-distance should be followed by a numeric "
+          printf("First match must be closer than %g.\n", k_max_match_dist);
+        }
+      } else {
+        printf("%s: --max-match-distance should be followed by a numeric "
             "argument.\n"
             "\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
+
+    } else if ((strcmp(pa_this_arg, "--max-matches") == 0)
+           || (strncmp(pa_this_arg, "-n", 2) == 0)) {
+      double t;
+      if (pa_this_arg[1] == 'n') {
+        pa_this_arg += 2; /* Skip the '-n' */
+      } else {
+        pa_get_arg(); /* Get the next arg */
+      }
+      if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
+        if (t >= 1) {
+          g_max_matches = (stats_count) t;
+        } else {
+          printf("%s: -n or --max-matches argument should be 1 or more.\n"
+              "examples:  -n7  or  --max-matches 7\n"
+              "\n", g_argv0);
           brief_help();
           print_end(-1);
         }
-
-      } else if ((strcmp(pa_this_arg, "--max-matches") == 0)
-             || (strncmp(pa_this_arg, "-n", 2) == 0)) {
-        double t;
-        if (pa_this_arg[1] == 'n') {
-          pa_this_arg += 2; /* Skip the '-n' */
-        } else {
-          pa_get_arg(); /* Get the next arg */
-        }
-        if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
-          if (t >= 1) {
-            g_max_matches = (stats_count) t;
-          } else {
-            printf("%s: -n or --max-matches argument should be 1 or more.\n"
-              "examples:  -n7  or  --max-matches 7\n"
-              "\n", g_argv0);
-            brief_help();
-            print_end(-1);
-          }
-        } else {
-          printf("%s: --max-matches should be followed by a numeric "
+      } else {
+        printf("%s: --max-matches should be followed by a numeric "
             "argument.\n"
             "examples:  -n7  or  --max-matches 7\n"
             "\n", g_argv0);
-          brief_help();
-          print_end(-1);
-        }
+        brief_help();
+        print_end(-1);
+      }
 
-      } else if (strcmp(pa_this_arg, "--max-memory") == 0) {
-        time_flt t;
-        pa_get_arg();
-        if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
-          g_max_memory = fabs(t);
-          printf("Will not use more than %g bytes of memory.\n",
+    } else if (strcmp(pa_this_arg, "--max-memory") == 0) {
+      time_flt t;
+      pa_get_arg();
+      if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
+        g_max_memory = fabs(t);
+        printf("Will not use more than %g bytes of memory.\n",
             g_max_memory);
-        } else {
-          printf("%s: --max-memory should be followed by a numeric argument.\n"
+      } else {
+        printf("%s: --max-memory should be followed by a numeric argument.\n"
             "\n", g_argv0);
-          brief_help();
-          print_end(-1);
-        }
+        brief_help();
+        print_end(-1);
+      }
 
-      } else if (strcmp(pa_this_arg, "--memory-abort-threshold") == 0) {
-        time_flt t;
-        pa_get_arg();
-        if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
-          if (t > 1.0) {
-            g_mem_bad_ratio = t;
-            printf("Memory slowness abort ratio: %g.\n",
+    } else if (strcmp(pa_this_arg, "--memory-abort-threshold") == 0) {
+      time_flt t;
+      pa_get_arg();
+      if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
+        if (t > 1.0) {
+          g_mem_bad_ratio = t;
+          printf("Memory slowness abort ratio: %g.\n",
               g_mem_bad_ratio);
-          } else {
-            printf("%s: --memory-abort-threshold should be at least 1.0,"
+        } else {
+          printf("%s: --memory-abort-threshold should be at least 1.0,"
               " and values less than about 1.5 are unlikely to be of"
               " much use.\n"
               "\n", g_argv0);
-            brief_help();
-            print_end(-1);
-          }
-        } else {
-          printf(
-            "%s: --memory-abort-threshold should be followed by a numeric\n"
-            "argument larger than 1.0 (larger than 1.5 is recommended).\n"
-            "\n", g_argv0);
           brief_help();
           print_end(-1);
         }
+      } else {
+        printf(
+            "%s: --memory-abort-threshold should be followed by a numeric\n"
+            "argument larger than 1.0 (larger than 1.5 is recommended).\n"
+            "\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
 
     } else if (strcmp(pa_this_arg, "-X") == 0) {
       char symbol;
@@ -11446,464 +11460,486 @@ void parse_args(size_t nargs, char *argv[])
 	brief_help();
 	print_end(-1);
       }
-      } else if (strcmp(pa_this_arg, "--min-equate-value") == 0) {
+    } else if (strcmp(pa_this_arg, "--min-equate-value") == 0) {
         ries_val t;
         pa_get_arg();
         if (pa_this_arg && sscanf(pa_this_arg, RV_SS_FMT, &t)) {
           if (t >= g_max_equ_val) {
             printf("%s: --min-equate-value argument cannot be greater than "
               "--max-equate-value argument.\n", g_argv0);
-            brief_help();
-            print_end(-1);
-          }
-          g_min_equ_val = t;
-          printf("Equations will have both sides at least ");
-          spfg(k_usable_digits, g_min_equ_val);
-          printf("\n");
-        } else {
-          printf("%s: --min-equate-value should be followed by a numeric "
-            "argument.\n"
-            "\n", g_argv0);
           brief_help();
           print_end(-1);
         }
+        g_min_equ_val = t;
+        printf("Equations will have both sides at least ");
+        spfg(k_usable_digits, g_min_equ_val);
+        printf("\n");
+      } else {
+        printf("%s: --min-equate-value should be followed by a numeric "
+            "argument.\n"
+            "\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
 
-      } else if (strcmp(pa_this_arg, "--min-match-distance") == 0) {
-        /* %%% I might want to have "-ee" be a synonym for
-               "--max-match-distance 0" */
-        ries_dif t;
-        pa_get_arg();
-        if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
-          g_min_matchsize = t;
-          if (g_min_matchsize == 0.0) {
-            printf("Will exit if an 'exact' match is found.\n");
-            g_exact_exit = B_TRUE;
-          } else if (g_min_matchsize < -0.1) {
-            printf("%s: --min-match-distance argument can be negative but not "
+    } else if (strcmp(pa_this_arg, "--min-match-distance") == 0) {
+      /* %%% I might want to have "-ee" be a synonym for
+             "--max-match-distance 0" */
+      ries_dif t;
+      pa_get_arg();
+      if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
+        g_min_matchsize = t;
+        if (g_min_matchsize == 0.0) {
+          printf("Will exit if an 'exact' match is found.\n");
+          g_exact_exit = B_TRUE;
+        } else if (g_min_matchsize < -0.1) {
+          printf("%s: --min-match-distance argument can be negative but not "
               "less than -0.1\n"
               "\n", g_argv0);
-            brief_help();
-            print_end(-1);
-          } else if (g_min_matchsize < 0.0) {
-            printf("Using a minimum match distance of %g times your "
+          brief_help();
+          print_end(-1);
+        } else if (g_min_matchsize < 0.0) {
+          printf("Using a minimum match distance of %g times your "
               "target value.\n", g_min_matchsize);
-          } else {
-            printf("Using minimum match distance: %g\n", g_min_matchsize);
-          }
         } else {
-          printf("%s: --min-match-distance should be followed by a numeric "
+          printf("Using minimum match distance: %g\n", g_min_matchsize);
+        }
+      } else {
+        printf("%s: --min-match-distance should be followed by a numeric "
             "argument.\n"
             "\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
+
+    } else if (strcmp(pa_this_arg, "--max-trig-cycles") == 0) {
+      ries_val t;
+      pa_get_arg();
+      if (pa_this_arg && sscanf(pa_this_arg, RV_SS_FMT, &t)) {
+        if ((t > 0.0) && (t <= 100.0)) {
+          k_sincos_max_arg = (ries_val) t;
+          printf("Arguments of trig functions will be restricted to ");
+          spfg(k_usable_digits, k_sincos_max_arg * 0.5);
+          printf(" cycles on either side of zero.\n");
+        } else {
+          printf("%s: --max-trig-cycles must be between 0.0 and 100.0\n\n",
+                                                                    g_argv0);
           brief_help();
           print_end(-1);
         }
-
-      } else if (strcmp(pa_this_arg, "--min-memory") == 0) {
-        time_flt t;
-        pa_get_arg();
-        if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
-          g_min_memory = fabs(t);
-          printf("Memory-hogging safeguard disabled for the first %g bytes.\n",
+      } else {
+        printf("%s: --max-trig-cycles should be followed by a numeric "
+          "argument.\n"
+          "\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
+    } else if (strcmp(pa_this_arg, "--min-memory") == 0) {
+      time_flt t;
+      pa_get_arg();
+      if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
+        g_min_memory = fabs(t);
+        printf("Memory-hogging safeguard disabled for the first %g bytes.\n",
             g_min_memory);
-        } else {
-          printf("%s: --min-memory should be followed by a numeric "
+      } else {
+        printf("%s: --min-memory should be followed by a numeric "
             "argument.\n"
             "\n", g_argv0);
-          brief_help();
-          print_end(-1);
-        }
+        brief_help();
+        print_end(-1);
+      }
 
-      } else if (strcmp(pa_this_arg, "--no-canon-simplify") == 0) {
-        g_no_cv_simplify = B_TRUE;
+    } else if (strcmp(pa_this_arg, "--no-canon-simplify") == 0) {
+      g_no_cv_simplify = B_TRUE;
 
-      } else if (strcmp(pa_this_arg, "--no-refinement") == 0) {
-        g_refinement = 0;
+    } else if (strcmp(pa_this_arg, "--no-refinement") == 0) {
+      g_refinement = 0;
 
-      } else if (strcmp(pa_this_arg, "--no-slow-messages") == 0) {
-        g_allow_slow_message = 0;
+    } else if (strcmp(pa_this_arg, "--no-slow-messages") == 0) {
+      g_allow_slow_message = 0;
 
-      } else if (strcmp(pa_this_arg, "--no-solve-for-x") == 0) {
-        g_solve_for_x = B_FALSE;
+    } else if (strcmp(pa_this_arg, "--no-solve-for-x") == 0) {
+      g_solve_for_x = B_FALSE;
 
-      } else if (strcmp(pa_this_arg, "--numeric-anagram") == 0) {
-        if (pa_next_isparam()) {
-          /* Remember the selected anagram string, we test this later */
-          g_anagram = (char *) pa_get_arg();
-          /* Set the sym_allowed values */
-          set_anagram(g_anagram);
-        } else {
-          printf(
+    } else if (strcmp(pa_this_arg, "--numeric-anagram") == 0) {
+      if (pa_next_isparam()) {
+        /* Remember the selected anagram string, we test this later */
+        g_anagram = (char *) pa_get_arg();
+        /* Set the sym_allowed values */
+        set_anagram(g_anagram);
+      } else {
+        printf(
             "%s: --numeric-anagram should be followed by a string of digits.\n"
             "\n", g_argv0);
-          brief_help();
-          print_end(-1);
-        }
+        brief_help();
+        print_end(-1);
+      }
 
-      } else if (strcmp(pa_this_arg, "--one-sided") == 0) {
-        g_one_sided = B_TRUE;
+    } else if (strcmp(pa_this_arg, "--one-sided") == 0) {
+      g_one_sided = B_TRUE;
 
-      } else if (strcmp(pa_this_arg, "--rational-exponents") == 0) {
-        g_restrict_exponents = TYPE_RAT;
+    } else if (strcmp(pa_this_arg, "--rational-exponents") == 0) {
+      g_restrict_exponents = TYPE_RAT;
 
-      } else if (strcmp(pa_this_arg, "--rational-trig-args") == 0) {
-        g_restrict_trig_args = TYPE_RAT;
+    } else if (strcmp(pa_this_arg, "--rational-trig-args") == 0) {
+      g_restrict_trig_args = TYPE_RAT;
 
-      } else if (strcmp(pa_this_arg, "--relative-roots") == 0) {
-        /* Show "x = T + epsilon" rather than absolute values  */
-        if (g_match_all_digits) {
-          printf("Note: Ignoring '%s' because '--match-all-digits' is set.\n",
+    } else if (strcmp(pa_this_arg, "--relative-roots") == 0) {
+      /* Show "x = T + epsilon" rather than absolute values  */
+      if (g_match_all_digits) {
+        printf("Note: Ignoring '%s' because '--match-all-digits' is set.\n",
             pa_this_arg);
-        } else {
-          g_relative_x = B_TRUE;
-        }
+      } else {
+        g_relative_x = B_TRUE;
+      }
 
     } else if (strcmp(pa_this_arg, "--show-work") == 0) {
       /* Same as -Ds (sets debug_s flag) */
       set_debug_opts((char *) "s");
 
-      } else if (strcmp(pa_this_arg, "--significance-loss-margin") == 0) {
-        ries_dif t;
-        pa_get_arg();
-        if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
-          if ((t >= 0.0) && (t < 100.0)) {
-            t = pow(10.0, -t);
-            k_sig_loss = t;
-            printf("Using significance loss margin: %g\n", k_sig_loss);
-          } else {
-            printf("%s: --significance-loss-margin must be between 0.0 "
+    } else if (strcmp(pa_this_arg, "--significance-loss-margin") == 0) {
+      ries_dif t;
+      pa_get_arg();
+      if (pa_this_arg && sscanf(pa_this_arg, "%lf", &t)) {
+        if ((t >= 0.0) && (t < 100.0)) {
+          t = pow(10.0, -t);
+          k_sig_loss = t;
+          printf("Using significance loss margin: %g\n", k_sig_loss);
+        } else {
+          printf("%s: --significance-loss-margin must be between 0.0 "
               "and 100.0\n"
               "\n", g_argv0);
-            brief_help();
-            print_end(-1);
-          }
-        } else {
-          printf(
+          brief_help();
+          print_end(-1);
+        }
+      } else {
+        printf(
             "%s: --significance-loss-margin should be followed by a numeric "
             "argument.\n"
             "\n", g_argv0);
-          brief_help();
-          print_end(-1);
-        }
+        brief_help();
+        print_end(-1);
+      }
 
-      } else if (strcmp(pa_this_arg, "--symbol-names") == 0) {
-        if (pa_next_isparam()) {
-          char space_sym = ' ';
-          /* Override the standard symbol names. Multiple arguments may
-             be given. */
-          while(pa_next_isparam()) {
-            char * a;
-            symbol sym;
-            a = pa_get_arg();
-            if (  (a[0] == ':') && a[1]
-               && (a[2] == ':') && (a[3]==a[1]) && (a[4] == 0)
-               && (space_sym == ' ')) {
-              /* This syntax is used to define a symbol that stands in for
-                 blank space. */
-              space_sym = a[1];
-            } else if ((a[0] == ':') && a[1] && (a[2] == ':')) {
-              sym = (symbol) a[1];
-              if (strlen(a+3) <= MAX_SYM_NAME_LEN) {
-                str_remap(a+3, space_sym, ' ');
-                sym_attrs[sym].sa_name =
-                sym_attrs[sym].name_forth = a+3;
-                /* printf("setsym %c:%s\n", sym, a+3); */
-              } else {
-                printf("%s: Symbol name can be at most %d characters\n"
-                  "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
-                print_end(-1);
-              }
+    } else if (strcmp(pa_this_arg, "--symbol-names") == 0) {
+      if (pa_next_isparam()) {
+        char space_sym = ' ';
+        /* Override the standard symbol names. Multiple arguments may
+           be given. */
+        while(pa_next_isparam()) {
+          char * a;
+          symbol sym;
+          a = pa_get_arg();
+          if (  (a[0] == ':') && a[1]
+             && (a[2] == ':') && (a[3]==a[1]) && (a[4] == 0)
+             && (space_sym == ' ')) {
+            /* This syntax is used to define a symbol that stands in for
+               blank space. */
+            space_sym = a[1];
+          } else if ((a[0] == ':') && a[1] && (a[2] == ':')) {
+            sym = (symbol) a[1];
+            if (strlen(a+3) <= MAX_SYM_NAME_LEN) {
+              str_remap(a+3, space_sym, ' ');
+              sym_attrs[sym].sa_name =
+              sym_attrs[sym].name_forth = a+3;
+              /* printf("setsym %c:%s\n", sym, a+3); */
             } else {
-              printf("%s: --symbol-names argument syntax is :<sym>:name,"
+              printf("%s: Symbol name can be at most %d characters\n"
+                  "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
+              print_end(-1);
+            }
+          } else {
+            printf("%s: --symbol-names argument syntax is :<sym>:name,"
                                                               " for example\n"
                 "  :-:deme   to set name of '-' to 'deme'\n"
                 "  Instead I got '%s'\n", g_argv0, a);
-              print_end(-1);
-            }
+            print_end(-1);
           }
-        } else {
-          printf(
+        }
+      } else {
+        printf(
             "%s: --symbol-names should be followed by one or more tuples\n"
             "  of the form <sym>:name, for example:\n"
             "  :-:deme   to set name of '-' to 'deme'\n", g_argv0);
-          print_end(-1);
-        }
+        print_end(-1);
+      }
 
-      } else if (strcmp(pa_this_arg, "--symbol-weights") == 0) {
-        if (pa_next_isparam()) {
-          /* Override the standard symbol weights. Multiple arguments may
-             be given. */
-          while(pa_next_isparam()) {
-            char * a;
-            unsigned char argtmp[20];
-            int i; ries_dif w;
-            a = pa_get_arg();
-            ries_strncpy((char *) argtmp, a, 20);
-            /* Skip the numeric portion */
-            for(i=0;
-                (argtmp[i]=='.') || ((argtmp[i]>='0') && (argtmp[i]<='9'));
-                i++ ) {  }
-            if ((argtmp[i] == ':') && (argtmp[i+1])) {
-              argtmp[i++] = 0; /* Null-terminate the numeric portion by
-                                  overwriting the ':' */
-              w = strtod((char *) argtmp, 0);
-              if (w <= MIN_SYMBOL_WEIGHT) {
-                printf("%s: Symbol weight may not be %f or less.\n",
-                  g_argv0, MIN_SYMBOL_WEIGHT);
-                print_end(-1);
-              }
-              if (w > MAX_SYMBOL_WEIGHT) { w = MAX_SYMBOL_WEIGHT; }
-              /* printf("set weight of '%c' to %d\n", argtmp[i], (int) w); */
-              sym_attrs[argtmp[i]].preempt_weight = (s16) floor(w + 0.5);
-            } else {
-              printf("%s: --symbol-weights argument syntax is NUMBER:<sym>,"
+    } else if (strcmp(pa_this_arg, "--symbol-weights") == 0) {
+      if (pa_next_isparam()) {
+        /* Override the standard symbol weights. Multiple arguments may
+           be given. */
+        while(pa_next_isparam()) {
+          char * a;
+          unsigned char argtmp[20];
+          int i; ries_dif w;
+          a = pa_get_arg();
+          ries_strncpy((char *) argtmp, a, 20);
+          /* Skip the numeric portion */
+          for(i=0;
+              (argtmp[i]=='.') || ((argtmp[i]>='0') && (argtmp[i]<='9'));
+              i++ ) {  }
+          if ((argtmp[i] == ':') && (argtmp[i+1])) {
+            argtmp[i++] = 0; /* Null-terminate the numeric portion by
+                                overwriting the ':' */
+            w = strtod((char *) argtmp, 0);
+            if (w <= MIN_SYMBOL_WEIGHT) {
+              printf("%s: Symbol weight may not be %f or less.\n",
+                g_argv0, MIN_SYMBOL_WEIGHT);
+              print_end(-1);
+            }
+            if (w > MAX_SYMBOL_WEIGHT) { w = MAX_SYMBOL_WEIGHT; }
+            /* printf("set weight of '%c' to %d\n", argtmp[i], (int) w); */
+            sym_attrs[argtmp[i]].preempt_weight = (s16) floor(w + 0.5);
+          } else {
+            printf("%s: --symbol-weights argument syntax is NUMBER:<sym>,"
                                                               " for example\n"
                 "  12:^   to set weight of '^' to 12\n"
                 "  Instead I got '%s'\n", g_argv0, a);
-              print_end(-1);
-            }
+            print_end(-1);
           }
-        } else {
-          printf(
+        }
+      } else {
+        printf(
             "%s: --symbol-weights should be followed by one or more tuples\n"
             "  of the form NUMBER:<sym>, for example"
                              " 12:^   to set weight of '^' to 12\n", g_argv0);
-          print_end(-1);
-        }
+        print_end(-1);
+      }
 
-      } else if (strcmp(pa_this_arg, "--trig-argument-scale") == 0) {
-        ries_val t;
-        pa_get_arg();
-        if (pa_this_arg && sscanf(pa_this_arg, RV_SS_FMT, &t)) {
-          if ((t >= 0.0) && (t < 100.0)) {
-            k_sincos_arg_scale = (ries_val) t;
-            g_trig_scale_default = (k_sincos_arg_scale == k_pi);
-            printf("Argument of trig functions will be scaled by ");
-            spfg(k_usable_digits, k_sincos_arg_scale); /* printf(fmt_g_usable, k_sincos_arg_scale); */
-            printf("\n");
-          } else {
-            printf("%s: --trig-argument-scale must be between 0.0 "
-              "and 100.0\n"
-              "\n", g_argv0);
-            brief_help();
-            print_end(-1);
-          }
+    } else if (strcmp(pa_this_arg, "--trig-argument-scale") == 0) {
+      ries_val t;
+      pa_get_arg();
+      if (pa_this_arg && sscanf(pa_this_arg, RV_SS_FMT, &t)) {
+        if ((t >= 0.0) && (t < 100.0)) {
+          k_sincos_arg_scale = (ries_val) t;
+          g_trig_scale_default = (k_sincos_arg_scale == k_pi);
+          printf("Argument of trig functions will be scaled by ");
+          spfg(k_usable_digits, k_sincos_arg_scale); /* printf(fmt_g_usable, k_sincos_arg_scale); */
+          printf("\n");
         } else {
-          printf("%s: --trig-argument-scale should be followed by a numeric "
-            "argument.\n"
+          printf("%s: --trig-argument-scale must be between 0.0 "
+            "and 100.0\n"
             "\n", g_argv0);
           brief_help();
           print_end(-1);
         }
+      } else {
+        printf("%s: --trig-argument-scale should be followed by a numeric "
+          "argument.\n"
+          "\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
 
-      } else if ((strncmp(pa_this_arg, "-s", 2) == 0)
-              || (strcmp(pa_this_arg, "--try-solve-for-x") == 0)) {
-        g_solve_for_x = B_TRUE;
+    } else if ((strncmp(pa_this_arg, "-s", 2) == 0)
+            || (strcmp(pa_this_arg, "--try-solve-for-x") == 0)) {
+      g_solve_for_x = B_TRUE;
 
-      } else if (strcmp(pa_this_arg, "--version") == 0) {
-        show_version();
-        exit(0);
+    } else if (strcmp(pa_this_arg, "--version") == 0) {
+      show_version();
+      exit(0);
 
-      } else if ((strcmp(pa_this_arg, "--wide-output") == 0)
-              || (strcmp(pa_this_arg, "--wide") == 0)
-      ) {
-        g_wide_output = B_TRUE;
-        g_relative_x = B_TRUE;
+    } else if ((strcmp(pa_this_arg, "--wide-output") == 0)
+            || (strcmp(pa_this_arg, "--wide") == 0)
+    ) {
+      g_wide_output = B_TRUE;
+      g_relative_x = B_TRUE;
 
-      /* Single-character arguments:
-       { %% those in braces are not yet implemented }
-         -0 to -9    target number with leading - sign
-         -a          Algebraic class
-         -c          Constructible class
-               -D    Debug
-       { -e          Elementary class (between algebraic and Liouvillian) }
-       { -ee         Exact exit (might be confused with -e plus 'exact') }
-               -F    Format
-         -i          Integer class (and -ie)
-         -l          Liouvillian (if bare); level (if with digit)
-               -N    Not these symbols
-               -O    Once-only symbols
-         -p          profile/parameters (parsed above)
-         -r          Rational class (and -re)
-         -s          (try to) solve for x
-               -S    Symbolset
-       { -t          Transcendental class (enable [W], [G], etc.) }
-         -x          Show X, not T+epsilon
-       */
-      /* Next we check the "-xN" type options, in which the "opcode" is a
-         single letter and its "arguments" follow it without a space in
-         between. These are used for the options you'll commonly want to
-         give when invoking ries to solve a problem. */
+    /* Single-character arguments:
+     { %% those in braces are not yet implemented }
+       -0 to -9    target number with leading - sign
+       -a          Algebraic class
+       -c          Constructible class
+             -D    Debug
+     { -e          Elementary class (between algebraic and Liouvillian) }
+     { -ee         Exact exit (might be confused with -e plus 'exact') }
+             -F    Format
+       -i          Integer class (and -ie)
+       -l          Liouvillian (if bare); level (if with digit)
+             -N    Not these symbols
+             -O    Once-only symbols
+       -p          profile/parameters (parsed above)
+       -r          Rational class (and -re)
+       -s          (try to) solve for x
+             -S    Symbolset
+     { -t          Transcendental class (enable [W], [G], etc.) }
+       -x          Show X, not T+epsilon
+     */
+    /* Next we check the "-xN" type options, in which the "opcode" is a
+       single letter and its "arguments" follow it without a space in
+       between. These are used for the options you'll commonly want to
+       give when invoking ries to solve a problem. */
 
 
-      } else if ((strncmp(pa_this_arg, "-a", 2) == 0)
-             || (strcmp(pa_this_arg, "--algebraic-subexpressions") == 0)) {
-        /* Subexpressions must be algebraic numbers */
-        set_restrict_alg(1);
+    } else if ((strncmp(pa_this_arg, "-a", 2) == 0)
+           || (strcmp(pa_this_arg, "--algebraic-subexpressions") == 0)) {
+      /* Subexpressions must be algebraic numbers */
+      set_restrict_alg(1);
+      if (pa_this_arg[2] == 'e') {
+        /* They gave "-ae"
+           %%% This should instead set an epsilon as with
+           --min-match-distance with a negative argument proportional
+           to the ULP as measured by init.formats */
+        g_exact_exit = B_TRUE;
+      }
+
+    } else if ((strncmp(pa_this_arg, "-c", 2) == 0)
+           || (strcmp(pa_this_arg, "--constructible-subexpressions") == 0)) {
+      /* Subexpressions must be constructible numbers */
+      g_restrict_subexpr = TYPE_CONS;
+      if (pa_this_arg[2] == 'e') {
+        /* They gave "-ce": exit on exact match.
+           NOTE: We already set k_min_best_match proportionally
+           to the target size */
+        g_exact_exit = B_TRUE;
+      }
+      /* This option is just shorthand for turning off a bunch of
+         functions. */
+      somesyms_set((symbol *) "peSCTl^vLEW", 0);
+      somesyms_set((symbol *) "+-*/nrsqf", MAX_ELEN);
+      somesyms_set((symbol *) "x", 1);
+      /* %%% Once I add an integer arguments option for ^, I can enable it
+        on RHS and in non-x-containing subexpressions in LHS. */
+
+    } else if (strncmp(pa_this_arg, "-D", 2) == 0) {
+      /* Debugging options */
+      set_debug_opts(pa_this_arg+2); /* +2 to skip the "-D" */
+
+    } else if (strncmp(pa_this_arg, "-E", 2) == 0) {
+      /* Enable these symbols: Like -S but doesn't clear everything else
+         out */
+      NOS_options = B_TRUE;
+      somesyms_set((symbol *) (pa_this_arg+2), MAX_ELEN); /* +2 skips "-E" */
+
+    } else if (strncmp(pa_this_arg, "-F", 2) == 0) {
+      /* Select expression display format */
+      pa_this_arg += 2;   /* skip the "-F" */
+      if (*pa_this_arg == 0) {
+        out_expr_format = OF_FORTH; /* default */
+      } else {
+        nv = sscanf(pa_this_arg, "%d", &out_expr_format);
+        if (nv == 0) {
+          printf("%s: -F parameter requires a number, e.g. '-F0'\n"
+              "\n", g_argv0);
+          brief_help();
+          print_end(-1);
+        }
+      }
+
+    } else if ((strncmp(pa_this_arg, "-i", 2) == 0)
+            || (strcmp(pa_this_arg, "--integer-subexpressions") == 0)) {
+      /* Integer subexpressions */
+      g_restrict_subexpr = TYPE_INT;
+      somesyms_set((symbol *) "pefqSCTlvLEW", 0);
+      if (pa_this_arg[2] == 'e') {
+        /* They gave "-ie" */
+        g_exact_exit = B_TRUE;
+      }
+
+    } else if ((strncmp(pa_this_arg, "-l", 2) == 0)
+           || (strcmp(pa_this_arg, "--liouvillian-subexpressions") == 0)) {
+      char t;
+      /* they gave a level */
+      pa_this_arg += 2;   /* skip the "-l" */
+      t = pa_this_arg[0];
+      if ((t == '-') || ((t >= '0') && (t <= '9'))) {
+        nv = sscanf(pa_this_arg, "%lf", &g_levadj);
+        if (nv) {
+          tlevel = DEFAULT_LEV_BASE + g_levadj;
+        } else {
+          printf("%s: -l parameter requires a number, e.g. '-l3'\n"
+              "\n", g_argv0);
+          brief_help();
+          print_end(-1);
+        }
+      } else {
+        /* We have a bare "-l", or "--liou..." without the "--"; in either
+           case this means we want to restrict to Liouvillian roots */
+        set_restrict_alg(0);
+        /* Enable exponential and logarithmic functions (but not Gamma or
+           LambertW) */
+        somesyms_set((symbol *) "eplEL", MAX_ELEN);
+        /* To disallow x within an exponent, but still allow anything
+           else in an exponent, we set g_restrict.subexpr to TYPE_TRAN
+           which causes g_target to be tagged as transcendental. Then
+           we restrict exponents and trigonometric arguments to elementary,
+           allowing even something like e^(2^(1/phi)). This allows
+           sqrt(2)^sqrt(2) to be found, but prevents finding the root of
+           x^x=7. */
+        g_restrict_subexpr = TYPE_TRAN;
+        g_restrict_exponents = TYPE_ELEM;
+        g_restrict_trig_args = TYPE_ELEM;
         if (pa_this_arg[2] == 'e') {
-          /* They gave "-ae"
+          /* They gave "-le"
              %%% This should instead set an epsilon as with
              --min-match-distance with a negative argument proportional
              to the ULP as measured by init.formats */
           g_exact_exit = B_TRUE;
         }
+      }
 
-      } else if ((strncmp(pa_this_arg, "-c", 2) == 0)
-             || (strcmp(pa_this_arg, "--constructible-subexpressions") == 0)) {
-        /* Subexpressions must be constructible numbers */
-        g_restrict_subexpr = TYPE_CONS;
-        if (pa_this_arg[2] == 'e') {
-          /* They gave "-ce": exit on exact match.
-             NOTE: We already set k_min_best_match proportionally
-             to the target size */
-          g_exact_exit = B_TRUE;
-        }
-        /* This option is just shorthand for turning off a bunch of
-           functions. */
-        somesyms_set((symbol *) "peSCTl^vLEW", 0);
-        somesyms_set((symbol *) "+-*/nrsqf", MAX_ELEN);
-        somesyms_set((symbol *) "x", 1);
-        /* %%% Once I add an integer arguments option for ^, I can enable it
-          on RHS and in non-x-containing subexpressions in LHS. */
+    } else if (strncmp(pa_this_arg, "-N", 2) == 0) {
+      /* Not these symbols */
+      NOS_options = B_TRUE;
+      somesyms_set((symbol *) (pa_this_arg+2), 0); /* +2 skips "-N" */
 
-      } else if (strncmp(pa_this_arg, "-D", 2) == 0) {
-        /* Debugging options */
-        set_debug_opts(pa_this_arg+2); /* +2 to skip the "-D" */
+    } else if (strncmp(pa_this_arg, "-O", 2) == 0) {
+      /* Once-only symbols */
+      NOS_options = B_TRUE;
+      somesyms_set((symbol *) (pa_this_arg+2), 1); /* +2 skips "-O" */
 
-      } else if (strncmp(pa_this_arg, "-E", 2) == 0) {
-        /* Enable these symbols: Like -S but doesn't clear everything else
-           out */
-        NOS_options = B_TRUE;
-        somesyms_set((symbol *) (pa_this_arg+2), MAX_ELEN); /* +2 skips "-E" */
+    } else if ((strncmp(pa_this_arg, "-r", 2) == 0)
+             || (strcmp(pa_this_arg, "--rational-subexpressions") == 0)) {
+      /* Rational subexpressions */
+      set_restrict_rat();
+      if (pa_this_arg[2] == 'e') {
+        /* They gave "-re" */
+        g_exact_exit = B_TRUE;
+      }
 
-      } else if (strncmp(pa_this_arg, "-F", 2) == 0) {
-        /* Select expression display format */
-        pa_this_arg += 2;   /* skip the "-F" */
-        if (*pa_this_arg == 0) {
-          out_expr_format = OF_FORTH; /* default */
-        } else {
-          nv = sscanf(pa_this_arg, "%d", &out_expr_format);
-          if (nv == 0) {
-            printf("%s: -F parameter requires a number, e.g. '-F0'\n"
-              "\n", g_argv0);
-            brief_help();
-            print_end(-1);
-          }
-        }
-
-      } else if ((strncmp(pa_this_arg, "-i", 2) == 0)
-              || (strcmp(pa_this_arg, "--integer-subexpressions") == 0)) {
-        /* Integer subexpressions */
-        g_restrict_subexpr = TYPE_INT;
-        somesyms_set((symbol *) "pefqSCTlvLEW", 0);
-        if (pa_this_arg[2] == 'e') {
-          /* They gave "-ie" */
-          g_exact_exit = B_TRUE;
-        }
-
-      } else if ((strncmp(pa_this_arg, "-l", 2) == 0)
-             || (strcmp(pa_this_arg, "--liouvillian-subexpressions") == 0)) {
-        char t;
-        /* they gave a level */
-        pa_this_arg += 2;   /* skip the "-l" */
-        t = pa_this_arg[0];
-        if ((t == '-') || ((t >= '0') && (t <= '9'))) {
-          nv = sscanf(pa_this_arg, "%lf", &g_levadj);
-          if (nv) {
-            tlevel = DEFAULT_LEV_BASE + g_levadj;
-          } else {
-            printf("%s: -l parameter requires a number, e.g. '-l3'\n"
-              "\n", g_argv0);
-            brief_help();
-            print_end(-1);
-          }
-        } else {
-          /* We have a bare "-l", or "--liou..." without the "--"; in either
-             case this means we want to restrict to Liouvillian roots */
-          set_restrict_alg(0);
-          /* Enable exponential and logarithmic functions (but not Gamma or
-             LambertW) */
-          somesyms_set((symbol *) "eplEL", MAX_ELEN);
-          /* To disallow x within an exponent, but still allow anything
-             else in an exponent, we set g_restrict.subexpr to TYPE_TRAN
-             which causes g_target to be tagged as transcendental. Then
-             we restrict exponents and trigonometric arguments to elementary,
-             allowing even something like e^(2^(1/phi)). This allows
-             sqrt(2)^sqrt(2) to be found, but prevents finding the root of
-             x^x=7. */
-          g_restrict_subexpr = TYPE_TRAN;
-          g_restrict_exponents = TYPE_ELEM;
-          g_restrict_trig_args = TYPE_ELEM;
-          if (pa_this_arg[2] == 'e') {
-            /* They gave "-le"
-               %%% This should instead set an epsilon as with
-               --min-match-distance with a negative argument proportional
-               to the ULP as measured by init.formats */
-            g_exact_exit = B_TRUE;
-          }
-        }
-
-      } else if (strncmp(pa_this_arg, "-N", 2) == 0) {
-        /* Not these symbols */
-        NOS_options = B_TRUE;
-        somesyms_set((symbol *) (pa_this_arg+2), 0); /* +2 skips "-N" */
-
-      } else if (strncmp(pa_this_arg, "-O", 2) == 0) {
-        /* Once-only symbols */
-        NOS_options = B_TRUE;
-        somesyms_set((symbol *) (pa_this_arg+2), 1); /* +2 skips "-O" */
-
-      } else if ((strncmp(pa_this_arg, "-r", 2) == 0)
-               || (strcmp(pa_this_arg, "--rational-subexpressions") == 0)) {
-        /* Rational subexpressions */
-        set_restrict_rat();
-        if (pa_this_arg[2] == 'e') {
-          /* They gave "-re" */
-          g_exact_exit = B_TRUE;
-        }
-
-      } else if (strncmp(pa_this_arg, "-S", 2) == 0) {
-        /* Only these symbols */
-        pa_this_arg += 2;   /* skip the "-S" */
-        if (*pa_this_arg == 0) {
-          /* Without args, show the symbols in use and their definitions */
-          g_show_ss = B_TRUE;
-        } else {
-          S_option = B_TRUE;
-          NOS_options = B_TRUE;
-          allsyms_set(0, 0);
-          somesyms_set((symbol *) pa_this_arg, MAX_ELEN);
-        }
-
-      } else if ((strcmp(pa_this_arg, "-x") == 0)
-              || (strcmp(pa_this_arg, "--absolute-roots") == 0)) {
-        /* Show values of x rather than "x = T + epsilon" */
-        if (g_wide_output) {
-          /* -x is incompatible with wide mode (which shows both types of x
-             value output) */
-          printf("Note: '%s' option with '--wide' is redundant.\n",
-            pa_this_arg);
-        } else {
-          g_relative_x = B_FALSE;
-        }
-
-      /* test for number must be last, because it might have a leading '-' */
-      } else if (((pa_this_arg[0] >= '0') && (pa_this_arg[0] <= '9'))
-               || (pa_this_arg[0] == '-') || (pa_this_arg[0] == '.')) {
-        /* This would be the target number */
-        nv = parse_target(pa_this_arg);
-        if (nv == 1) {
-          g_got_target = 1;
-        } else {
-        printf("%s: Unknown option '%s'\n\n", g_argv0, pa_this_arg);
-          brief_help();
-          print_end(-1);
-        }
+    } else if (strncmp(pa_this_arg, "-S", 2) == 0) {
+      /* Only these symbols */
+      pa_this_arg += 2;   /* skip the "-S" */
+      if (*pa_this_arg == 0) {
+        /* Without args, show the symbols in use and their definitions */
+        g_show_ss = B_TRUE;
       } else {
-      printf("%s: Unknown option '%s'\n\n", g_argv0, pa_this_arg);
+        S_option = B_TRUE;
+        NOS_options = B_TRUE;
+        allsyms_set(0, 0);
+        somesyms_set((symbol *) pa_this_arg, MAX_ELEN);
+      }
+
+    } else if ((strcmp(pa_this_arg, "-x") == 0)
+            || (strcmp(pa_this_arg, "--absolute-roots") == 0)) {
+      /* Show values of x rather than "x = T + epsilon" */
+      if (g_wide_output) {
+        /* -x is incompatible with wide mode (which shows both types of x
+           value output) */
+        printf("Note: '%s' option with '--wide' is redundant.\n",
+            pa_this_arg);
+      } else {
+        g_relative_x = B_FALSE;
+      }
+
+    /* test for number must be last, because it might have a leading '-' */
+    } else if (((pa_this_arg[0] >= '0') && (pa_this_arg[0] <= '9'))
+             || (pa_this_arg[0] == '-') || (pa_this_arg[0] == '.')) {
+      /* This would be the target number */
+      nv = parse_target(pa_this_arg);
+      if (nv == 1) {
+        g_got_target = 1;
+      } else {
+        printf("%s: Unknown option '%s'\n\n", g_argv0, pa_this_arg);
         brief_help();
         print_end(-1);
       }
+    } else {
+      printf("%s: Unknown option '%s'\n\n", g_argv0, pa_this_arg);
+      brief_help();
+      print_end(-1);
     }
+  }
   /* At this point pa_sp <= 0 and stk_nargs[pa_sp] == 0, so we're out of
      args */
 
@@ -12519,7 +12555,7 @@ int main(int nargs, char *argv[])
 /*
     ries.c
     RIES -- Find Algebraic Equations, Given Their Solution
-    Copyright (C) 2000-2017 Robert P. Munafo
+    Copyright (C) 2000-2018 Robert P. Munafo
 
     See copyright notice at beginning of this file.
  */
