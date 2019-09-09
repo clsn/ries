@@ -19,5 +19,8 @@
 # gamma(EulerGamma)
 -X h:4:1.5438817418156616987201193884		# Gammagamma!
 
---symbol-names :g:gamma :P:plastic :A:apery :K:Khinchin :F:CF :Y:Levy :B:RF :D:Catalan :h:Gamma(gamma)
+# i^i
+-X i:4:0.207879576350761908546955619835
+
+--symbol-names :g:EulerGamma :P:plastic :A:apery :K:Khinchin :F:CF :Y:Levy :B:RF :D:Catalan :h:gamma(EulerGamma) :i:(I**I)
 # --symbol-names :G:γ :P:ρ :A:ζ(3) :h:Γ(γ)

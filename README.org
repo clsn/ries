@@ -30,11 +30,11 @@ So, what's available here (at first) is:
 
    + [[http://mathworld.wolfram.com/ContinuedFractionConstant.html][Continued Fraction constant]] :: The value of the continued fraction [0; 1, 2, 3, 4, …].  Equal to /I₁(2)/I₀(2)/, where the /I/-s refer to Bessel I-functions.  Approximately 0.697774657964
 
-   + [[https://en.wikipedia.org/wiki/L%C3%A9vy%27s_constant][Lévy's constant]] :: The limit as n→∞ of /qₙ^(1/n)/, where /qₙ/ is the /n/-th partial quotient of the continued fraction for "almost all" real numbers.  Equal to exp(π²/(12·ln 2)); approximately 3.275822918721811
+   + [[https://en.wikipedia.org/wiki/L%C3%A9vy%27s_constant][Lévy's constant]] :: The limit as n→∞ of /qₙ^(1/n)/, where /qₙ/ is the denominator of the /n/-th convergent of the continued fraction for "almost all" real numbers.  Equal to exp(π²/(12·ln 2)); approximately 3.275822918721811
 
    + [[http://mathworld.wolfram.com/ReciprocalFibonacciConstant.html][Reciprocal Fibonacci constant]] :: The sum of the reciprocals of all the Fibonacci numbers.  Approximately 3.359885666243
 
-   + [[http://mathworld.wolfram.com/CatalansConstant.html][Catalan's Constant]] :: (Anyone know a simple description that indicates its utility?)  Approximately 0.9159655941772190
+   + [[http://mathworld.wolfram.com/CatalansConstant.html][Catalan's Constant]] :: The alternating sum of the reciprocals of the squares of all odd integers.  Approximately 0.9159655941772190
 
    + Γ(γ) :: The [[https://en.wikipedia.org/wiki/Gamma_function][Gamma function]] applied to the Euler-Mascheroni constant (see above).  Because it's lots of gammas.
 
@@ -42,9 +42,11 @@ So, what's available here (at first) is:
 
  + =sympy.ries= :: A profile for use with the python symbolic math package [[http://www.sympy.org/][sympy]].  Does only a few very simple substitutions, like constant names, =**= for =^=, and =S.One= for =1=, so reciprocals (at least) won't get evaluated to floating-point numbers and sympy can keep them as rationals.
 
+ + =infixnroot.py= :: a small Python script that uses a hack (from [[http://code.activestate.com/recipes/384122-infix-operators/][here]]) to create a Python "infix" operator that does what =ries='s ="/= symbol does: take the /n/-th root of something.  This way, =sympy.ries= above doesn't choke on /n/-th roots.  Still has problems with arbitrary logarithms, though.  (Using =-NvL= won't necessarily help, if you use the =-s= option.  Though changing the "\equal" sign to "-" with ~--symbol-names :=:-~ could let you copy-paste into sympy and let sympy do the solving...)
+
  + =Makefile= :: A simple Makefile for building =ries=, as well as =riesw=, which is a name I gave to the version of =ries= with the =msal_math64.c= extensions included (because it supports the /W/-function), and processing the manual page to text, cleaning, etc.
 
-I hope Robert Munafo will eventually move =ries= onto github, and maybe we can do collaboration a little more smoothly.  But in the meantime, at least this is a way he can look at anything I've changed.
+It would be nice if Robert Munafo would eventually move =ries= onto github, and maybe we can do collaboration a little more smoothly (though he has said he is not planning to move it).  But in the meantime, at least this is a way he can look at anything I've changed.
 
 ** Extensions to =ries=
 
