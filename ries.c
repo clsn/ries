@@ -705,6 +705,7 @@ TABLE OF FUNCTIONS
   s   (a -- s)      Square: s(a) = a*a
   v   (a b -- v)    Root: v(a,b) = a^(1/b)
   x   (-- x)        The user's target number
+  @   (a b -- b a)  Swap top two stack elements
 
 */ /*
 
@@ -5302,6 +5303,14 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     rv = 0; *undo_count = 0; break;  /* ' ' is a no-op */
 
     /* Roll '(' or ')' operators might go here */
+    /* Not roll, but at least a swap... */
+  case '@':
+    b = ms_pop(ms, &db, &tgb);
+    a = ms_pop(ms, &da, &tga); *undo_count = 2;
+    ms_push(ms, b, db, tgb);
+    ms_push(ms, a, da, tga);
+    rv = a;
+    break;
 
     /* seft 'a' ( -- K ) symbols. For all constants the derivative is zero;
        for X the derivative is 1.0 */
@@ -10424,6 +10433,12 @@ void init2()
      'c', 0,   0, 0, 0);
   add_symbol(ADDSYM_NAMES(PS_REVPOW, 0, "!^"),
     'c', 0,   0, 0, 0);
+
+  /* A stack-control op, for making user-defined functions. */
+  /* Large weight to keep it from being used? */
+  /* (Otherwise it'll need rules and all...) */
+  add_symbol(ADDSYM_NAMES('@', "swap", "(swap)"),
+             'c', 30, 0, 0, "swap");
 
   /* These are used for infix formatting */
   /* sym_attrs['('].sa_name = "("; sym_attrs[')'].sa_name = ")"; */
