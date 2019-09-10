@@ -5911,11 +5911,6 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
           ms_push(ms, rv, (ries_dif) k_0, TYPE_TRAN /*?*/); *undo_count=1;
         }
         else {
-          /* Can't just handle user-defined funcs by pre-processing them
-           * before eval; exec() is called by itself sometimes too. */
-          /* Can I call eval on the expansion?  It doesn't look like it. */
-          /* Maybe I can? */
-#if 1
           ries_val tval;
           ries_dif tdif;
           ries_tgs ttags;
@@ -5930,20 +5925,6 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
           }
           rv = tval;
           ms_push(ms, tval, tdif, ttags); *undo_count=2; /* ??? */
-#else
-          for (int j=0; j < strlen(custom_symbols[i].formula); j++) {
-            symbol expsym = custom_symbols[i].formula[j];
-            fprintf(stderr, "  doing %c\n", expsym);
-            /* !!!!!!!  It's something here messing with the undo_count I
-                        think?  undo-push or undo-pop is having the
-                        problem... */
-            s16 err = exec(ms, expsym, undo_count, do_dx);
-            fprintf(stderr, "  done with %c\n", expsym);
-            if (err) {
-              return err;
-            }
-          }
-#endif
         }
 	break;
       }
@@ -6346,66 +6327,6 @@ void infix_preproc(symbol * expr, symbol * out)
     cv_phantoms(prtmp);
     printf("  result: [%s]\n", prtmp);
   }
-}
-
-/*
- * run through the string of symbols and replace any that represent a
- * custom formula with the formula thus represented.
- */
-/* WRONG.  Not doing this anymore. */
-symbol * preproc_expr(symbol *expr)
-{
-  int changed = 0;
-  /* not necessarily very efficient, but there shouldn't be lots of this. */
-  int inorig, innew;
-  symbol *rv;
-  int origlen = strlen(expr);
-  int newsize = 0;
-
-  rv = expr;
-  for (inorig = innew = 0; expr[inorig]; inorig++, innew++) {
-    // fprintf(stderr, "expr[%d] = %d\n", inorig, expr[inorig]);
-    symbol op = expr[inorig];
-    int found = 0;
-    for (int i=0; i< symbol_count; i++) {
-      if (op == custom_symbols[i].symbol[0] &&
-        custom_symbols[i].formula[0]) {
-        /* This is the only case that needs to be expanded */
-        fprintf(stderr, "Found something that needs expanding: %c -> '%s'\n",
-                op, custom_symbols[i].formula);
-        found = 1;
-        /* Subtract 1 for the symbol you're replacing! */
-        int extralen = strlen(custom_symbols[i].formula) - 1;
-        fprintf(stderr, "extralen = strlen(%s)-1 = %d\n",
-                custom_symbols[i].formula, extralen);
-        if (changed) {
-          if (innew + extralen >= newsize) {
-            newsize *= 2;
-            rv = (symbol *)realloc(rv, newsize*sizeof(symbol));
-          }
-        }
-        else {
-          /* First custom expr we've seen */
-          newsize = origlen;
-          while (origlen + extralen >= newsize) {
-            newsize *= 2;
-          }
-          changed = 1;
-          rv = (symbol *)calloc(newsize, sizeof(symbol));
-          memcpy(rv, expr, inorig*sizeof(symbol));
-          fprintf(stderr, "Changing rv, now(%s)!\n", rv);
-        }
-        strcpy(rv + innew, custom_symbols[i].formula);
-        innew += extralen;
-      }
-    }
-    if (changed && !found) {
-      fprintf(stderr, "Carrying on at %d -> %d\n",inorig, innew);
-      rv[innew] = expr[inorig];
-    }
-  }
-  // fprintf(stderr, "Returning: (%s)\n", rv);
-  return rv;
 }
 
 /* symstrsym is like strchr for symbol strings. */
@@ -6864,7 +6785,6 @@ s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
   symbol dbg_scratch[EXPR_ALLOC];
   s16 err, i;
   s16 undo_count;
-  symbol * origexpr;
 
   contains_x = (symstrsym(expr, 'x') != 0);
 
@@ -6877,8 +6797,6 @@ s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
   if (dx) { *dx = (ries_dif) k_0; }
   if (tags) { *tags = 0; }
 
-  origexpr = expr;
-  // expr = preproc_expr(expr);
   for(s = expr, i=0; s[i]; i++) {
     if (i >= MAX_ELEN) {
       return ERR_EVAL_TOO_LONG;
@@ -6942,10 +6860,6 @@ s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
     ries_val v;
     v = ms_peek(&ms, dx, tags, sptr);
     if (val) { *val = v; }
-  }
-  if (expr != origexpr) {
-    /* Got expanded somewhere along the line... */
-    free(expr);
   }
 
   return 0;
