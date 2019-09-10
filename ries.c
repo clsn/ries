@@ -2764,6 +2764,9 @@ variants. */
    further from a 1:1 ratio. */
 #define PASS_GRAN 1
 
+/* max length of a formula... what makes sense? */
+#define FORM_LEN MAX_ELEN
+
 /* -------------- typedefs --------------------------------------------------
 /
 /  Our function validate_types() checks the sized integer types at runtime
@@ -3301,7 +3304,12 @@ ries_val   k_7 = 7.0L;
 ries_val   k_8 = 8.0L;
 ries_val   k_9 = 9.0L;
 
-struct { char symbol[2]; int wt; ries_val value; } custom_symbols[30];
+struct {
+  char symbol[2];
+  int wt;
+  ries_val value;
+  char formula[FORM_LEN];
+} custom_symbols[30];
 size_t symbol_count=0;
 
 /* Constants that parametrize functions */
@@ -3572,6 +3580,9 @@ int expr_break(symbol * expr, symbol * op, symbol * seft,
 void expr_print_infix(symbol * expr, int justify);
 void eqn_print_infix(symbol * lhs, symbol * rhs);
 
+s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
+          s16 * sptr, s16 show_work,
+          ries_val * init_val, ries_dif * init_dif, ries_tgs * init_tags);
 s16 eval(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
          s16 * sptr, s16 show_work);
 void try_solve(symbol * l, symbol * r,
@@ -4440,7 +4451,7 @@ void delimit_args(const char *rawbuf, size_t * nargs, char * * * argv)
     /* Now n is the number of args, and we can allocate the argv */
     av = (char **) malloc(n * sizeof(char *));
     if (av == 0) {
-      fprintf(stderr, "%s: Cannot alloate argv block.\n", g_argv0);
+      fprintf(stderr, "%s: Cannot allocate argv block.\n", g_argv0);
       print_end(-1);
     }
     if (nargs) { *nargs = n; }
@@ -4948,11 +4959,11 @@ void ms_push(metastack *ms, ries_val x, ries_dif dx, ries_tgs tags)
 
   /* remember */
   msp = ms->msp;
-  ms->ms[msp] = MSO_PUSH;
-
   if (debug_m) {
     printf("push %d %g (%g)%x '%d'\n", sp, dbl(x), dx, tags, msp);
   }
+  ms->ms[msp] = MSO_PUSH;
+
 
   /* for a push, we don't need to add any undo values */
 
@@ -5894,9 +5905,46 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
   default:
     for (int i=0; i < symbol_count; i++) {
       if (op == custom_symbols[i].symbol[0]) {
-	rv = custom_symbols[i].value;
-	ms_push(ms, rv, (ries_dif) k_0, TYPE_TRAN /*?*/); *undo_count=1;
-	found=1;
+        found=1;
+        if (!custom_symbols[i].formula[0]) {
+          rv = custom_symbols[i].value;
+          ms_push(ms, rv, (ries_dif) k_0, TYPE_TRAN /*?*/); *undo_count=1;
+        }
+        else {
+          /* Can't just handle user-defined funcs by pre-processing them
+           * before eval; exec() is called by itself sometimes too. */
+          /* Can I call eval on the expansion?  It doesn't look like it. */
+          /* Maybe I can? */
+#if 1
+          ries_val tval;
+          ries_dif tdif;
+          ries_tgs ttags;
+          s16 tptr;
+          s16 err;
+          /* do peek^W pop first. */
+          tval = ms_pop(ms, &tdif, &ttags);
+          err = eval2(custom_symbols[i].formula, &tval, &tdif, &ttags, &tptr, 0,
+                      &tval, &tdif, &ttags);
+          if (err) {
+            return err;
+          }
+          rv = tval;
+          ms_push(ms, tval, tdif, ttags); *undo_count=2; /* ??? */
+#else
+          for (int j=0; j < strlen(custom_symbols[i].formula); j++) {
+            symbol expsym = custom_symbols[i].formula[j];
+            fprintf(stderr, "  doing %c\n", expsym);
+            /* !!!!!!!  It's something here messing with the undo_count I
+                        think?  undo-push or undo-pop is having the
+                        problem... */
+            s16 err = exec(ms, expsym, undo_count, do_dx);
+            fprintf(stderr, "  done with %c\n", expsym);
+            if (err) {
+              return err;
+            }
+          }
+#endif
+        }
 	break;
       }
     }
@@ -6298,6 +6346,66 @@ void infix_preproc(symbol * expr, symbol * out)
     cv_phantoms(prtmp);
     printf("  result: [%s]\n", prtmp);
   }
+}
+
+/*
+ * run through the string of symbols and replace any that represent a
+ * custom formula with the formula thus represented.
+ */
+/* WRONG.  Not doing this anymore. */
+symbol * preproc_expr(symbol *expr)
+{
+  int changed = 0;
+  /* not necessarily very efficient, but there shouldn't be lots of this. */
+  int inorig, innew;
+  symbol *rv;
+  int origlen = strlen(expr);
+  int newsize = 0;
+
+  rv = expr;
+  for (inorig = innew = 0; expr[inorig]; inorig++, innew++) {
+    // fprintf(stderr, "expr[%d] = %d\n", inorig, expr[inorig]);
+    symbol op = expr[inorig];
+    int found = 0;
+    for (int i=0; i< symbol_count; i++) {
+      if (op == custom_symbols[i].symbol[0] &&
+        custom_symbols[i].formula[0]) {
+        /* This is the only case that needs to be expanded */
+        fprintf(stderr, "Found something that needs expanding: %c -> '%s'\n",
+                op, custom_symbols[i].formula);
+        found = 1;
+        /* Subtract 1 for the symbol you're replacing! */
+        int extralen = strlen(custom_symbols[i].formula) - 1;
+        fprintf(stderr, "extralen = strlen(%s)-1 = %d\n",
+                custom_symbols[i].formula, extralen);
+        if (changed) {
+          if (innew + extralen >= newsize) {
+            newsize *= 2;
+            rv = (symbol *)realloc(rv, newsize*sizeof(symbol));
+          }
+        }
+        else {
+          /* First custom expr we've seen */
+          newsize = origlen;
+          while (origlen + extralen >= newsize) {
+            newsize *= 2;
+          }
+          changed = 1;
+          rv = (symbol *)calloc(newsize, sizeof(symbol));
+          memcpy(rv, expr, inorig*sizeof(symbol));
+          fprintf(stderr, "Changing rv, now(%s)!\n", rv);
+        }
+        strcpy(rv + innew, custom_symbols[i].formula);
+        innew += extralen;
+      }
+    }
+    if (changed && !found) {
+      fprintf(stderr, "Carrying on at %d -> %d\n",inorig, innew);
+      rv[innew] = expr[inorig];
+    }
+  }
+  // fprintf(stderr, "Returning: (%s)\n", rv);
+  return rv;
 }
 
 /* symstrsym is like strchr for symbol strings. */
@@ -6744,21 +6852,33 @@ Return value is an error code like ERR_EVAL_TOO_LONG
 s16 eval(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
          s16 * sptr, s16 show_work)
 {
+  return eval2(expr, val, dx, tags, sptr, show_work, NULL, NULL, NULL);
+}
+s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
+          s16 * sptr, s16 show_work,
+          ries_val * init_val, ries_dif * init_dif, ries_tgs * init_tags)
+{
   s16 contains_x;
   metastack ms;
   symbol * s;
   symbol dbg_scratch[EXPR_ALLOC];
   s16 err, i;
   s16 undo_count;
+  symbol * origexpr;
 
   contains_x = (symstrsym(expr, 'x') != 0);
 
+  ms_init(&ms);
+  if (init_val) {
+    ms_push(&ms, *init_val, *init_dif, *init_tags);
+  }
   /* default return values */
   if (val) { *val = k_0; }
   if (dx) { *dx = (ries_dif) k_0; }
   if (tags) { *tags = 0; }
 
-  ms_init(&ms);
+  origexpr = expr;
+  // expr = preproc_expr(expr);
   for(s = expr, i=0; s[i]; i++) {
     if (i >= MAX_ELEN) {
       return ERR_EVAL_TOO_LONG;
@@ -6818,11 +6938,14 @@ s16 eval(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
       }
     }
   }
-
   { /* Store any requested results in the pointers passed to us */
     ries_val v;
     v = ms_peek(&ms, dx, tags, sptr);
     if (val) { *val = v; }
+  }
+  if (expr != origexpr) {
+    /* Got expanded somewhere along the line... */
+    free(expr);
   }
 
   return 0;
@@ -10481,9 +10604,13 @@ void init2()
   }
 
   for (i = 0; i < symbol_count; i++) {
-    add_symbol(ADDSYM_NAMES(custom_symbols[i].symbol[0], custom_symbols[i].symbol,
+    add_symbol(ADDSYM_NAMES(custom_symbols[i].symbol[0],
+                            custom_symbols[i].symbol,
 			    custom_symbols[i].symbol),
-	       'a', 4, custom_symbols[i].symbol, custom_symbols[i].symbol,
+               /* ONE-parameter function or constant value.  Sorta? */
+	       (custom_symbols[i].formula[0] ? 'b' : 'a'),
+               custom_symbols[i].wt,
+               custom_symbols[i].symbol, custom_symbols[i].symbol,
 	       custom_symbols[i].symbol);
   }
 
@@ -11452,22 +11579,36 @@ void parse_args(size_t nargs, char *argv[])
     } else if (strcmp(pa_this_arg, "-X") == 0) {
       char symbol;
       int wt;
+      char formula[MAX_ELEN];   /* On your own head be it if you overrun */
       ries_val t;
       pa_get_arg();
-      if (pa_this_arg && sscanf(pa_this_arg,
-#ifdef RIES_VAL_LDBL
-			      "%c:%d:%Lf", &symbol, &wt, &t
-#else
-			      "%c:%d:%lf", &symbol, &wt, &t
-#endif
-
-				) && 
+      if (pa_this_arg && sscanf(pa_this_arg, "%c:%d:%s",
+                                &symbol, &wt, formula) &&
 	  !strchr("+-*/ 0123456789fepnrsqlESCT^vL()=I", symbol)
 	  && symbol_count < 30) {
+        if (strlen(formula) >= FORM_LEN || strlen(formula) <= 0) {
+          /* If for some reason you overran the buffer & still didn't
+             crash the program */
+          printf("%s: -X should be followed by symbol:weight:value.\nThe value may not be longer than %d characters.\n", g_argv0, FORM_LEN);
+          brief_help();
+          print_end(-1);
+        }
 	custom_symbols[symbol_count].symbol[0]=symbol;
 	custom_symbols[symbol_count].symbol[1]='\0';
 	custom_symbols[symbol_count].wt=wt;
-	custom_symbols[symbol_count].value=t;
+        if (sscanf(formula,
+#ifdef RIES_VAL_LDBL
+                    "%Lf",
+#else
+                    "%lf",
+#endif
+              &t)) {
+          custom_symbols[symbol_count].value=t;
+          custom_symbols[symbol_count].formula[0]='\0';
+        }
+        else {
+          strcpy(custom_symbols[symbol_count].formula, formula);
+        }
 	symbol_count++;
       }
       else {
