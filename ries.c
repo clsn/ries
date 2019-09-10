@@ -5323,6 +5323,14 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     rv = a;
     break;
 
+    /* And a dup? */
+  case '!':
+    a = ms_pop(ms, &da, &tga); *undo_count = 2;
+    ms_push(ms, a, da, tga);
+    ms_push(ms, a, da, tga);
+    rv = a;
+    break;
+
     /* seft 'a' ( -- K ) symbols. For all constants the derivative is zero;
        for X the derivative is 1.0 */
   case '1' :
@@ -10471,11 +10479,16 @@ void init2()
   add_symbol(ADDSYM_NAMES(PS_REVPOW, 0, "!^"),
     'c', 0,   0, 0, 0);
 
-  /* A stack-control op, for making user-defined functions. */
-  /* Large weight to keep it from being used? */
-  /* (Otherwise it'll need rules and all...) */
+  /* Stack-control ops, for making user-defined functions. */
+  /* Large weight to keep from being used? */
+  /* (Otherwise they'll need rules and all...) */
+  /* These are anomalous in that they leave TWO things on top of the stack */
+  /* dup is even worse, since it actually makes the stack bigger! */
+  /* I hope that doesn't screw up other things too badly. */
   add_symbol(ADDSYM_NAMES('@', "swap", "(swap)"),
              'c', 30, 0, 0, "swap");
+  add_symbol(ADDSYM_NAMES('!', "dup", "(dup)"),
+             'b', 30, 0, 0, "dup");
 
   /* These are used for infix formatting */
   /* sym_attrs['('].sa_name = "("; sym_attrs[')'].sa_name = ")"; */
