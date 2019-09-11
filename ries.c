@@ -3309,13 +3309,20 @@ ries_val   k_7 = 7.0L;
 ries_val   k_8 = 8.0L;
 ries_val   k_9 = 9.0L;
 
-struct {
+struct custom_symbol_t {
   char symbol[2];
   int wt;
   ries_val value;
   char formula[FORM_LEN];
+  char seft;
 } custom_symbols[30];
 size_t symbol_count=0;
+
+struct stack_triplet {          /* This comes in handy */
+  ries_val x;
+  ries_dif dx;
+  ries_tgs tags;
+};
 
 /* Constants that parametrize functions */
 
@@ -3587,7 +3594,7 @@ void eqn_print_infix(symbol * lhs, symbol * rhs);
 
 s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
           s16 * sptr, s16 show_work,
-          ries_val * init_val, ries_dif * init_dif, ries_tgs * init_tags);
+          struct stack_triplet *init, size_t arity);
 s16 eval(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
          s16 * sptr, s16 show_work);
 void try_solve(symbol * l, symbol * r,
@@ -5943,16 +5950,37 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
           ries_tgs ttags;
           s16 tptr;
           s16 err;
-          /* do peek^W pop first. */
-          a = ms_pop(ms, &da, &tga); *undo_count = 1;
-          err = eval2(custom_symbols[i].formula, &tval, &tdif, &ttags, &tptr, 0,
-                      &a, &da, &tga);
+          struct custom_symbol_t *symbl = &custom_symbols[i];
+
+          if (symbl->seft == 'c') {
+            struct stack_triplet operands[2];
+            a = ms_pop(ms, &da, &tga); *undo_count = 1;
+            operands[1].x = a;
+            operands[1].dx = da;
+            operands[1].tags = tga;
+            b = ms_pop(ms, &db, &tgb); *undo_count = 2;
+            operands[0].x = b;
+            operands[0].dx = db;
+            operands[0].tags = tgb;
+            err = eval2(custom_symbols[i].formula, &tval, &tdif, &ttags,
+                        &tptr, 0, operands, 2);
+          }
+          else {                /* default to seft 'b' */
+            /* do peek^W pop first. */
+            struct stack_triplet operand;
+            a = ms_pop(ms, &da, &tga); *undo_count = 1;
+            operand.x = a;
+            operand.dx = da;
+            operand.tags = tga;
+            err = eval2(custom_symbols[i].formula, &tval, &tdif, &ttags,
+                        &tptr, 0, &operand, 1);
+          }
           if (err) {
             return err;
           }
           rv = tval;
           trv = TYPE_NONE;                               /* ?????? */
-          ms_push(ms, tval, tdif, ttags); *undo_count=2;
+          ms_push(ms, tval, tdif, ttags); (*undo_count)++;
         }
 	break;
       }
@@ -6801,11 +6829,11 @@ Return value is an error code like ERR_EVAL_TOO_LONG
 s16 eval(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
          s16 * sptr, s16 show_work)
 {
-  return eval2(expr, val, dx, tags, sptr, show_work, NULL, NULL, NULL);
+  return eval2(expr, val, dx, tags, sptr, show_work, NULL, 0);
 }
 s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
           s16 * sptr, s16 show_work,
-          ries_val * init_val, ries_dif * init_dif, ries_tgs * init_tags)
+          struct stack_triplet *operands, size_t arity)
 {
   s16 contains_x;
   metastack ms;
@@ -6817,8 +6845,10 @@ s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
   contains_x = (symstrsym(expr, 'x') != 0);
 
   ms_init(&ms);
-  if (init_val) {
-    ms_push(&ms, *init_val, *init_dif, *init_tags);
+  if (operands) {
+    for (int i = 0; i < arity; i++) {
+      ms_push(&ms, operands[i].x, operands[i].dx, operands[i].tags);
+    }
   }
   /* default return values */
   if (val) { *val = k_0; }
@@ -11553,9 +11583,11 @@ void parse_args(size_t nargs, char *argv[])
               &t)) {
           custom_symbols[symbol_count].value=t;
           custom_symbols[symbol_count].formula[0]='\0';
+          custom_symbols[symbol_count].seft='a';
         }
         else {
           strcpy(custom_symbols[symbol_count].formula, formula);
+          custom_symbols[symbol_count].seft = 'b';
         }
 	symbol_count++;
       }
