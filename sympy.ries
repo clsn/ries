@@ -5,4 +5,6 @@
 # I guess just be prepared for sneaky infix operators
 # Have to use **x** and not |x| because of precedence!  Might
 # possibly have a problem if v is left-associative.
+# LOG._ involves some terribly sneaky python, see infixnroot.py
 --symbol-names :1:S.One :^:** :e:E :f:GoldenRatio :W:LambertW :v:**ROOT**
+:L:LOG._

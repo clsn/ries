@@ -2880,6 +2880,11 @@ typedef unsigned char symbol;
 #define PS_REVPOW 4   /* argument-reversed exponentiation */
 #define IS_PHANTOM(x) (x < 10)
 
+/* Stack-processing symbols.  Also phantom-like, but they need to be typable. */
+#define STACK_DUP '!'
+#define STACK_SWAP '@'
+#define IS_STACK(x) (STACK_DUP == (x) || STACK_SWAP == (x))
+
 /* A "ries_val" is a numeric value attained by performing calculations
    according to an postfix expression. ries_val's are created mainly
    by successive calls to exec(). */
@@ -4984,6 +4989,12 @@ ries_val ms_pop(metastack *ms, ries_dif *diff, ries_tgs * tags)
   /* pop a value */
   sp = ms->sp;
   sp--;
+  if (sp < 0) {
+    // This should not happen... check for it anyway?  Exit if it does?
+    fprintf(stdout, "Popping below BOS (%d)!\n", sp);
+    // sp = 0;
+    exit(2);
+  }
   rv = (ms->s)[sp];
   drv = (ms->ds)[sp];
   if (diff) {
@@ -5057,6 +5068,12 @@ void ms_undo(metastack *ms)
   if (opcode == MSO_PUSH) {
     /* to undo a PUSH is easy -- just pop the SP. */
     ms->sp--;
+    /* ..except when you don't?  This should not happen. */
+    if (ms->sp < 0) {
+      fprintf(stdout, "Undoing a push below BOS (%d)!\n", ms->sp);
+      // ms->sp = 0;
+      exit(2);
+    }
     if (debug_m) { printf("undo-push\n"); }
   } else {
     s16 uvp, sp;
@@ -5319,15 +5336,15 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     b = ms_pop(ms, &db, &tgb);
     a = ms_pop(ms, &da, &tga); *undo_count = 2;
     ms_push(ms, b, db, tgb);
-    ms_push(ms, a, da, tga);
+    ms_push(ms, a, da, tga); *undo_count = 4;
     rv = a;
     break;
 
     /* And a dup? */
   case '!':
-    a = ms_pop(ms, &da, &tga); *undo_count = 2;
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
     ms_push(ms, a, da, tga);
-    ms_push(ms, a, da, tga);
+    ms_push(ms, a, da, tga); *undo_count = 3;
     rv = a;
     break;
 
@@ -5915,24 +5932,27 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       if (op == custom_symbols[i].symbol[0]) {
         found=1;
         if (!custom_symbols[i].formula[0]) {
+          /* Custom constant */
           rv = custom_symbols[i].value;
           ms_push(ms, rv, (ries_dif) k_0, TYPE_TRAN /*?*/); *undo_count=1;
         }
         else {
+          /* Custom expression/function */
           ries_val tval;
           ries_dif tdif;
           ries_tgs ttags;
           s16 tptr;
           s16 err;
           /* do peek^W pop first. */
-          tval = ms_pop(ms, &tdif, &ttags);
+          a = ms_pop(ms, &da, &tga); *undo_count = 1;
           err = eval2(custom_symbols[i].formula, &tval, &tdif, &ttags, &tptr, 0,
-                      &tval, &tdif, &ttags);
+                      &a, &da, &tga);
           if (err) {
             return err;
           }
           rv = tval;
-          ms_push(ms, tval, tdif, ttags); *undo_count=2; /* ??? */
+          trv = TYPE_NONE;                               /* ?????? */
+          ms_push(ms, tval, tdif, ttags); *undo_count=2;
         }
 	break;
       }
@@ -9864,7 +9884,7 @@ void add_symbol(symbol sym, const char * name_forth, const char * name_infix,
 
   sym_attrs[sym].seft = seft;
 
-  if (IS_PHANTOM(sym)) {
+  if (IS_PHANTOM(sym) || IS_STACK(sym)) {
     return;
   }
 
@@ -9976,7 +9996,8 @@ void show_symset(void)
     printf("%s:\n", seft_names[seft-'a']);
     printf(" sym seft wght name description\n");
     for (i=0; i<SYMBOL_RANGE; i++) {
-      if (!(IS_PHANTOM(i)) && (sym_attrs[i].seft == seft) && (sym_attrs[i].sa_alwd)) {
+      if (!((IS_PHANTOM(i)) || (IS_STACK(i)))
+          && (sym_attrs[i].seft == seft) && (sym_attrs[i].sa_alwd)) {
         printf("  %c    %c   %2d   %-4s", i, sym_attrs[i].seft,
           sym_attrs[i].sa_wgt, sym_attrs[i].sa_name);
         def = sym_attrs[i].defn;
@@ -10486,9 +10507,9 @@ void init2()
   /* dup is even worse, since it actually makes the stack bigger! */
   /* I hope that doesn't screw up other things too badly. */
   add_symbol(ADDSYM_NAMES('@', "swap", "(swap)"),
-             'c', 30, 0, 0, "swap");
+             'c', 0, 0, 0, "swap");
   add_symbol(ADDSYM_NAMES('!', "dup", "(dup)"),
-             'b', 30, 0, 0, "dup");
+             'b', 0, 0, 0, "dup");
 
   /* These are used for infix formatting */
   /* sym_attrs['('].sa_name = "("; sym_attrs[')'].sa_name = ")"; */

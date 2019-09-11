@@ -1,0 +1,28 @@
+# Some user-defined functions.
+#
+# At this point, you still need to assign 1-char opcodes to your functions
+# manually, and make sure they don't conflict with anything else.
+#
+# Symbols in use:
+# 1 2 3 4 5 6 7 8 9 e f p x
+# C E S T l n q r s (!) W
+# * + - / L ^ v (@)
+#
+# (Used in my own constants.ries file):
+# A(Apéry) B(RF) D(Catalan) F(CF) g(γ) h(Γ(γ)) K(khinchin) P(ρ) Y(Lévy)
+#
+# {reserved: ( ) x = G I?}
+#
+# Remaining typeable/printable 7-bit ascii chars:
+# " # $ % & ' , . : ; < > ? D H J M N O Q R U V X Z [ \ ] _ ` a b c d i j k m o p t u w y z { | } ~
+
+# sinh, cosh, tanh
+-X a:4:E!r-2/
+-X b:4:E!r+2/
+-X c:4:!a@b/
+
+# From source: XeX and Inverse Dilbert Lambda
+-X d:4:!E*
+-X i:4:!sEr*
+
+--symbol-names :a:sinh :b:cosh :c:tanh :d:XeX :i:IDL
