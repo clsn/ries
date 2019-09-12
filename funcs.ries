@@ -24,7 +24,7 @@
 --define "c:4:b:tanh:tanh = hyperbolic tangent:!a@b/"
 
 # From source: XeX and Inverse Dilbert Lambda
---define "d:-4:b:XeX:XeX(x) = x*exp(x):!E*"
---define "i:-4:b:IDL:Inverse Dilbert Lambda = x*exp(-x^2):!sEr*"
+--define "d:4:b:XeX:XeX(x) = x*exp(x):!E*"
+--define "i:4:b:IDL:Inverse Dilbert Lambda = x*exp(-x^2):!sEr*"
 
---define "j:-3:c:|hypot|:Hypot = sqrt(a^2 + b^2):s@s+q"
+--define "j:3:c:|hypot|:Hypot = sqrt(a^2 + b^2):s@s+q"

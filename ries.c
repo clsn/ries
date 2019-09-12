@@ -5990,6 +5990,12 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
             err = eval2(custom_symbols[i].formula, &tval, &tdif, &ttags,
                         &tptr, 0, operands, 2);
           }
+          else if (symbl->seft == 'a') {
+            /* Sort of redundant with defining a constant,
+               but for completeness... */
+            err = eval2(custom_symbols[i].formula, &tval, &tdif, &ttags,
+                        &tptr, 0, NULL, 0);
+          }
           else {                /* default to seft 'b' */
             /* do peek^W pop first. */
             struct stack_triplet operand;
@@ -11598,6 +11604,9 @@ void parse_args(size_t nargs, char *argv[])
         custom_symbols[symbol_count].wt=wt;
         custom_symbols[symbol_count].value=t;
         custom_symbols[symbol_count].formula[0]='\0';
+        custom_symbols[symbol_count].name[0]='\0';
+        custom_symbols[symbol_count].desc[0]=symbol;
+        custom_symbols[symbol_count].desc[1]='\0';
         custom_symbols[symbol_count].seft='a';
         symbol_count++;
       }
