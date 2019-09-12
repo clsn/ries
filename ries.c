@@ -5321,6 +5321,15 @@ Jacobi elliptic functions:
 
 _____________________________________________________________________________*/
 
+struct custom_symbol_t *find_custom(symbol sym) {
+  for (int i=0; i < symbol_count; i++) {
+    if (sym == custom_symbols[i].symbol[0]) {
+      return &custom_symbols[i];
+    }
+  }
+  return NULL;
+}
+
 /* exec actually executes an opcode, using a metastack. It returns a
    nonzero value if there was an error, e.g. divide-by-zero. It also
    sets undo_count to a number indicating the number of times you have to
@@ -5352,6 +5361,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
   ries_tgs trv;   /* Tags of result */
   char found=0;
   int f1;         /* flag */
+  struct custom_symbol_t * symbl;
 
   /* set default for derivative (overridden if we compute it) */
   drv = (ries_dif)k_0;
@@ -5960,66 +5970,61 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
 #endif
 
   default:
-    for (int i=0; i < symbol_count; i++) {
-      if (op == custom_symbols[i].symbol[0]) {
-        found=1;
-        if (!custom_symbols[i].formula[0]) {
-          /* Custom constant */
-          rv = custom_symbols[i].value;
-          ms_push(ms, rv, (ries_dif) k_0, TYPE_TRAN /*?*/); *undo_count=1;
-        }
-        else {
-          /* Custom expression/function */
-          ries_val tval;
-          ries_dif tdif;
-          ries_tgs ttags;
-          s16 tptr;
-          s16 err;
-          struct custom_symbol_t *symbl = &custom_symbols[i];
+    if (symbl = find_custom(op)) {
+      found=1;
+      if (!symbl->formula[0]) {
+        /* Custom constant */
+        rv = symbl->value;
+        ms_push(ms, rv, (ries_dif) k_0, TYPE_TRAN /*?*/); *undo_count=1;
+      }
+      else {
+        /* Custom expression/function */
+        ries_val tval;
+        ries_dif tdif;
+        ries_tgs ttags;
+        s16 tptr;
+        s16 err;
 
-          if (symbl->seft == 'c') {
-            struct stack_triplet operands[2];
-            a = ms_pop(ms, &da, &tga); *undo_count = 1;
-            operands[1].x = a;
-            operands[1].dx = da;
-            operands[1].tags = tga;
-            b = ms_pop(ms, &db, &tgb); *undo_count = 2;
-            operands[0].x = b;
-            operands[0].dx = db;
-            operands[0].tags = tgb;
-            err = eval2(custom_symbols[i].formula, &tval, &tdif, &ttags,
-                        &tptr, 0, operands, 2);
-          }
-          else if (symbl->seft == 'a') {
-            /* Sort of redundant with defining a constant,
-               but for completeness... */
-            err = eval2(custom_symbols[i].formula, &tval, &tdif, &ttags,
-                        &tptr, 0, NULL, 0);
-          }
-          else {                /* default to seft 'b' */
-            /* do peek^W pop first. */
-            struct stack_triplet operand;
-            a = ms_pop(ms, &da, &tga); *undo_count = 1;
-            operand.x = a;
-            operand.dx = da;
-            operand.tags = tga;
-            err = eval2(custom_symbols[i].formula, &tval, &tdif, &ttags,
-                        &tptr, 0, &operand, 1);
-          }
-          if (err) {
-            return err;
-          }
-          rv = tval;
-          trv = TYPE_NONE;                               /* ?????? */
-          ms_push(ms, tval, tdif, ttags); (*undo_count)++;
+        if (symbl->seft == 'c') {
+          struct stack_triplet operands[2];
+          a = ms_pop(ms, &da, &tga); *undo_count = 1;
+          operands[1].x = a;
+          operands[1].dx = da;
+          operands[1].tags = tga;
+          b = ms_pop(ms, &db, &tgb); *undo_count = 2;
+          operands[0].x = b;
+          operands[0].dx = db;
+          operands[0].tags = tgb;
+          err = eval2(symbl->formula, &tval, &tdif, &ttags,
+                      &tptr, 0, operands, 2);
         }
-        break;
+        else if (symbl->seft == 'a') {
+          /* Sort of redundant with defining a constant,
+             but for completeness... */
+          err = eval2(symbl->formula, &tval, &tdif, &ttags,
+                      &tptr, 0, NULL, 0);
+        }
+        else {                /* default to seft 'b' */
+          /* do peek^W pop first. */
+          struct stack_triplet operand;
+          a = ms_pop(ms, &da, &tga); *undo_count = 1;
+          operand.x = a;
+          operand.dx = da;
+          operand.tags = tga;
+          err = eval2(symbl->formula, &tval, &tdif, &ttags,
+                      &tptr, 0, &operand, 1);
+        }
+        if (err) {
+          return err;
+        }
+        rv = tval;
+        trv = TYPE_NONE;                               /* ?????? */
+        ms_push(ms, tval, tdif, ttags); (*undo_count)++;
       }
     }
-    if (found) {
-      break;
+    else {
+      return ERR_EXEC_ILLEGAL_SYMBOL;
     }
-    return ERR_EXEC_ILLEGAL_SYMBOL;
   }
 
   if (debug_r) {
@@ -6094,6 +6099,7 @@ s16 infix_1(
   symbol op_t;   /* for swapping op_a and op_b */
   char * s;      /* for copying subterms to output */
   s16 paren_a, paren_b; /* precedence flags for seft 'c' operators */
+  struct custom_symbol_t *symbl;
 
   optr = 0;
   /* go to the end */
@@ -6261,9 +6267,15 @@ s16 infix_1(
     /* We're all set to generate output. */
 
     /* Emit leading operator for two-argument custom functions and 'L' */
+    symbl = find_custom(op);
     if (op == 'L') {
       /* This operator goes in front of both arguments */
       term[optr++] = (char) op;
+    }
+    if (symbl) {
+      /* 2-argument custom functions should be func(a, b) */
+      term[optr++] = (char) op;
+      term[optr++] = '(';
     }
 
     /* Emit first argument */
@@ -6299,6 +6311,9 @@ s16 infix_1(
       }
     } else if (op == 'L') {
       /* We already emitted it */
+    } else if (symbl) {
+      /* comma between function params */
+      term[optr++] = ',';
     } else {
       term[optr++] = (char) op;
     }
@@ -6313,12 +6328,15 @@ s16 infix_1(
     if (paren_b) {
       term[optr++] = ')';
     }
+    if (symbl) {
+      /* need closing paren */
+      term[optr++] = ')';
+    }
     break;
   }
 
   /* terminate input and output strings */
   term[optr] = 0;
-
   return 0;
 } /* End of infix.1 */
 
@@ -10577,6 +10595,7 @@ void init2()
   add_symbol(ADDSYM_NAMES('(', 0, "("), 0, 0, 0, 0, 0);
   add_symbol(ADDSYM_NAMES(')', 0, ")"), 0, 0, 0, 0, 0);
   add_symbol(ADDSYM_NAMES('=', 0, "="), 0, 0, 0, 0, 0);
+  add_symbol(ADDSYM_NAMES(',', 0, ", "), 0, 0, 0, 0, 0);
 
   /* This symbol is a temporary placeholder for infix multiplication.
      %%% Figure out if I need this at all, or use PS_cross instead */

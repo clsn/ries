@@ -27,4 +27,4 @@
 --define "d:4:b:XeX:XeX(x) = x*exp(x):!E*"
 --define "i:4:b:IDL:Inverse Dilbert Lambda = x*exp(-x^2):!sEr*"
 
---define "j:3:c:|hypot|:Hypot = sqrt(a^2 + b^2):s@s+q"
+--define "j:3:c:hypot:Hypot = sqrt(a^2 + b^2):s@s+q"
