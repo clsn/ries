@@ -3309,11 +3309,16 @@ ries_val   k_7 = 7.0L;
 ries_val   k_8 = 8.0L;
 ries_val   k_9 = 9.0L;
 
+#define MAX_DESC (50)
+/* for quoting things in .ries files. */
+#define QUOT ('"')
 struct custom_symbol_t {
   char symbol[2];
   int wt;
   ries_val value;
   char formula[FORM_LEN];
+  char name[MAX_ELEN];
+  char desc[MAX_DESC];
   char seft;
 } custom_symbols[30];
 size_t symbol_count=0;
@@ -4460,6 +4465,9 @@ void delimit_args(const char *rawbuf, size_t * nargs, char * * * argv)
       /* We are now at a null or a blank space; loop can now continue. */
     }
 
+    /* Quoted strings will make this count wrong, but only in making it too
+     * big, not too small. */
+
     /* Now n is the number of args, and we can allocate the argv */
     av = (char **) malloc(n * sizeof(char *));
     if (av == 0) {
@@ -4478,18 +4486,35 @@ void delimit_args(const char *rawbuf, size_t * nargs, char * * * argv)
 
       /* If there is an arg, count it */
       if (*p) {
+        b001 in_quote = B_FALSE;
         /* Save a pointer to this string, with (paranoid) check to avoid
            overwriting the argv */
+        if (*p == QUOT) {
+          p++;                  /* Skip the quote */
+          in_quote = B_TRUE;
+        }
         if (n > 0) {
           *av = (char *) p;
           av++;
           n--;
         }
         /* Skip the nonspace */
-        while(*p && (*p != ' ')) { p++; }
+        /* Need to be able to read in whitespace too, in function descs! */
+        while(*p && (*p != ' ')) {
+          if (in_quote) {
+            /* Skip ahead to close quote */
+            while(*p && (*p != QUOT)) { p++; }
+            *p = 0;
+          }
+          p++;
+        }
       }
 
       /* We are now at a null or a blank space; loop can now continue. */
+    }
+    /* Now if we overcounted strings before, n is not yet down to zero. */
+    if (nargs) {
+      *nargs -= n;
     }
   }
 } /* End of delimit_args */
@@ -5982,7 +6007,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
           trv = TYPE_NONE;                               /* ?????? */
           ms_push(ms, tval, tdif, ttags); (*undo_count)++;
         }
-	break;
+        break;
       }
     }
     if (found) {
@@ -10583,13 +10608,12 @@ void init2()
 
   for (i = 0; i < symbol_count; i++) {
     add_symbol(ADDSYM_NAMES(custom_symbols[i].symbol[0],
-                            custom_symbols[i].symbol,
-			    custom_symbols[i].symbol),
-               /* ONE-parameter function or constant value.  Sorta? */
-	       (custom_symbols[i].formula[0] ? 'b' : 'a'),
+                            custom_symbols[i].name,
+                            custom_symbols[i].name),
+               custom_symbols[i].seft,
                custom_symbols[i].wt,
-               custom_symbols[i].symbol, custom_symbols[i].symbol,
-	       custom_symbols[i].symbol);
+               custom_symbols[i].desc, custom_symbols[i].desc,
+               custom_symbols[i].name);
   }
 
   /* Setup the g_{a|b|c}_{min|max}w variables */
@@ -11560,41 +11584,76 @@ void parse_args(size_t nargs, char *argv[])
       char formula[MAX_ELEN];   /* On your own head be it if you overrun */
       ries_val t;
       pa_get_arg();
-      if (pa_this_arg && sscanf(pa_this_arg, "%c:%d:%s",
-                                &symbol, &wt, formula) &&
-	  !strchr("+-*/ 0123456789fepnrsqlESCT^vL()=I", symbol)
-	  && symbol_count < 30) {
+      if (pa_this_arg && sscanf(pa_this_arg, "%c:%d:"
+#ifdef RIES_VAL_LDBL
+                                "%Lf",
+#else
+                                "%lf",
+#endif
+                                &symbol, &wt, &t) &&
+          !strchr("+-*/ 0123456789fepnrsqlESCT^vL()=I", symbol)
+          && symbol_count < 30) {
+        custom_symbols[symbol_count].symbol[0]=symbol;
+        custom_symbols[symbol_count].symbol[1]='\0';
+        custom_symbols[symbol_count].wt=wt;
+        custom_symbols[symbol_count].value=t;
+        custom_symbols[symbol_count].formula[0]='\0';
+        custom_symbols[symbol_count].seft='a';
+        symbol_count++;
+      }
+      else {
+        printf("%s: -X should be followed by symbol:weight:value.\nThe symbol should be one character long and not already in use.\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
+    } else if (strcmp(pa_this_arg, "--define") == 0) {
+      char symbol;
+      int wt;
+      char seft;
+      char desc[MAX_DESC];
+      char name[MAX_ELEN];
+      char formula[MAX_ELEN];   /* On your own head be it if you overrun */
+      ries_val t;
+      pa_get_arg();
+      /* Simple syntax.  Hm.
+       * OPCODE:WEIGHT:SEFT:NAME:DESC:FORMULA
+       * Formula last in case it has :'s in it, if we make : an opcode.
+       * But that will probably be a Big Mess anyway.
+       */
+      if (pa_this_arg && sscanf(pa_this_arg, "%c:%d:%c:%[^:]:%[^:]:%s",
+                                &symbol, &wt, &seft, name, desc, formula) &&
+          !strchr("+-*/ 0123456789fepnrsqlESCT^vL()=I", symbol)
+          && symbol_count < 30) {
         if (strlen(formula) >= FORM_LEN || strlen(formula) <= 0) {
           /* If for some reason you overran the buffer & still didn't
              crash the program */
-          printf("%s: -X should be followed by symbol:weight:value.\nThe value may not be longer than %d characters.\n", g_argv0, FORM_LEN);
+          printf("%s: --define should be followed by symbol:weight:seft:name:desc:formula.\nThe formula may not be longer than %d characters.\n", g_argv0, FORM_LEN);
           brief_help();
           print_end(-1);
         }
-	custom_symbols[symbol_count].symbol[0]=symbol;
-	custom_symbols[symbol_count].symbol[1]='\0';
-	custom_symbols[symbol_count].wt=wt;
-        if (sscanf(formula,
-#ifdef RIES_VAL_LDBL
-                    "%Lf",
-#else
-                    "%lf",
-#endif
-              &t)) {
-          custom_symbols[symbol_count].value=t;
-          custom_symbols[symbol_count].formula[0]='\0';
-          custom_symbols[symbol_count].seft='a';
+        if (strlen(desc) > MAX_DESC) { /* ...and for some reason didn't crash */
+          printf("%s: --define should be followed by symbol:weight:seft:name:desc:formula.\nThe desc may not be longer than %d characters.\n", g_argv0, MAX_DESC);
+          brief_help();
+          print_end(-1);
         }
-        else {
-          strcpy(custom_symbols[symbol_count].formula, formula);
-          custom_symbols[symbol_count].seft = 'b';
+        if (strlen(name) > MAX_ELEN) { /* ...and for some reason didn't crash */
+          printf("%s: --define should be followed by symbol:weight:seft:name:desc:formula.\nThe name may not be longer than %d characters.\n", g_argv0, MAX_ELEN);
+          brief_help();
+          print_end(-1);
         }
-	symbol_count++;
-      }
-      else {
-	printf("%s: -X should be followed by symbol:weight:value.\nThe symbol should be one character long and not already in use.\n", g_argv0);
-	brief_help();
-	print_end(-1);
+        if (!strchr("abc", seft)) {
+          printf("%s: --define should be followed by symbol:weight:seft:desc:formula.\nThe seft must be one of 'a', 'b', or 'c'.\n", g_argv0);
+          brief_help();
+          print_end(-1);
+        }
+        custom_symbols[symbol_count].symbol[0]=symbol;
+        custom_symbols[symbol_count].symbol[1]='\0';
+        custom_symbols[symbol_count].wt=wt;
+        custom_symbols[symbol_count].seft=seft;
+        strcpy(custom_symbols[symbol_count].name, name);
+        strcpy(custom_symbols[symbol_count].desc, desc);
+        strcpy(custom_symbols[symbol_count].formula, formula);
+        symbol_count++;
       }
     } else if (strcmp(pa_this_arg, "--min-equate-value") == 0) {
         ries_val t;

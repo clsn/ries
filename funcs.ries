@@ -16,13 +16,15 @@
 # Remaining typeable/printable 7-bit ascii chars:
 # " # $ % & ' , . : ; < > ? D H J M N O Q R U V X Z [ \ ] _ ` a b c d i j k m o p t u w y z { | } ~
 
+# --define SYMBOL:WEIGHT:SEFT:NAME:DESC:FORMULA
+
 # sinh, cosh, tanh
--X a:4:E!r-2/
--X b:4:E!r+2/
--X c:4:!a@b/
+--define "a:4:b:sinh:sinh = hyperbolic sine:E!r-2/"
+--define "b:4:b:cosh:cosh = hyperbolic cosine:E!r+2/"
+--define "c:4:b:tanh:tanh = hyperbolic tangent:!a@b/"
 
 # From source: XeX and Inverse Dilbert Lambda
--X d:4:!E*
--X i:4:!sEr*
+--define "d:-4:b:XeX:XeX(x) = x*exp(x):!E*"
+--define "i:-4:b:IDL:Inverse Dilbert Lambda = x*exp(-x^2):!sEr*"
 
---symbol-names :a:sinh :b:cosh :c:tanh :d:XeX :i:IDL
+--define "j:-3:c:|hypot|:Hypot = sqrt(a^2 + b^2):s@s+q"
