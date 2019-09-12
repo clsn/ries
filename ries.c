@@ -2881,7 +2881,7 @@ typedef unsigned char symbol;
 #define IS_PHANTOM(x) (x < 10)
 
 /* Stack-processing symbols.  Also phantom-like, but they need to be typable. */
-#define STACK_DUP '!'
+#define STACK_DUP '|'
 #define STACK_SWAP '@'
 #define IS_STACK(x) (STACK_DUP == (x) || STACK_SWAP == (x))
 
@@ -5374,7 +5374,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
 
     /* Roll '(' or ')' operators might go here */
     /* Not roll, but at least a swap... */
-  case '@':
+  case STACK_SWAP:
     b = ms_pop(ms, &db, &tgb);
     a = ms_pop(ms, &da, &tga); *undo_count = 2;
     ms_push(ms, b, db, tgb);
@@ -5383,7 +5383,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     break;
 
     /* And a dup? */
-  case '!':
+  case STACK_DUP:
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     ms_push(ms, a, da, tga);
     ms_push(ms, a, da, tga); *undo_count = 3;
@@ -8023,7 +8023,7 @@ void report_match(symbol * lhs, symbol * rhs, symbol * exm,
     for(i=0; i<g_num_matches; i++) {
       if (*closeness == delta) {
         if (debug_o) {
-          printf("reject4 [%s]=[%s], duplicte delta value\n",
+          printf("reject4 [%s]=[%s], duplicate delta value\n",
                                                    (char *)lhs, (char *)rhs);
         }
         return;
@@ -10585,9 +10585,9 @@ void init2()
   /* These are anomalous in that they leave TWO things on top of the stack */
   /* dup is even worse, since it actually makes the stack bigger! */
   /* I hope that doesn't screw up other things too badly. */
-  add_symbol(ADDSYM_NAMES('@', "swap", "(swap)"),
+  add_symbol(ADDSYM_NAMES(STACK_SWAP, "swap", "(swap)"),
              'c', 0, 0, 0, "swap");
-  add_symbol(ADDSYM_NAMES('!', "dup", "(dup)"),
+  add_symbol(ADDSYM_NAMES(STACK_DUP, "dup", "(dup)"),
              'b', 0, 0, 0, "dup");
 
   /* These are used for infix formatting */

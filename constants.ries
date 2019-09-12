@@ -2,7 +2,7 @@
 -X g:4:0.57721566490153286060651209008		# Euler Gamma
 # RootOf(x^3-x-1)
 -X P:4:1.324717957244746025960908854		# Plastic number
--X A:4:1.20205690315959428539973816151		# Apery's const (zeta(3))
+-X a:4:1.20205690315959428539973816151		# Apery's const (zeta(3))
 # geometric mean of partial quotients of almost all continued fractions
 # ='exp(Sum(((-1)**(2*x)*lerchphi(exp_polar(I*pi), 1, 2*x) + log(2))*(zeta(2*x) - 1)/x, (x, 1, oo))/log(2))' (in sympy)
 -X K:4:2.68545200106530644530971483548		# Khinchin's const
@@ -22,5 +22,5 @@
 # i^i
 -X J:4:0.207879576350761908546955619835
 
---symbol-names :g:EulerGamma :P:plastic :A:apery :K:Khinchin :F:CF :Y:Levy :B:RF :D:Catalan :h:gamma(EulerGamma) :J:(I**I)
-# --symbol-names :G:γ :P:ρ :A:ζ(3) :h:Γ(γ)
+--symbol-names :g:EulerGamma :P:plastic :a:apery :K:Khinchin :F:CF :Y:Levy :B:RF :D:Catalan :h:gamma(EulerGamma) :J:(I**I)
+# --symbol-names :G:γ :P:ρ :a:ζ(3) :h:Γ(γ)
