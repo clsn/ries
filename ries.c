@@ -3598,7 +3598,7 @@ void expr_print_infix(symbol * expr, int justify);
 void eqn_print_infix(symbol * lhs, symbol * rhs);
 
 s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
-          s16 * sptr, s16 show_work,
+          s16 * sptr, s16 show_work, s16 contains_x,
           struct stack_triplet *init, size_t arity);
 s16 eval(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
          s16 * sptr, s16 show_work);
@@ -5996,13 +5996,13 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
           operands[0].dx = db;
           operands[0].tags = tgb;
           err = eval2(symbl->formula, &tval, &tdif, &ttags,
-                      &tptr, 0, operands, 2);
+                      &tptr, 0, do_dx, operands, 2);
         }
         else if (symbl->seft == 'a') {
           /* Sort of redundant with defining a constant,
              but for completeness... */
           err = eval2(symbl->formula, &tval, &tdif, &ttags,
-                      &tptr, 0, NULL, 0);
+                      &tptr, 0, do_dx, NULL, 0);
         }
         else {                /* default to seft 'b' */
           /* do peek^W pop first. */
@@ -6012,7 +6012,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
           operand.dx = da;
           operand.tags = tga;
           err = eval2(symbl->formula, &tval, &tdif, &ttags,
-                      &tptr, 0, &operand, 1);
+                      &tptr, 0, do_dx, &operand, 1);
         }
         if (err) {
           return err;
@@ -6878,20 +6878,25 @@ Return value is an error code like ERR_EVAL_TOO_LONG
 s16 eval(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
          s16 * sptr, s16 show_work)
 {
-  return eval2(expr, val, dx, tags, sptr, show_work, NULL, 0);
+  return eval2(expr, val, dx, tags, sptr, show_work, -1, NULL, 0);
 }
 s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
-          s16 * sptr, s16 show_work,
+          s16 * sptr, s16 show_work, s16 contains_x,
           struct stack_triplet *operands, size_t arity)
 {
-  s16 contains_x;
   metastack ms;
   symbol * s;
   symbol dbg_scratch[EXPR_ALLOC];
   s16 err, i;
   s16 undo_count;
 
-  contains_x = (symstrsym(expr, 'x') != 0);
+  /* If this is a sub-eval doing a user-defined function, we may not have
+     'x' in the string even though it's involved.  So let the caller tell
+     us (0, 1).  Otherwise, if contains_x is negative, we find out for
+     ourselves, the old-fashioned way. */
+  if (contains_x < 0) {
+    contains_x = (symstrsym(expr, 'x') != 0) ? 1 : 0;
+  }
 
   ms_init(&ms);
   if (operands) {
