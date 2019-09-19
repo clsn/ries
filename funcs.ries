@@ -1,33 +1,22 @@
 # Some user-defined functions.
 #
-# At this point, you still need to assign 1-char opcodes to your functions
-# manually, and make sure they don't conflict with anything else.
-#
-# Symbols in use:
-# 1 2 3 4 5 6 7 8 9 e f p x
-# C E S T l n q r s (|) W
-# * + - / L ^ v (@) (,)
-#
-# "Reserved" and used but mostly hidden:
-# A G ! # % ( ) : ; = I x .
-# (maybe : and ; no longer need to be reserved?  And G and ! are mutex)
-#
-# (Used in my own constants.ries file):
-# A(Apéry)(oops!) B(RF) D(Catalan) F(CF) g(γ) h(Γ(γ)) K(khinchin) P(ρ) Y(Lévy)
-#
-#
-# Remaining typeable/printable 7-bit ascii chars:
-# " $ & ' < > ? D H J M N O Q R U V X Z [ \ ] _ ` a b c d i j k m o p t u w y z { } ~
 
-# --define SYMBOL:WEIGHT:SEFT:NAME:DESC:FORMULA
+# --define WEIGHT:SEFT:NAME:DESC:FORMULA
 
 # sinh, cosh, tanh
---define "a:4:b:sinh:sinh = hyperbolic sine:E|r-2/"
---define "b:4:b:cosh:cosh = hyperbolic cosine:E|r+2/"
---define "c:4:b:tanh:tanh = hyperbolic tangent:|a@b/"
+--define "4:b:sinh:sinh = hyperbolic sine:E|r-2/"
+--define "4:b:cosh:cosh = hyperbolic cosine:E|r+2/"
+--define "4:b:tanh:tanh = hyperbolic tangent:|a@b/"
 
 # From source: XeX and Inverse Dilbert Lambda
---define "d:4:b:XeX:XeX(x) = x*exp(x):|E*"
---define "i:4:b:IDL:Inverse Dilbert Lambda = x*exp(-x^2):|sEr*"
+--define "4:b:XeX:XeX(x) = x*exp(x):|E*"
+--define "4:b:IDL:Inverse Dilbert Lambda = x*exp(-x^2):|sEr*"
 
---define "j:3:c:hypot:Hypot = sqrt(a^2 + b^2):s@s+q"
+--define "4:c:hypot:Hypot = sqrt(a^2 + b^2):s@s+q"
+--define "4:c:avg:avg = (a + b)/2:+2/"
+--define "4:c:geomean:geomean = sqrt(a*b):*q"
+--define "4:c:harmean:harmean = 1/avg(1/a, 1/b):r@r+2/r"
+# "super" square root? t(a) = x s.t. x^x = a
+# requires riesw
+--define "4:b:ssqrt:ssqrt(x)^ssqrt(x) = x:lWE"
+

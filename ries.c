@@ -2764,9 +2764,6 @@ variants. */
    further from a 1:1 ratio. */
 #define PASS_GRAN 1
 
-/* max length of a formula... what makes sense? */
-#define FORM_LEN MAX_ELEN
-
 /* -------------- typedefs --------------------------------------------------
 /
 /  Our function validate_types() checks the sized integer types at runtime
@@ -3310,6 +3307,16 @@ ries_val   k_8 = 8.0L;
 ries_val   k_9 = 9.0L;
 
 #define MAX_DESC (50)
+/* max length of a formula... what makes sense? */
+#define FORM_LEN (16)
+#define NAME_LEN (10)
+/* There are reasons for this: */
+#define MAX_DESC_STR "50"
+#define FORM_LEN_STR "16"
+#define NAME_LEN_STR "10"
+/* Probably could be done with appropriately sneaky preprocessor commands,
+   if you trust those to be there when you need them. */
+
 /* for quoting things in .ries files. */
 #define QUOT ('"')
 struct custom_symbol_t {
@@ -3317,7 +3324,7 @@ struct custom_symbol_t {
   int wt;
   ries_val value;
   char formula[FORM_LEN];
-  char name[MAX_ELEN];
+  char name[NAME_LEN];
   char desc[MAX_DESC];
   char seft;
 } custom_symbols[30];
@@ -10637,7 +10644,19 @@ void init2()
   }
 
   for (i = 0; i < symbol_count; i++) {
-    add_symbol(ADDSYM_NAMES(custom_symbols[i].symbol[0],
+    /* Find an unused opcode */
+    int opcode;
+    for (opcode = 33; sym_attrs[opcode].sa_name[0]
+           && opcode < SYMBOL_RANGE; opcode++)
+      ;
+    if (opcode >= SYMBOL_RANGE) {
+      printf("no opcode found for user-defined function '%s'",
+             custom_symbols[i].name);
+      print_end(-1);
+    }
+    custom_symbols[i].symbol[0] = opcode;
+    custom_symbols[i].symbol[1] = '\0';
+    add_symbol(ADDSYM_NAMES(opcode,
                             custom_symbols[i].name,
                             custom_symbols[i].name),
                custom_symbols[i].seft,
@@ -11611,26 +11630,24 @@ void parse_args(size_t nargs, char *argv[])
     } else if (strcmp(pa_this_arg, "-X") == 0) {
       char symbol;
       int wt;
-      char formula[MAX_ELEN];   /* On your own head be it if you overrun */
       ries_val t;
       pa_get_arg();
-      if (pa_this_arg && sscanf(pa_this_arg, "%c:%d:"
+      /* -X WEIGHT:NAME:DESC:VALUE */
+      if (pa_this_arg && sscanf(pa_this_arg, "%d:%" NAME_LEN_STR "[^:]:%"
+                                MAX_DESC_STR "[^:]:"
 #ifdef RIES_VAL_LDBL
                                 "%Lf",
 #else
                                 "%lf",
 #endif
-                                &symbol, &wt, &t) &&
-          !strchr("+-*/ 0123456789fepnrsqlESCT^vL()=I", symbol)
+                                &wt,
+                                custom_symbols[symbol_count].name,
+                                custom_symbols[symbol_count].desc,
+                                &t)
           && symbol_count < 30) {
-        custom_symbols[symbol_count].symbol[0]=symbol;
-        custom_symbols[symbol_count].symbol[1]='\0';
         custom_symbols[symbol_count].wt=wt;
         custom_symbols[symbol_count].value=t;
         custom_symbols[symbol_count].formula[0]='\0';
-        custom_symbols[symbol_count].name[0]='\0';
-        custom_symbols[symbol_count].desc[0]=symbol;
-        custom_symbols[symbol_count].desc[1]='\0';
         custom_symbols[symbol_count].seft='a';
         symbol_count++;
       }
@@ -11644,19 +11661,21 @@ void parse_args(size_t nargs, char *argv[])
       int wt;
       char seft;
       char desc[MAX_DESC];
-      char name[MAX_ELEN];
-      char formula[MAX_ELEN];   /* On your own head be it if you overrun */
+      char name[NAME_LEN];
+      char formula[FORM_LEN];
       ries_val t;
       pa_get_arg();
       /* Simple syntax.  Hm.
-       * OPCODE:WEIGHT:SEFT:NAME:DESC:FORMULA
+       * WEIGHT:SEFT:NAME:DESC:FORMULA
        * Formula last in case it has :'s in it, if we make : an opcode.
        * But that will probably be a Big Mess anyway.
        */
-      if (pa_this_arg && sscanf(pa_this_arg, "%c:%d:%c:%[^:]:%[^:]:%s",
-                                &symbol, &wt, &seft, name, desc, formula) &&
-          !strchr("+-*/ 0123456789fepnrsqlESCT^vL()=I", symbol)
+      if (pa_this_arg && sscanf(pa_this_arg, "%d:%c:%" NAME_LEN_STR "[^:]:%"
+                                MAX_DESC_STR "[^:]:%s",
+                                &wt, &seft, name, desc, formula)
           && symbol_count < 30) {
+        /* These can no longer happen... but neither will they warn you
+           if things are truncated.  Hmm. */
         if (strlen(formula) >= FORM_LEN || strlen(formula) <= 0) {
           /* If for some reason you overran the buffer & still didn't
              crash the program */
@@ -11679,8 +11698,6 @@ void parse_args(size_t nargs, char *argv[])
           brief_help();
           print_end(-1);
         }
-        custom_symbols[symbol_count].symbol[0]=symbol;
-        custom_symbols[symbol_count].symbol[1]='\0';
         custom_symbols[symbol_count].wt=wt;
         custom_symbols[symbol_count].seft=seft;
         strcpy(custom_symbols[symbol_count].name, name);
