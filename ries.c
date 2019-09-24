@@ -10598,9 +10598,10 @@ void init2()
   /* dup is even worse, since it actually makes the stack bigger! */
   /* I hope that doesn't screw up other things too badly. */
   add_symbol(ADDSYM_NAMES(STACK_SWAP, "swap", "(swap)"),
-             'c', 0, 0, 0, "swap");
+             0, 0, 0, 0, "swap");
+  /* dup effectively acts like an 'a', increasing the stack size. */
   add_symbol(ADDSYM_NAMES(STACK_DUP, "dup", "(dup)"),
-             'b', 0, 0, 0, "dup");
+             'a', 0, 0, 0, "dup");
 
   /* These are used for infix formatting */
   /* sym_attrs['('].sa_name = "("; sym_attrs[')'].sa_name = ")"; */
@@ -10656,6 +10657,39 @@ void init2()
     }
     custom_symbols[i].symbol[0] = opcode;
     custom_symbols[i].symbol[1] = '\0';
+    if (custom_symbols[i].formula[0]) {
+      /* deduce the seft from the formula */
+      /* has to be done here after other opcodes have been added */
+      int stackchange = 0;
+      for (char *f = custom_symbols[i].formula; *f; f++) {
+        char this_seft = sym_attrs[*f].seft;
+        switch (this_seft) {
+        case 'a':
+          stackchange++;
+          break;
+        case 'b':
+          /* no change; take one and leave one */
+        case 0:
+          break;
+        case 'c':
+          stackchange--;
+          break;
+          /* default??? */
+        }
+      }
+      switch (stackchange) {
+      case -1:
+        custom_symbols[i].seft = 'c';
+        break;
+      case 0:
+        custom_symbols[i].seft = 'b';
+        break;
+      case 1:
+        custom_symbols[i].seft = 'a';
+        break;
+        /* default??? */
+      }
+    }
     add_symbol(ADDSYM_NAMES(opcode,
                             custom_symbols[i].name,
                             custom_symbols[i].name),
@@ -11666,40 +11700,41 @@ void parse_args(size_t nargs, char *argv[])
       ries_val t;
       pa_get_arg();
       /* Simple syntax.  Hm.
-       * WEIGHT:SEFT:NAME:DESC:FORMULA
+       * WEIGHT:NAME:DESC:FORMULA
        * Formula last in case it has :'s in it, if we make : an opcode.
        * But that will probably be a Big Mess anyway.
        */
-      if (pa_this_arg && sscanf(pa_this_arg, "%d:%c:%" NAME_LEN_STR "[^:]:%"
+      if (pa_this_arg && sscanf(pa_this_arg, "%d:%" NAME_LEN_STR "[^:]:%"
                                 MAX_DESC_STR "[^:]:%s",
-                                &wt, &seft, name, desc, formula)
+                                &wt, name, desc, formula)
           && symbol_count < 30) {
         /* These can no longer happen... but neither will they warn you
            if things are truncated.  Hmm. */
         if (strlen(formula) >= FORM_LEN || strlen(formula) <= 0) {
           /* If for some reason you overran the buffer & still didn't
              crash the program */
-          printf("%s: --define should be followed by symbol:weight:seft:name:desc:formula.\nThe formula may not be longer than %d characters.\n", g_argv0, FORM_LEN);
+          printf("%s: --define should be followed by weight:name:desc:formula.\nThe formula may not be longer than %d characters.\n", g_argv0, FORM_LEN);
           brief_help();
           print_end(-1);
         }
         if (strlen(desc) > MAX_DESC) { /* ...and for some reason didn't crash */
-          printf("%s: --define should be followed by symbol:weight:seft:name:desc:formula.\nThe desc may not be longer than %d characters.\n", g_argv0, MAX_DESC);
+          printf("%s: --define should be followed by weight:name:desc:formula.\nThe desc may not be longer than %d characters.\n", g_argv0, MAX_DESC);
           brief_help();
           print_end(-1);
         }
         if (strlen(name) > MAX_ELEN) { /* ...and for some reason didn't crash */
-          printf("%s: --define should be followed by symbol:weight:seft:name:desc:formula.\nThe name may not be longer than %d characters.\n", g_argv0, MAX_ELEN);
+          printf("%s: --define should be followed by weight:name:desc:formula.\nThe name may not be longer than %d characters.\n", g_argv0, MAX_ELEN);
           brief_help();
           print_end(-1);
         }
+        /*
         if (!strchr("abc", seft)) {
           printf("%s: --define should be followed by symbol:weight:seft:desc:formula.\nThe seft must be one of 'a', 'b', or 'c'.\n", g_argv0);
           brief_help();
           print_end(-1);
         }
+        */
         custom_symbols[symbol_count].wt=wt;
-        custom_symbols[symbol_count].seft=seft;
         strcpy(custom_symbols[symbol_count].name, name);
         strcpy(custom_symbols[symbol_count].desc, desc);
         strcpy(custom_symbols[symbol_count].formula, formula);
