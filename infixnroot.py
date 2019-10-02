@@ -23,7 +23,27 @@ class Infix:
     def __call__(self, value1, value2):
         return self.function(value1, value2)
 
-from sympy import root
+## http://code.activestate.com/recipes/384122-infix-operators/
+
+from sympy import root, log
 nroot = ROOT = Infix(lambda n,x: root(x,n))
 
-## http://code.activestate.com/recipes/384122-infix-operators/
+# Maybe could be less clunky, but I think it works in most cases.
+# Just output "log_" as "LOG._"
+
+class LogmakerA:
+    def __init__(self, val):
+        self.val = val
+    def __call__(self, other):
+        return log(other, self.val)
+class LogmakerP:
+    def __pow__(self, other):
+        return LogmakerA(other)
+    def __getattr__(self, at):
+        if len(at) < 2:
+            return self
+        return LogmakerA(at[1:])
+    def __call__(self, arg):
+        return LogmakerA(arg)
+
+LOG=LogmakerP()
