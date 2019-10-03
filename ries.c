@@ -2622,6 +2622,14 @@ all three have to be within 10^-6 of each other.
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef RIES_GSL                 /* Use GSL library */
+/* GSL is incompatible with long double and with sa_m64 (we'll say) */
+#include <gsl/gsl_sf.h>
+# define SIN(x) (gsl_sf_sin(x))
+# define COS(x) (gsl_sf_cos(x))
+# define TAN(x) (tan(x))
+# define LAMBERTW(x) (gsl_sf_lambert_W0(x))
+#else  /* RIES_GSL */
 #ifdef RIES_USE_SA_M64
 # include "msal_math64.c"
 # ifdef RIES_VAL_LDBL
@@ -2652,6 +2660,7 @@ all three have to be within 10^-6 of each other.
 # define LAMBERTW(x) (0.0)
 # define GAMMA(x) (0.0)
 #endif
+#endif  /* RIES_GSL */
 
 /* The following functions are acceptable as-is but need long double
 variants. */
@@ -4497,6 +4506,7 @@ _____________________________________________________________________________*/
 #define ERR_EXEC_TRIG_ARGTYPE -21
 #define ERR_EXEC_ILLEGAL_DERIV -22
 #define ERR_EXEC_ZERO_DERIV -23
+#define ERR_EXEC_BAD_ARGUMENT -24
 /* Add any new ones here */
 #define EXIT_NO_ERROR -9998
 #define ERR_UNKNOWN -9999
@@ -4531,6 +4541,7 @@ err_str error_strings[] = {
   {ERR_EXEC_TRIG_ARGTYPE, "Disallowed trigonometric argument"},
   {ERR_EXEC_ILLEGAL_DERIV, "Overflow or NaN in derivative"},
   {ERR_EXEC_ZERO_DERIV, "Underflow in derivative"},
+  {ERR_EXEC_BAD_ARGUMENT, "Could not evaluate for given argument"},
   /* Add any new ones here */
   {EXIT_NO_ERROR, "No error"},
   {ERR_UNKNOWN, "Unknown error"},
@@ -5291,6 +5302,10 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
   ries_tgs trv;   /* Tags of result */
   char found=0;
   int f1;         /* flag */
+#ifdef RIES_GSL
+  gsl_sf_result sf_result;
+  int er;
+#endif
 
   /* set default for derivative (overridden if we compute it) */
   drv = (ries_dif)k_0;
@@ -5591,6 +5606,169 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     break;
 
   /* 'G' Gamma function would go here */
+#ifdef RIES_GSL
+    /* handle GSL functions piecemeal?  Or have a wrapper? */
+  case '!':
+  case 'G':   /* Gamma and factorial */
+    /* Should really only have one of (!,G) enabled at a time. */
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    if (op == '!') {
+      a = a + 1.0;              /* fact(x)=gamma(x+1) */
+    }
+    if (a > GSL_SF_GAMMA_XMAX) {
+      return ERR_EXEC_OVERFLOW;
+    }
+    er = gsl_sf_gamma_e(a, &sf_result);
+    rv = sf_result.val;
+    if (er || isinf(rv) || isnan(rv)) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    if (do_dx) {
+      /* d/dx of gamma is gamma(x)*psi(0,x) */
+      er = gsl_sf_psi_e(a, &sf_result);
+      drv = sf_result.val;
+      if (er || isinf(drv) || isnan(drv)) {
+        return ERR_EXEC_ILLEGAL_DERIV;
+      }
+      drv *= rv;
+    }
+    trv = TGMIN(tga, TYPE_TRAN);
+    ms_push(ms, rv, drv, trv); *undo_count = 2;
+    break;
+
+  case 'y':                     /* log(gamma(x)) */
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    er = gsl_sf_lngamma_e(a, &sf_result);
+    rv = sf_result.val;
+    if (er || isinf(rv) || isnan(rv)) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    if (do_dx) {
+      /* d/dx of lngamma is psi(0,x) */
+      er = gsl_sf_psi_e(a, &sf_result);
+      drv = sf_result.val;
+      if (er || isinf(drv) || isnan(drv)) {
+        return ERR_EXEC_ILLEGAL_DERIV;
+      }
+    }
+    trv = TGMIN(tga, TYPE_TRAN);
+    ms_push(ms, rv, drv, trv); *undo_count = 2;
+    break;
+
+  case 'Z':                     /* Riemann Zeta */
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    if (a == 1.0) {
+      /* (I know, comparing floats with ==...) */
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    er = gsl_sf_zeta_e(a, &sf_result);
+    rv = sf_result.val;
+    /* check for bad values here, or let them propagate? */
+    if (er) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    /* ??? dx ??? */
+    drv = 0.0;
+    if (do_dx) {
+      return ERR_EXEC_ILLEGAL_DERIV; /* or should I return 0? */
+    }
+    trv = TGMIN(tga, TYPE_TRAN);
+    ms_push(ms, rv, drv, trv); *undo_count = 2;
+    break;
+
+  case 'z':                     /* Shi(x), hyperbolic sine integral */
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    er = gsl_sf_Shi_e(a, &sf_result);
+    rv = sf_result.val;
+    /* check for bad values here, or let them propagate? */
+    if (er) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    /* d/dx Shi = sinh(x)/x */
+    drv = 0.0;
+    if (do_dx) {
+      if (a == 0.0) {
+        return ERR_EXEC_ILLEGAL_DERIV;
+      }
+      drv = sinh(a)/a;
+    }
+    trv = TGMIN(tga, TYPE_TRAN);
+    ms_push(ms, rv, drv, trv); *undo_count = 2;
+    break;
+
+  case 'b':                     /* erf */
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    drv = 0.0;
+    er = gsl_sf_erf_e(a, &sf_result);
+    rv = sf_result.val;
+    if (er) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    /* d/dx erf(x) = 2*exp(-x^2)/sqrt(pi) */
+    /* M_2_SQRTPI is 2/sqrt(pi), by happy coincidence */
+    if (do_dx) {
+      drv = exp(-(a * a)) * M_2_SQRTPI;
+    }
+    trv = TGMIN(tga, TYPE_TRAN);
+    ms_push(ms, rv, drv, trv); *undo_count = 2;
+    break;
+
+  case 'k':                     /* erfc */
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    drv = 0.0;
+    er = gsl_sf_erfc_e(a, &sf_result);
+    rv = sf_result.val;
+    if (er) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    /* d/dx erfc(x) = -2*exp(-x^2)/sqrt(pi) */
+    /* M_2_SQRTPI is 2/sqrt(pi), by happy coincidence */
+    if (do_dx) {
+      drv = -exp(-(a * a)) * M_2_SQRTPI;
+    }
+    trv = TGMIN(tga, TYPE_TRAN);
+    ms_push(ms, rv, drv, trv); *undo_count = 2;
+    break;
+
+  case 'V':                     /* Ei */
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    if (a == 0.0) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    drv = 0.0;
+    er = gsl_sf_expint_Ei_e(a, &sf_result);
+    rv = sf_result.val;
+    if (er) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    /* d/dx Ei(x) = exp(x)/x */
+    if (do_dx) {
+      drv = exp(a)/a;
+    }
+    trv = TGMIN(tga, TYPE_TRAN);
+    ms_push(ms, rv, drv, trv); *undo_count = 2;
+    break;
+
+  case 'U':                     /* digamma = psi(0,x) */
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    if (a <= 0.0 && a == floor(a)) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    drv = 0.0;
+    er = gsl_sf_psi_e(a, &sf_result);
+    rv = sf_result.val;
+    if (er) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    /* d/dx polygamma(0,x) = polygamma(1,x) */
+    if (do_dx) {
+      drv = gsl_sf_psi_1_e(a, &sf_result);
+    }
+    trv = TGMIN(tga, TYPE_TRAN);
+    ms_push(ms, rv, drv, trv); *undo_count = 2;
+    break;
+
+#endif  /* RIES_GSL */
 
   case 'W':  /* Lambert W function */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
@@ -10211,6 +10389,7 @@ void init1()
   }
   allsyms_set(MAX_ELEN, 1);
   somesyms_set((symbol *) "W", 0);
+  somesyms_set((symbol *) "G!bkZydczVU", 0);
   S_option = B_FALSE;
   NOS_options = B_FALSE;
   g_show_ss = B_FALSE;
@@ -10391,6 +10570,32 @@ void init2()
   add_symbol(ADDSYM_NAMES('W', "W", "W"),
       'b', 5, "W(x) = LambertW(x) = inverse(x=w*e^w)",
                                "W(x) = LambertW(x) = inverse(x=w*e^w)", "W");
+#ifdef RIES_GSL
+  gsl_set_error_handler_off();
+  add_symbol(ADDSYM_NAMES('G', "gamma", "gamma"),
+             'b', 5, "gamma(x)", "gamma(x)", "gamma");
+  add_symbol(ADDSYM_NAMES('!', "factorial", "factorial"),
+             'b', 5, "factorial(x)", "factorial(x)", "factorial");
+  add_symbol(ADDSYM_NAMES('b', "erf", "erf"),
+             'b', 5, "erf(x)", "erf(x)", "erf");
+  add_symbol(ADDSYM_NAMES('k', "erfc", "erfc"),
+             'b', 5, "erfc(x)", "erfc(x)", "erfc");
+  add_symbol(ADDSYM_NAMES('Z', "zeta", "zeta"),
+             'b', 5, "zeta(x)", "zeta(x)", "zeta");
+  /* lngamma may extend the possible domain more than just applying ln to gamma. */
+  add_symbol(ADDSYM_NAMES('y', "lngamma", "lngamma"),
+             'b', 5, "lngamma(x)", "lngamma(x)", "lngamma");
+  add_symbol(ADDSYM_NAMES('d', "dilog", "dilog"),
+             'b', 5, "dilog(x)", "dilog(x)", "dilog");
+  add_symbol(ADDSYM_NAMES('c', "Chi", "Chi"),
+             'b', 5, "Chi(x)", "Chi(x)", "Chi");
+  add_symbol(ADDSYM_NAMES('z', "Shi", "Shi"),
+             'b', 5, "Shi(x)", "Shi(x)", "Shi");
+  add_symbol(ADDSYM_NAMES('V', "Ei", "Ei"),
+             'b', 5, "Ei(x)", "Ei(x)", "Ei");
+  add_symbol(ADDSYM_NAMES('U', "digamma", "digamma"),
+             'b', 5, "digamma(x)", "digamma(x)", "digamma");
+#endif
 
 
   /* seft 'c' symbols */
