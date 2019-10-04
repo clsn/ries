@@ -2625,10 +2625,12 @@ all three have to be within 10^-6 of each other.
 #ifdef RIES_GSL                 /* Use GSL library */
 /* GSL is incompatible with long double and with sa_m64 (we'll say) */
 #include <gsl/gsl_sf.h>
+#include <gsl/gsl_roots.h>
 # define SIN(x) (gsl_sf_sin(x))
 # define COS(x) (gsl_sf_cos(x))
 # define TAN(x) (tan(x))
 # define LAMBERTW(x) (gsl_sf_lambert_W0(x))
+  int supercuberoot(double x, double *result);
 #else  /* RIES_GSL */
 #ifdef RIES_USE_SA_M64
 # include "msal_math64.c"
@@ -5768,6 +5770,28 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
+  case 'u':                     /* subercuberoot: x**x**x = a */
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    if (a <= 0.0) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    drv = 0.0;
+    er = supercuberoot(a, &rv);
+    if (er) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    /* d/dx supercuberoot = y**(-y - y**y + 1)/(y*log(y)**2 + y*log(y) + 1) */
+    /* y is the supercuberoot. */
+    if (do_dx) {
+      double lrv = log(rv);
+      drv = (pow(rv, 1 - rv - pow(rv,rv))/
+             (rv * pow(lrv,2) + rv * lrv + 1));
+    }
+    trv = TGMIN(tga, TYPE_TRAN);
+    ms_push(ms, rv, drv, trv); *undo_count = 2;
+    break;
+
+
 #endif  /* RIES_GSL */
 
   case 'W':  /* Lambert W function */
@@ -6896,6 +6920,43 @@ void eqn_print_infix(symbol * lhs, symbol * rhs)
   printf(" = ");
   expr_print_infix(rhs, 0);
 }
+
+#ifdef RIES_GSL
+/* root-finding for super-cuberoot */
+double supercube(double x, void *params) {
+  return pow(x, pow(x, x)) - *(double *)params;
+}
+
+int supercuberoot(double x, double *result) {
+  gsl_function cuber;
+  int er = 0;
+
+  cuber.function = &supercube;
+  cuber.params = &x;
+  gsl_root_fsolver *solver = gsl_root_fsolver_alloc(gsl_root_fsolver_brent);
+  gsl_root_fsolver_set(solver, &cuber, 0.0,
+                       4.0);    /* It's always < 4. 4^4^4=big. */
+  while (gsl_root_fsolver_x_upper(solver) -
+         gsl_root_fsolver_x_lower(solver) > 1e-15) {
+    /* printf("Starting #%d: %f in [%f, %f] -> [%f, %f, %f]\n", */
+    /*        i, gsl_root_fsolver_root(solver), */
+    /*        gsl_root_fsolver_x_lower(solver), */
+    /*        gsl_root_fsolver_x_upper(solver), */
+    /*        GSL_FN_EVAL(&cuber, gsl_root_fsolver_x_lower(solver)), */
+    /*        GSL_FN_EVAL(&cuber, gsl_root_fsolver_root(solver)), */
+    /*        GSL_FN_EVAL(&cuber, gsl_root_fsolver_x_upper(solver))); */
+    er = gsl_root_fsolver_iterate(solver);
+    if (er) {
+      /* printf("Error in iteration: %d\n", er); */
+      break;
+    }
+  }
+  *result = gsl_root_fsolver_root(solver);
+  gsl_root_fsolver_free(solver);
+  return er;
+}
+
+#endif
 
 /* eval evaluates an expression; useful for retrieving the values of both
    sides after a match, or for iterating Newton's method. It returns
@@ -10389,7 +10450,7 @@ void init1()
   }
   allsyms_set(MAX_ELEN, 1);
   somesyms_set((symbol *) "W", 0);
-  somesyms_set((symbol *) "G!bkZydczVU", 0);
+  somesyms_set((symbol *) "G!bkZydczVUu", 0);
   S_option = B_FALSE;
   NOS_options = B_FALSE;
   g_show_ss = B_FALSE;
@@ -10595,6 +10656,8 @@ void init2()
              'b', 5, "Ei(x)", "Ei(x)", "Ei");
   add_symbol(ADDSYM_NAMES('U', "digamma", "digamma"),
              'b', 5, "digamma(x)", "digamma(x)", "digamma");
+  add_symbol(ADDSYM_NAMES('u', "scbrt", "scbrt"),
+             'b', 5, "supercuberoot(x)", "supercuberoot(x)", "supercuberoot");
 #endif
 
 
