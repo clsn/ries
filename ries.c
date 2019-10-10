@@ -3318,7 +3318,7 @@ ries_val   k_8 = 8.0L;
 ries_val   k_9 = 9.0L;
 
 #define MAX_DESC (50)
-/* max length of a formula... what makes sense? */
+/* max length of a formula */
 #define FORM_LEN (16)
 #define NAME_LEN (10)
 /* There are reasons for this: */
@@ -3334,6 +3334,7 @@ struct custom_symbol_t {
   char symbol[2];
   int wt;
   ries_val value;
+  char *long_form;
   char formula[FORM_LEN];
   char name[NAME_LEN];
   char desc[MAX_DESC];
@@ -5348,6 +5349,48 @@ struct custom_symbol_t *find_custom(symbol sym) {
     }
   }
   return NULL;
+}
+
+struct custom_symbol_t *find_custom_by_name(char *name) {
+  for (int i=0; i < symbol_count; i++) {
+    if (!strcmp(custom_symbols[i].name, name)) {
+      return &custom_symbols[i];
+    }
+  }
+  return NULL;
+}
+
+symbol symbol_lookup(char *name) {
+  for (int i=0; i < SYMBOL_RANGE; i++) {
+    sym_attr_block *s = &sym_attrs[i];
+    if (s && s->name_forth && !strcmp(name, s->name_forth)) {
+      return i;
+    }
+  }
+  return 0;
+}
+
+void convert_formula(char *formula, char *buff) {
+  /* convert a formula from "long" form to symbols. */
+  char *w;
+  int i = 0;
+  /* SKIP INITIAL COLON */
+  for (w = strtok(formula+1, "_ \t\r\n"); w; w = strtok(NULL, "_ \t\r\n")) {
+    // printf("  w is (%s)\n", w);
+    symbol sym = symbol_lookup(w);
+    // printf("  which came out to '%c' (%d)\n", sym, sym);
+    if (!sym) {
+      /* ??? */
+      printf("Error converting symbol \"%s\"\n", w);
+      exit(1);
+    }
+    buff[i++] = sym;
+    if (i > FORM_LEN) {
+      printf("Formula may not expand to more than %d ops\n", FORM_LEN);
+      print_end(1);
+    }
+  }
+  buff[i] = '\0';
 }
 
 /* exec actually executes an opcode, using a metastack. It returns a
@@ -10725,33 +10768,33 @@ void init2()
 
   /* seft 'a' symbols are constants.
      For most of these, the weight is close to 10.0*ln(x)/ln(10) */
-  add_symbol(ADDSYM_NAMES('1', 0,       "1"),
+  add_symbol(ADDSYM_NAMES('1', "1",       "1"),
     'a', 0,     0, 0, "integer");
   add_symbol(ADDSYM_NAMES('f', "phi",   "phi"),
     'a', 8,  "f = phi, the golden ratio, (1+sqrt(5))/2",
                                            "phi = the golden ratio, (1+sqrt(5))/2", "");
-  add_symbol(ADDSYM_NAMES('2', 0,       "2"),
+  add_symbol(ADDSYM_NAMES('2', "2",       "2"),
     'a', 3,     0, 0, "integer");
   add_symbol(ADDSYM_NAMES('e', "e",     "e"),
     'a', 6,    "e = base of natural logarithms, 2.71828...",
                                            "e = base of natural logarithms, 2.71828...", "");
-  add_symbol(ADDSYM_NAMES('3', 0,       "3"),
+  add_symbol(ADDSYM_NAMES('3', "3",       "3"),
     'a', 5,     0, 0, "integer");
   add_symbol(ADDSYM_NAMES('p', "pi",    "pi"),
     'a', 4,   "p = pi, 3.14159...", "pi = 3.14159...", "");
-  add_symbol(ADDSYM_NAMES('4', 0,       "4"),
+  add_symbol(ADDSYM_NAMES('4', "4",       "4"),
     'a', 6,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('5', 0,       "5"),
+  add_symbol(ADDSYM_NAMES('5', "5",       "5"),
     'a', 7,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('6', 0,       "6"),
+  add_symbol(ADDSYM_NAMES('6', "6",       "6"),
     'a', 8,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('7', 0,       "7"),
+  add_symbol(ADDSYM_NAMES('7', "7",       "7"),
     'a', 8,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('8', 0,       "8"),
+  add_symbol(ADDSYM_NAMES('8', "8",       "8"),
     'a', 9,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('9', 0,       "9"),
+  add_symbol(ADDSYM_NAMES('9', "9",       "9"),
     'a', 9,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('x', 0,       "x"),
+  add_symbol(ADDSYM_NAMES('x', "x",       "x"),
     'a', 5,     0, 0, "the variable of the equation");
 
   /* seft 'b' symbols */
@@ -10860,13 +10903,10 @@ void init2()
     'c', 0,   0, 0, 0);
 
   /* Stack-control ops, for making user-defined functions. */
-  /* Large weight to keep from being used? */
   /* (Otherwise they'll need rules and all...) */
-  /* These are anomalous in that they leave TWO things on top of the stack */
-  /* dup is even worse, since it actually makes the stack bigger! */
-  /* I hope that doesn't screw up other things too badly. */
+  /* Swap is effectively seft 'b', as it doesn't change the size of the stack. */
   add_symbol(ADDSYM_NAMES(STACK_SWAP, "swap", "(swap)"),
-             0, 0, 0, 0, "swap");
+             'b', 0, 0, 0, "swap");
   /* dup effectively acts like an 'a', increasing the stack size. */
   add_symbol(ADDSYM_NAMES(STACK_DUP, "dup", "(dup)"),
              'a', 0, 0, 0, "dup");
@@ -10925,6 +10965,17 @@ void init2()
     }
     custom_symbols[i].symbol[0] = opcode;
     custom_symbols[i].symbol[1] = '\0';
+    /* convert from long to short HERE. */
+    /* Can only define in terms of functions defined earlier: order matters. */
+    if (custom_symbols[i].long_form &&
+        custom_symbols[i].long_form[0] == ':') {
+      /* printf("converting (%s)\n", custom_symbols[i].long_form); */
+      convert_formula(custom_symbols[i].long_form,
+                      custom_symbols[i].formula);
+      /* printf(" converted to (%s)\n", custom_symbols[i].formula); */
+      free(custom_symbols[i].long_form);
+      custom_symbols[i].long_form = NULL;
+    }
     if (custom_symbols[i].formula[0]) {
       /* deduce the seft from the formula */
       /* has to be done here after other opcodes have been added */
@@ -11964,27 +12015,24 @@ void parse_args(size_t nargs, char *argv[])
       char seft;
       char desc[MAX_DESC];
       char name[NAME_LEN];
-      char formula[FORM_LEN];
+      char *formula;
+      char translated[FORM_LEN];
       ries_val t;
       pa_get_arg();
       /* Simple syntax.  Hm.
        * WEIGHT:NAME:DESC:FORMULA
-       * Formula last in case it has :'s in it, if we make : an opcode.
-       * But that will probably be a Big Mess anyway.
+       * For now, supporting long and short names.  Long forms have to
+       * start with a colon, so WEIGHT:NAME:DESC::FORMULA
        */
-      if (pa_this_arg && sscanf(pa_this_arg, "%d:%" NAME_LEN_STR "[^:]:%"
-                                MAX_DESC_STR "[^:]:%s",
-                                &wt, name, desc, formula)
+      /* Names mustn't have spaces in them.  Perhaps retrict further? */
+      int howfar;
+      if (pa_this_arg && sscanf(pa_this_arg, "%d:%" NAME_LEN_STR "[^: \r\n\t]:%"
+                                MAX_DESC_STR "[^:]:%n",
+                                &wt, name, desc, &howfar)
           && symbol_count < 30) {
+        formula = strdup(pa_this_arg + howfar);
         /* These can no longer happen... but neither will they warn you
            if things are truncated.  Hmm. */
-        if (strlen(formula) >= FORM_LEN || strlen(formula) <= 0) {
-          /* If for some reason you overran the buffer & still didn't
-             crash the program */
-          printf("%s: --define should be followed by weight:name:desc:formula.\nThe formula may not be longer than %d characters.\n", g_argv0, FORM_LEN);
-          brief_help();
-          print_end(-1);
-        }
         if (strlen(desc) > MAX_DESC) { /* ...and for some reason didn't crash */
           printf("%s: --define should be followed by weight:name:desc:formula.\nThe desc may not be longer than %d characters.\n", g_argv0, MAX_DESC);
           brief_help();
@@ -12005,7 +12053,23 @@ void parse_args(size_t nargs, char *argv[])
         custom_symbols[symbol_count].wt=wt;
         strcpy(custom_symbols[symbol_count].name, name);
         strcpy(custom_symbols[symbol_count].desc, desc);
-        strcpy(custom_symbols[symbol_count].formula, formula);
+        if (formula[0] != ':') {
+          /* Already in short form */
+          if (strlen(formula) >= FORM_LEN) {
+            printf("%s: A short-form formula may not be longer than %d characters\n",
+                   g_argv0, FORM_LEN);
+            brief_help();
+            print_end(-1);
+          }
+          strcpy(custom_symbols[symbol_count].formula, formula);
+          free(formula);
+          custom_symbols[symbol_count].long_form = NULL;
+        }
+        else {
+          /* Do NOT translate from "long" to "short" form here!! */
+          /* Wait until we know all the symbols. */
+          custom_symbols[symbol_count].long_form = formula;
+        }
         symbol_count++;
       }
     } else if (strcmp(pa_this_arg, "--min-equate-value") == 0) {
@@ -12662,6 +12726,12 @@ int main(int nargs, char *argv[])
     exec_x = g_target;
     for(i=0; i<g_num_find_expr; i++) {
       expr = g_find_expr[i];
+      if (expr[0] == ':') {
+        /* it's in long form! */
+        char buff[MAX_ELEN];
+        convert_formula(expr, buff);
+        strcpy(expr, buff);
+      }
       printf("Evaluating postfix expression '%s'", expr);
       contains_x = (symstrsym(expr, 'x') != 0);
       if (contains_x) {
