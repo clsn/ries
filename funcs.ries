@@ -6,7 +6,8 @@
 # sinh, cosh, tanh
 --define "4:sinh:sinh = hyperbolic sine:E|r-2/"
 --define "4:cosh:cosh = hyperbolic cosine:E|r+2/"
---define "4:tanh:tanh = hyperbolic tangent:|a@b/"
+# Can define tanh in terms of sinh and cosh!
+--define "4:tanh:tanh = hyperbolic tangent::dup sinh swap cosh /"
 
 # From source: XeX and Inverse Dilbert Lambda
 --define "4:XeX:XeX(x) = x*exp(x):|E*"
@@ -19,4 +20,10 @@
 # "super" square root? t(a) = x s.t. x^x = a
 # requires riesw
 --define "4:ssqrt:ssqrt(x)^ssqrt(x) = x:lWE"
+# Alternatively, would you get (mostly?) the same results if you did
+# --define "4:ssq:ssq(x) = x^x::dup **"
+# and just let that happen on the other side of the = ?
 
+# Gaussian normal function, 1/sqrt(2pi) * exp(-x^2)
+# (ries likes sEr better than snE)
+--define "4:normal:normal(x):sEr2pq*/"

@@ -10658,6 +10658,7 @@ void init1()
     sym_attrs[i].preempt_weight = -1;
   }
   allsyms_set(MAX_ELEN, 1);
+  /* "Extended" functions disabled by default. */
   somesyms_set((symbol *) "W", 0);
   somesyms_set((symbol *) "G!bkZydczVUu", 0);
   S_option = B_FALSE;
@@ -12232,7 +12233,6 @@ void parse_args(size_t nargs, char *argv[])
         brief_help();
         print_end(-1);
       }
-
     } else if (strcmp(pa_this_arg, "--symbol-names") == 0) {
       if (pa_next_isparam()) {
         char space_sym = ' ';
@@ -12248,6 +12248,30 @@ void parse_args(size_t nargs, char *argv[])
             /* This syntax is used to define a symbol that stands in for
                blank space. */
             space_sym = a[1];
+#if 0
+          } else if ((a[0] == ':') && (a[1] == ':')) {
+            /* redefining name by "long" name. */
+            /* PROBLEM: long-names don't exist yet!! */
+            /* Going to have to move this someplace else. */
+            char *name = strtok(a + 1, ":");
+            sym = symbol_lookup(name);
+            if (!sym) {
+              printf("Could not find operator \"%s\" to rename\n", name);
+              /* not a fatal error though. */
+            }
+            else {
+              char *newname = a + strlen(name) + 2;
+              if (strlen(newname) <= MAX_SYM_NAME_LEN) {
+                str_remap(newname, space_sym, ' ');
+                sym_attrs[sym].sa_name =
+                  sym_attrs[sym].name_forth = newname;
+              }
+              else {
+                printf("%s: Symbol name can be at most %d characters\n"
+                       "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
+                print_end(-1);
+              }
+            }
           } else if ((a[0] == ':') && a[1] && (a[2] == ':')) {
             sym = (symbol) a[1];
             if (strlen(a+3) <= MAX_SYM_NAME_LEN) {
@@ -12260,6 +12284,7 @@ void parse_args(size_t nargs, char *argv[])
                   "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
               print_end(-1);
             }
+#endif
           } else {
             printf("%s: --symbol-names argument syntax is :<sym>:name,"
                                                               " for example\n"
