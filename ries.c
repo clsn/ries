@@ -5836,6 +5836,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     break;
 
   case 'b':                     /* erf */
+    /* erfc is just 1-erf, not exciting. */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     drv = 0.0;
     er = gsl_sf_erf_e(a, &sf_result);
@@ -5847,23 +5848,6 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     /* M_2_SQRTPI is 2/sqrt(pi), by happy coincidence */
     if (do_dx) {
       drv = exp(-(a * a)) * M_2_SQRTPI;
-    }
-    trv = TGMIN(tga, TYPE_TRAN);
-    ms_push(ms, rv, drv, trv); *undo_count = 2;
-    break;
-
-  case 'k':                     /* erfc */
-    a = ms_pop(ms, &da, &tga); *undo_count = 1;
-    drv = 0.0;
-    er = gsl_sf_erfc_e(a, &sf_result);
-    rv = sf_result.val;
-    if (er) {
-      return ERR_EXEC_BAD_ARGUMENT;
-    }
-    /* d/dx erfc(x) = -2*exp(-x^2)/sqrt(pi) */
-    /* M_2_SQRTPI is 2/sqrt(pi), by happy coincidence */
-    if (do_dx) {
-      drv = -exp(-(a * a)) * M_2_SQRTPI;
     }
     trv = TGMIN(tga, TYPE_TRAN);
     ms_push(ms, rv, drv, trv); *undo_count = 2;
@@ -6203,7 +6187,44 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     trv = TGMIN(tga, TGMIN(tgb, TYPE_ELEM)); /* tgs-manip */
     ms_push(ms, rv, drv, trv); *undo_count = 3;
     break;
+#ifdef RIES_GSL
 
+  case 't':                     /* log(pochhammer) */
+    /* Just to demonstrate doing a seft 'c' op. */
+    /* log(gamma(x+y)/gamma(y)), but computed "atomically" by GSL */
+    b = ms_pop(ms, &db, &tgb);
+    a = ms_pop(ms, &da, &tga); *undo_count = 2;
+    er = gsl_sf_lnpoch_e(a, b, &sf_result);
+    rv = sf_result.val;
+    if (er || isinf(rv) || isnan(rv)) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    /* d/dy(lnpoch(x,y)) = polygamma(0, x+y) */
+    /* d/dx(lnpoch(x,y)) = -polygamma(0, x) + polygamma(0, x + y) */
+    /* therefore, d/dx(lnpoch(u,v)) =
+     *       (du+dv)*polygamma(0, u+v) - du*polygamma(0, u) */
+    if (do_dx) {
+      double polyx, polyxy;
+      er = gsl_sf_psi_e(a, &sf_result);
+      polyx = sf_result.val;
+      if (er || isinf(polyx) || isnan(polyx)) {
+        return ERR_EXEC_ILLEGAL_DERIV;
+      }
+      er = gsl_sf_psi_e(a+b, &sf_result);
+      polyxy = sf_result.val;
+      if (er || isinf(polyxy) || isnan(polyxy)) {
+        return ERR_EXEC_ILLEGAL_DERIV;
+      }
+      drv = (da+db)*polyxy - da*polyx;
+      if ((da || db) && (drv == k_0)) { /* check against some epsilon not 0? */
+        return ERR_EXEC_ZERO_DERIV;
+      }
+    }
+    trv = TGMIN(tga, TYPE_TRAN); /* Not if args are ints! */
+    ms_push(ms, rv, drv, trv); *undo_count = 3;
+    break;
+
+#endif
 #if 0
   case 'A' :       /* atan2 function (quadrant-correct arctangent) */
     b = ms_pop(ms, &db, 0);
@@ -6524,7 +6545,7 @@ s16 infix_1(
       /* This operator goes in front of both arguments */
       term[optr++] = (char) op;
     }
-    if (symbl) {
+    if (symbl || op == 't') {
       /* 2-argument custom functions should be func(a, b) */
       term[optr++] = (char) op;
       term[optr++] = '(';
@@ -6563,7 +6584,7 @@ s16 infix_1(
       }
     } else if (op == 'L') {
       /* We already emitted it */
-    } else if (symbl) {
+    } else if (symbl || op == 't') {
       /* comma between function params */
       term[optr++] = ',';
     } else {
@@ -6580,7 +6601,7 @@ s16 infix_1(
     if (paren_b) {
       term[optr++] = ')';
     }
-    if (symbl) {
+    if (symbl || op == 't') {
       /* need closing paren */
       term[optr++] = ')';
     }
@@ -7867,7 +7888,7 @@ void describe_symbols(void)
         if (sym_attrs[sym].def_needed) {
           if (sym_attrs[sym].def_given == 0) {
             sl = (s16) strlen(sym_attrs[sym].defn);
-            if ( (sl > clen) && (sl < lineleft) ) {
+            if ( (sl >= clen) && (sl < lineleft) ) { /* !!! not right? */
               csym = (symbol) sym;
               candidate = sym_attrs[csym].defn;
               clen = (s16) strlen(candidate);
@@ -10660,7 +10681,7 @@ void init1()
   allsyms_set(MAX_ELEN, 1);
   /* "Extended" functions disabled by default. */
   somesyms_set((symbol *) "W", 0);
-  somesyms_set((symbol *) "G!bkZydczVUu", 0);
+  somesyms_set((symbol *) "G!bkZydczVUut", 0);
   S_option = B_FALSE;
   NOS_options = B_FALSE;
   g_show_ss = B_FALSE;
@@ -10892,7 +10913,11 @@ void init2()
     'c', -4, "x A y = arctangent of x/y",
                                         "arctan(x,y) = arctangent of x/y", "");
 #endif
-
+#ifdef RIES_GSL
+  add_symbol(ADDSYM_NAMES('t', "lnpoch", "lnpoch"),
+             'c', 2, "log(pochhammer(x,y))", "log(pochhammer(x,y))",
+             "logpochhammer");
+#endif
   /* phantom symbols -- used only for postfix to infix translation */
   add_symbol(ADDSYM_NAMES(PS_REVDIV, 0, "!/"),
     'c', 0,   0, 0, 0);
@@ -12272,6 +12297,7 @@ void parse_args(size_t nargs, char *argv[])
                 print_end(-1);
               }
             }
+#endif
           } else if ((a[0] == ':') && a[1] && (a[2] == ':')) {
             sym = (symbol) a[1];
             if (strlen(a+3) <= MAX_SYM_NAME_LEN) {
@@ -12284,7 +12310,6 @@ void parse_args(size_t nargs, char *argv[])
                   "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
               print_end(-1);
             }
-#endif
           } else {
             printf("%s: --symbol-names argument syntax is :<sym>:name,"
                                                               " for example\n"
@@ -12446,7 +12471,13 @@ void parse_args(size_t nargs, char *argv[])
       /* Enable these symbols: Like -S but doesn't clear everything else
          out */
       NOS_options = B_TRUE;
-      somesyms_set((symbol *) (pa_this_arg+2), MAX_ELEN); /* +2 skips "-E" */
+      /* If none are specified, enable ALL */
+      if (!pa_this_arg[2]) {
+        allsyms_set(MAX_ELEN, 1);
+      }
+      else {
+        somesyms_set((symbol *) (pa_this_arg+2), MAX_ELEN); /* +2 skips "-E" */
+      }
 
     } else if (strncmp(pa_this_arg, "-F", 2) == 0) {
       /* Select expression display format */
