@@ -10357,10 +10357,39 @@ void allsyms_set(s16 n, int include_x)
 
 void somesyms_set(symbol * s, s16 n)
 {
+  symbol ns[SYMBOL_RANGE];
+  if (s && s[0] == LONGFORM) {
+    convert_formula(s, ns);
+    s = ns;
+  }
   while (s && *s) {
     sym_attrs[*s].sa_alwd = n;
     /* if (*s == 'W') { printf("Set W to %d\n", n); } */
     s++;
+  }
+}
+
+void endisable_symbols()
+{
+  /* Process the -S/-N/-E/-O options, AFTER the symbols have been defined,
+     so as to be able to use "long forms" */
+  /* XXXXXXXXXXXXXXXXXXXXXXXXXXX */
+  /* Note that this way of doing things will disrupt the ability to specify
+     one of these options more than once, or for them to interact based on
+     their order!  Fix that soon. */
+  /* XXXXXXXXXXXXXXXXXXXXXXXXXXX */
+  if (g_S_opt) {
+    allsyms_set(0, 0);
+    somesyms_set(g_S_opt, MAX_ELEN);
+  }
+  if (g_E_opt) {
+    somesyms_set(g_E_opt, MAX_ELEN);
+  }
+  if (g_N_opt) {
+    somesyms_set(g_N_opt, 0);
+  }
+  if (g_O_opt) {
+    somesyms_set(g_O_opt, 1);
   }
 }
 
@@ -12192,7 +12221,8 @@ void parse_args(size_t nargs, char *argv[])
         allsyms_set(MAX_ELEN, 1);
       }
       else {
-        somesyms_set((symbol *) (pa_this_arg+2), MAX_ELEN); /* +2 skips "-E" */
+        /* process this later. */
+        g_E_opt = pa_this_arg+2;                            /* +2 skips "-E" */
       }
     } else if (strncmp(pa_this_arg, "-F", 2) == 0) {
       /* Select expression display format */
@@ -12264,12 +12294,12 @@ void parse_args(size_t nargs, char *argv[])
     } else if (strncmp(pa_this_arg, "-N", 2) == 0) {
       /* Not these symbols */
       NOS_options = B_TRUE;
-      somesyms_set((symbol *) (pa_this_arg+2), 0); /* +2 skips "-N" */
+      g_N_opt = pa_this_arg+2;  /* +2 skips "-N" */
 
     } else if (strncmp(pa_this_arg, "-O", 2) == 0) {
       /* Once-only symbols */
       NOS_options = B_TRUE;
-      somesyms_set((symbol *) (pa_this_arg+2), 1); /* +2 skips "-O" */
+      g_O_opt = pa_this_arg+2;  /* +2 skips "-O" */
 
     } else if ((strncmp(pa_this_arg, "-r", 2) == 0)
              || (strcmp(pa_this_arg, "--rational-subexpressions") == 0)) {
@@ -12289,8 +12319,7 @@ void parse_args(size_t nargs, char *argv[])
       } else {
         S_option = B_TRUE;
         NOS_options = B_TRUE;
-        allsyms_set(0, 0);
-        somesyms_set((symbol *) pa_this_arg, MAX_ELEN);
+        g_S_opt = pa_this_arg+2;
       }
 
     } else if ((strcmp(pa_this_arg, "-x") == 0)
@@ -12472,6 +12501,8 @@ int main(int nargs, char *argv[])
 "  symbol names, for example: 'ries 3.14159 -S123456789+/')\n");
     exit(0);
   }
+
+  endisable_symbols();
 
   if (g_got_target) {
     g_targ_tags = guess_valtype(g_target);
