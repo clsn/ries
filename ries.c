@@ -3344,6 +3344,14 @@ struct custom_symbol_t {
 } custom_symbols[30];
 size_t symbol_count=0;
 
+/* I need to move processing the -E/-O/-S/-N options out of parse.args;
+   hold the values until then. */
+struct {
+  char which;
+  char *syms;
+} g_ONES_opt[FORM_LEN];
+size_t g_ONES = 0;
+
 struct stack_triplet {          /* This comes in handy */
   ries_val x;
   ries_dif dx;
@@ -10610,10 +10618,40 @@ void allsyms_set(s16 n, int include_x)
 
 void somesyms_set(symbol * s, s16 n)
 {
+  symbol ns[SYMBOL_RANGE];
+  if (s && s[0] == LONGFORM) {
+    convert_formula(s, ns);
+    s = ns;
+  }
   while (s && *s) {
     sym_attrs[*s].sa_alwd = n;
     /* if (*s == 'W') { printf("Set W to %d\n", n); } */
     s++;
+  }
+}
+
+void endisable_symbols()
+{
+  /* Process the -S/-N/-E/-O options, AFTER the symbols have been defined,
+     so as to be able to use "long forms" */
+  int i;
+  /* Process them in the order encountered on the command-line etc. */
+  for (i = 0; i < g_ONES; i++) {
+    symbol *syms = g_ONES_opt[i].syms;
+    switch (g_ONES_opt[i].which) {
+    case 'S':
+      allsyms_set(0, 0);        /* this resets each time, doesn't it? */
+      /* FALL THROUGH */
+    case 'E':
+      somesyms_set(syms, MAX_ELEN);
+      break;
+    case 'N':
+      somesyms_set(syms, 0);
+      break;
+    case 'O':
+      somesyms_set(syms, 1);
+      break;
+    }
   }
 }
 
@@ -12475,12 +12513,14 @@ void parse_args(size_t nargs, char *argv[])
       NOS_options = B_TRUE;
       /* If none are specified, enable ALL */
       if (!pa_this_arg[2]) {
-        allsyms_set(MAX_ELEN, 1);
+        allsyms_set(MAX_ELEN, 1); /* OK to do this now? */
       }
       else {
-        somesyms_set((symbol *) (pa_this_arg+2), MAX_ELEN); /* +2 skips "-E" */
+        /* process this later. */
+        g_ONES_opt[g_ONES].which = 'E';
+        g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-E" */
+        g_ONES++;
       }
-
     } else if (strncmp(pa_this_arg, "-F", 2) == 0) {
       /* Select expression display format */
       pa_this_arg += 2;   /* skip the "-F" */
@@ -12551,13 +12591,16 @@ void parse_args(size_t nargs, char *argv[])
     } else if (strncmp(pa_this_arg, "-N", 2) == 0) {
       /* Not these symbols */
       NOS_options = B_TRUE;
-      somesyms_set((symbol *) (pa_this_arg+2), 0); /* +2 skips "-N" */
+      g_ONES_opt[g_ONES].which = 'N';
+      g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-N" */
+      g_ONES++;
 
     } else if (strncmp(pa_this_arg, "-O", 2) == 0) {
       /* Once-only symbols */
       NOS_options = B_TRUE;
-      somesyms_set((symbol *) (pa_this_arg+2), 1); /* +2 skips "-O" */
-
+      g_ONES_opt[g_ONES].which = 'O';
+      g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-O" */
+      g_ONES++;
     } else if ((strncmp(pa_this_arg, "-r", 2) == 0)
              || (strcmp(pa_this_arg, "--rational-subexpressions") == 0)) {
       /* Rational subexpressions */
@@ -12576,8 +12619,9 @@ void parse_args(size_t nargs, char *argv[])
       } else {
         S_option = B_TRUE;
         NOS_options = B_TRUE;
-        allsyms_set(0, 0);
-        somesyms_set((symbol *) pa_this_arg, MAX_ELEN);
+        g_ONES_opt[g_ONES].which = 'S';
+        g_ONES_opt[g_ONES].syms = pa_this_arg+2;
+        g_ONES++;
       }
 
     } else if ((strcmp(pa_this_arg, "-x") == 0)
@@ -12747,6 +12791,8 @@ int main(int nargs, char *argv[])
 
   /* init the evaluation system */
   init2();
+
+  endisable_symbols();
 
   /* Execute the '-S' command */
   if (g_show_ss) {
