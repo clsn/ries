@@ -14,5 +14,5 @@
 -X 4:RFib:"reciprocal fibonacci constant":3.3598856662431775531720113029
 # alternating sum of squares of odd numbers
 -X 4:Catalan:"Catalan's constant":0.915965594177219015054603514932
--X 4:gamma(EulerGamma):"Γ(γ)":1.5438817418156616987201193884
+-X 4:gammaG:"Γ(γ)":1.5438817418156616987201193884
 -X 4:(I**I):"i^i":0.207879576350761908546955619835
