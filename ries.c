@@ -3333,6 +3333,13 @@ struct custom_symbol_t {
 } custom_symbols[30];
 size_t symbol_count=0;
 
+/* I need to move processing the -E/-O/-S/-N options out of parse.args;
+   hold the values until then. */
+char *g_S_opt = NULL;
+char *g_N_opt = NULL;
+char *g_E_opt = NULL;
+char *g_O_opt = NULL;
+
 struct stack_triplet {          /* This comes in handy */
   ries_val x;
   ries_dif dx;
@@ -12180,8 +12187,13 @@ void parse_args(size_t nargs, char *argv[])
       /* Enable these symbols: Like -S but doesn't clear everything else
          out */
       NOS_options = B_TRUE;
-      somesyms_set((symbol *) (pa_this_arg+2), MAX_ELEN); /* +2 skips "-E" */
-
+      /* If none are specified, enable ALL */
+      if (!pa_this_arg[2]) {
+        allsyms_set(MAX_ELEN, 1);
+      }
+      else {
+        somesyms_set((symbol *) (pa_this_arg+2), MAX_ELEN); /* +2 skips "-E" */
+      }
     } else if (strncmp(pa_this_arg, "-F", 2) == 0) {
       /* Select expression display format */
       pa_this_arg += 2;   /* skip the "-F" */
