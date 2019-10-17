@@ -3330,6 +3330,8 @@ ries_val   k_9 = 9.0L;
 
 /* for quoting things in .ries files. */
 #define QUOT ('"')
+/* Prefix to indicate "long-form" formulae */
+#define LONGFORM (':')
 struct custom_symbol_t {
   char symbol[2];
   int wt;
@@ -10994,7 +10996,7 @@ void init2()
     /* convert from long to short HERE. */
     /* Can only define in terms of functions defined earlier: order matters. */
     if (custom_symbols[i].long_form &&
-        custom_symbols[i].long_form[0] == ':') {
+        custom_symbols[i].long_form[0] == LONGFORM) {
       /* printf("converting (%s)\n", custom_symbols[i].long_form); */
       convert_formula(custom_symbols[i].long_form,
                       custom_symbols[i].formula);
@@ -12079,7 +12081,7 @@ void parse_args(size_t nargs, char *argv[])
         custom_symbols[symbol_count].wt=wt;
         strcpy(custom_symbols[symbol_count].name, name);
         strcpy(custom_symbols[symbol_count].desc, desc);
-        if (formula[0] != ':') {
+        if (formula[0] != LONGFORM) {
           /* Already in short form */
           if (strlen(formula) >= FORM_LEN) {
             printf("%s: A short-form formula may not be longer than %d characters\n",
@@ -12274,7 +12276,7 @@ void parse_args(size_t nargs, char *argv[])
                blank space. */
             space_sym = a[1];
 #if 0
-          } else if ((a[0] == ':') && (a[1] == ':')) {
+          } else if ((a[0] == ':') && (a[1] == LONGFORM)) {
             /* redefining name by "long" name. */
             /* PROBLEM: long-names don't exist yet!! */
             /* Going to have to move this someplace else. */
@@ -12782,7 +12784,7 @@ int main(int nargs, char *argv[])
     exec_x = g_target;
     for(i=0; i<g_num_find_expr; i++) {
       expr = g_find_expr[i];
-      if (expr[0] == ':') {
+      if (expr[0] == LONGFORM) {
         /* it's in long form! */
         char buff[MAX_ELEN];
         convert_formula(expr, buff);
