@@ -3352,6 +3352,13 @@ struct {
 } g_ONES_opt[FORM_LEN];
 size_t g_ONES = 0;
 
+/* Ditto for --symbol-names.  symbol-weights too. */
+char *g_renames[FORM_LEN];
+size_t g_renames_num = 0;
+
+char *g_reweights[FORM_LEN];
+size_t g_reweights_num = 0;
+
 struct stack_triplet {          /* This comes in handy */
   ries_val x;
   ries_dif dx;
@@ -10655,6 +10662,65 @@ void endisable_symbols()
   }
 }
 
+void set_symname(char *a)
+{
+  char space_sym = ' ';
+  symbol sym;
+  if (  (a[0] == ':') && a[1]
+        && (a[2] == ':') && (a[3]==a[1]) && (a[4] == 0)
+        && (space_sym == ' ')) {
+    /* This syntax is used to define a symbol that stands in for
+       blank space. */
+    space_sym = a[1];
+  } else if ((a[0] == ':') && (a[1] == LONGFORM)) {
+    /* redefining name by "long" name. */
+    char *name = strtok(a + 1, ":");
+    sym = symbol_lookup(name);
+    if (!sym) {
+      printf("Could not find operator \"%s\" to rename\n", name);
+      /* not a fatal error though. */
+    }
+    else {
+      char *newname = a + strlen(name) + 3;
+      if (strlen(newname) <= MAX_SYM_NAME_LEN) {
+        str_remap(newname, space_sym, ' ');
+        sym_attrs[sym].sa_name =
+          sym_attrs[sym].name_forth = newname;
+      }
+      else {
+        printf("%s: Symbol name can be at most %d characters\n"
+               "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
+        print_end(-1);
+      }
+    }
+  } else if ((a[0] == ':') && a[1] && (a[2] == ':')) {
+    sym = (symbol) a[1];
+    if (strlen(a+3) <= MAX_SYM_NAME_LEN) {
+      str_remap(a+3, space_sym, ' ');
+      sym_attrs[sym].sa_name =
+        sym_attrs[sym].name_forth = a+3;
+      /* printf("setsym %c:%s\n", sym, a+3); */
+    } else {
+      printf("%s: Symbol name can be at most %d characters\n"
+             "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
+      print_end(-1);
+    }
+  } else {
+    printf("%s: --symbol-names argument syntax is :<sym>:name,"
+           " for example\n"
+           "  :-:deme   to set name of '-' to 'deme'\n"
+           "  Instead I got '%s'\n", g_argv0, a);
+    print_end(-1);
+  }
+}
+
+void do_renames() {
+  int i;
+  for (i = 0; i < g_renames_num; i++) {
+    set_symname(g_renames[i]);
+  }
+}
+
 void set_anagram(char * anagram)
 {
   int i;
@@ -12052,7 +12118,7 @@ void parse_args(size_t nargs, char *argv[])
       ries_val t;
       pa_get_arg();
       /* -X WEIGHT:NAME:DESC:VALUE */
-      if (pa_this_arg && sscanf(pa_this_arg, "%d:%" NAME_LEN_STR "[^:]:%"
+      if (pa_this_arg && sscanf(pa_this_arg, "%d:%" NAME_LEN_STR "[^ \r\n\t:]:%"
                                 MAX_DESC_STR "[^:]:"
 #ifdef RIES_VAL_LDBL
                                 "%Lf",
@@ -12071,7 +12137,7 @@ void parse_args(size_t nargs, char *argv[])
         symbol_count++;
       }
       else {
-        printf("%s: -X should be followed by symbol:weight:value.\nThe symbol should be one character long and not already in use.\n", g_argv0);
+        printf("%s: -X should be followed by weight:name:desc:value.\n", g_argv0);
         brief_help();
         print_end(-1);
       }
@@ -12109,13 +12175,6 @@ void parse_args(size_t nargs, char *argv[])
           brief_help();
           print_end(-1);
         }
-        /*
-        if (!strchr("abc", seft)) {
-          printf("%s: --define should be followed by symbol:weight:seft:desc:formula.\nThe seft must be one of 'a', 'b', or 'c'.\n", g_argv0);
-          brief_help();
-          print_end(-1);
-        }
-        */
         custom_symbols[symbol_count].wt=wt;
         strcpy(custom_symbols[symbol_count].name, name);
         strcpy(custom_symbols[symbol_count].desc, desc);
@@ -12307,56 +12366,10 @@ void parse_args(size_t nargs, char *argv[])
           char * a;
           symbol sym;
           a = pa_get_arg();
-          if (  (a[0] == ':') && a[1]
-             && (a[2] == ':') && (a[3]==a[1]) && (a[4] == 0)
-             && (space_sym == ' ')) {
-            /* This syntax is used to define a symbol that stands in for
-               blank space. */
-            space_sym = a[1];
-#if 0
-          } else if ((a[0] == ':') && (a[1] == LONGFORM)) {
-            /* redefining name by "long" name. */
-            /* PROBLEM: long-names don't exist yet!! */
-            /* Going to have to move this someplace else. */
-            char *name = strtok(a + 1, ":");
-            sym = symbol_lookup(name);
-            if (!sym) {
-              printf("Could not find operator \"%s\" to rename\n", name);
-              /* not a fatal error though. */
-            }
-            else {
-              char *newname = a + strlen(name) + 2;
-              if (strlen(newname) <= MAX_SYM_NAME_LEN) {
-                str_remap(newname, space_sym, ' ');
-                sym_attrs[sym].sa_name =
-                  sym_attrs[sym].name_forth = newname;
-              }
-              else {
-                printf("%s: Symbol name can be at most %d characters\n"
-                       "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
-                print_end(-1);
-              }
-            }
-#endif
-          } else if ((a[0] == ':') && a[1] && (a[2] == ':')) {
-            sym = (symbol) a[1];
-            if (strlen(a+3) <= MAX_SYM_NAME_LEN) {
-              str_remap(a+3, space_sym, ' ');
-              sym_attrs[sym].sa_name =
-              sym_attrs[sym].name_forth = a+3;
-              /* printf("setsym %c:%s\n", sym, a+3); */
-            } else {
-              printf("%s: Symbol name can be at most %d characters\n"
-                  "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
-              print_end(-1);
-            }
-          } else {
-            printf("%s: --symbol-names argument syntax is :<sym>:name,"
-                                                              " for example\n"
-                "  :-:deme   to set name of '-' to 'deme'\n"
-                "  Instead I got '%s'\n", g_argv0, a);
-            print_end(-1);
+          if (!strcmp(a, "-")) {
+            break;
           }
+          g_renames[g_renames_num++] = a;
         }
       } else {
         printf(
@@ -12793,6 +12806,7 @@ int main(int nargs, char *argv[])
   init2();
 
   endisable_symbols();
+  do_renames();
 
   /* Execute the '-S' command */
   if (g_show_ss) {
