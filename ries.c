@@ -10721,6 +10721,55 @@ void do_renames() {
   }
 }
 
+void set_symweight(char *a) {
+  unsigned char argtmp[20];
+  int i; ries_dif w;
+  ries_strncpy((char *) argtmp, a, 20);
+  /* Skip the numeric portion */
+  symbol sym;
+  for(i=0;
+      (argtmp[i]=='.') || ((argtmp[i]>='0') && (argtmp[i]<='9'));
+      i++ ) {  }
+  if ((argtmp[i] == ':') && (argtmp[i+1])) {
+    if (argtmp[i+1] != LONGFORM) {
+      sym = argtmp[i+1];
+    }
+    else {
+      sym = symbol_lookup(argtmp + i + 2);
+      if (!sym) {
+        printf("%s: Could not find symbol \"%s\" for setting weight.\n",
+               g_argv0, argtmp + i + 2);
+        return;                  /* Not a fatal error? */
+      }
+    }
+    argtmp[i++] = 0; /* Null-terminate the numeric portion by
+                        overwriting the ':' */
+    w = strtod((char *) argtmp, 0);
+    if (w <= MIN_SYMBOL_WEIGHT) {
+      printf("%s: Symbol weight may not be %f or less.\n",
+             g_argv0, MIN_SYMBOL_WEIGHT);
+      print_end(-1);
+    }
+    if (w > MAX_SYMBOL_WEIGHT) { w = MAX_SYMBOL_WEIGHT; }
+    /* printf("set weight of '%c' to %d\n", sym, (int) w); */
+    sym_attrs[sym].sa_wgt = (s16) floor(w + 0.5);
+  } else {
+    printf("%s: --symbol-weights argument syntax is NUMBER:<sym>,"
+           " for example\n"
+           "  12:^   to set weight of '^' to 12\n"
+           "  Instead I got '%s'\n", g_argv0, a);
+    print_end(-1);
+  }
+}
+
+void do_reweights() {
+  int i;
+  for (i = 0; i < g_reweights_num; i++) {
+    set_symweight(g_reweights[i]);
+  }
+}
+
+
 void set_anagram(char * anagram)
 {
   int i;
@@ -12364,11 +12413,7 @@ void parse_args(size_t nargs, char *argv[])
            be given. */
         while(pa_next_isparam()) {
           char * a;
-          symbol sym;
           a = pa_get_arg();
-          if (!strcmp(a, "-")) {
-            break;
-          }
           g_renames[g_renames_num++] = a;
         }
       } else {
@@ -12385,34 +12430,10 @@ void parse_args(size_t nargs, char *argv[])
            be given. */
         while(pa_next_isparam()) {
           char * a;
-          unsigned char argtmp[20];
-          int i; ries_dif w;
           a = pa_get_arg();
-          ries_strncpy((char *) argtmp, a, 20);
-          /* Skip the numeric portion */
-          for(i=0;
-              (argtmp[i]=='.') || ((argtmp[i]>='0') && (argtmp[i]<='9'));
-              i++ ) {  }
-          if ((argtmp[i] == ':') && (argtmp[i+1])) {
-            argtmp[i++] = 0; /* Null-terminate the numeric portion by
-                                overwriting the ':' */
-            w = strtod((char *) argtmp, 0);
-            if (w <= MIN_SYMBOL_WEIGHT) {
-              printf("%s: Symbol weight may not be %f or less.\n",
-                g_argv0, MIN_SYMBOL_WEIGHT);
-              print_end(-1);
-            }
-            if (w > MAX_SYMBOL_WEIGHT) { w = MAX_SYMBOL_WEIGHT; }
-            /* printf("set weight of '%c' to %d\n", argtmp[i], (int) w); */
-            sym_attrs[argtmp[i]].preempt_weight = (s16) floor(w + 0.5);
-          } else {
-            printf("%s: --symbol-weights argument syntax is NUMBER:<sym>,"
-                                                              " for example\n"
-                "  12:^   to set weight of '^' to 12\n"
-                "  Instead I got '%s'\n", g_argv0, a);
-            print_end(-1);
-          }
+          g_reweights[g_reweights_num++] = a;
         }
+        
       } else {
         printf(
             "%s: --symbol-weights should be followed by one or more tuples\n"
@@ -12420,7 +12441,6 @@ void parse_args(size_t nargs, char *argv[])
                              " 12:^   to set weight of '^' to 12\n", g_argv0);
         print_end(-1);
       }
-
     } else if (strcmp(pa_this_arg, "--trig-argument-scale") == 0) {
       ries_val t;
       pa_get_arg();
@@ -12807,6 +12827,7 @@ int main(int nargs, char *argv[])
 
   endisable_symbols();
   do_renames();
+  do_reweights();
 
   /* Execute the '-S' command */
   if (g_show_ss) {
