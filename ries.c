@@ -11020,30 +11020,37 @@ void init2()
 #ifdef RIES_GSL
   gsl_set_error_handler_off();
   add_symbol(ADDSYM_NAMES('G', "gamma", "gamma"),
-             'b', 5, "gamma(x)", "gamma(x)", "gamma");
+             'b', 5, "G(x) = Gamma(x) = (x-1)!", "Gamma(x) = (x-1)!", "gamma");
   add_symbol(ADDSYM_NAMES('!', "factorial", "factorial"),
-             'b', 5, "factorial(x)", "factorial(x)", "factorial");
+             'b', 5, "!(x) = factorial(x)", "factorial(x) = x!", "factorial");
   add_symbol(ADDSYM_NAMES('b', "erf", "erf"),
-             'b', 5, "erf(x)", "erf(x)", "erf");
-  add_symbol(ADDSYM_NAMES('k', "erfc", "erfc"),
-             'b', 5, "erfc(x)", "erfc(x)", "erfc");
+             'b', 5, "b(x) = erf(x) = error function",
+             "erf(x) = error function", "erf");
   add_symbol(ADDSYM_NAMES('Z', "zeta", "zeta"),
-             'b', 5, "zeta(x)", "zeta(x)", "zeta");
+             'b', 5, "Z(x) = zeta(x) = Riemann zeta function",
+             "zeta(x) = Riemann zeta function", "zeta");
   /* lngamma may extend the possible domain more than just applying ln to gamma. */
   add_symbol(ADDSYM_NAMES('y', "lngamma", "lngamma"),
-             'b', 5, "lngamma(x)", "lngamma(x)", "lngamma");
+             'b', 5, "y(x) = lngamma(x) = ln(Gamma(x))",
+             "lngamma(x) = ln(Gamma(x))", "lngamma");
   add_symbol(ADDSYM_NAMES('d', "dilog", "dilog"),
-             'b', 5, "dilog(x)", "dilog(x)", "dilog");
+             'b', 5, "d(x) = dilog(x) = dilogarithm (Li_2)",
+             "dilog(x) = dilogarithm (Li_2)", "dilog");
   add_symbol(ADDSYM_NAMES('c', "Chi", "Chi"),
-             'b', 5, "Chi(x)", "Chi(x)", "Chi");
+             'b', 5, "c(x) = Chi(x) = hyperbolic cosine integral",
+             "Chi(x) = hyperbolic cosine integral", "Chi");
   add_symbol(ADDSYM_NAMES('z', "Shi", "Shi"),
-             'b', 5, "Shi(x)", "Shi(x)", "Shi");
+             'b', 5, "z(x) = Shi(x) = hyperbolic sine integral",
+             "Shi(x) = hyperbolic sine integral", "Shi");
   add_symbol(ADDSYM_NAMES('V', "Ei", "Ei"),
-             'b', 5, "Ei(x)", "Ei(x)", "Ei");
+             'b', 5, "V(x) = Ei(x) = exponential integral",
+             "Ei(x) = exponential integral", "Ei");
   add_symbol(ADDSYM_NAMES('U', "digamma", "digamma"),
-             'b', 5, "digamma(x)", "digamma(x)", "digamma");
+             'b', 5, "U(x) = digamma(x) = Gamma'(x)/Gamma(x)",
+             "digamma(x) = Gamma'(x)/Gamma(x)", "digamma");
   add_symbol(ADDSYM_NAMES('u', "scbrt", "scbrt"),
-             'b', 5, "supercuberoot(x)", "supercuberoot(x)", "supercuberoot");
+             'b', 5, "u(x) = supercuberoot(x) = y s.t. y^y^y = x",
+             "supercuberoot(x) = y s.t. y^y^y = x", "supercuberoot");
 #endif
 
 
@@ -11070,7 +11077,8 @@ void init2()
 #endif
 #ifdef RIES_GSL
   add_symbol(ADDSYM_NAMES('t', "lnpoch", "lnpoch"),
-             'c', 2, "log(pochhammer(x,y))", "log(pochhammer(x,y))",
+             'c', 2, "t(x) = log(pochhammer(x,y)) = log(Gamma(x+y)/Gamma(x)",
+             "log(pochhammer(x,y)) = log(rising factorial) = log(Gamma(x+y)/Gamma(x)",
              "logpochhammer");
 #endif
   /* phantom symbols -- used only for postfix to infix translation */
