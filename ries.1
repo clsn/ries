@@ -1,3 +1,4 @@
+'\" et
 .TH RIES 1L "Manual version: 2017 Feb 12" \" -*- nroff -*-
 .\"
 .\"  This manpage uses the groff font family escape, as documented here:
@@ -180,13 +181,14 @@ Power: 2 ^ 3 = 8
 Root (the ``v'' resembles part of the radical symbol): 3 v 27 = cube root of 27
 .IP L
 Logarithm to base A of B
-.IP W
-Lambert W function. Only available if using the stand-alone maths library,
-described in the section ``STAND-ALONE MATHS LIBRARY'' below. In addition,
-one must explicitly choose it with \fB\-EW\fR.
 .RE
-.IP
 
+.IP
+You can specify the operators in ``long form'' by preceding the list with a
+colon (:) and separating them with whitespace.  Be sure to quote the
+parameter so the shell does not split the option apart.  See also below
+regarding LONG-FORM EXPRESSIONS and GSL EXTENSIONS.
+.IP
 There are lots of potential uses for \fB\-N\fR. For example,
 if you invoke \fBries\fR on a small irrational number,
 you might get several solutions that involve
@@ -243,9 +245,10 @@ disabled by an earlier \fB-S\fR or \fB-N\fR option. This is mainly
 intended for use in combination with the \fB--include\fR option. If
 one include file disables some symbols, this option can be used to
 re-enable some or all of them. It is also required for use of the
-Lambert W function, which is disabled by default. See ``STAND-ALONE
-MATHS LIBRARY'' for instructions and use the option \fB-EW\fR to
-request use of the Lambert W function in a \fBries\fR command.
+GSL extension operators (see below on GSL EXTENSIONS), which are disabled
+by default.  A bare \fB-E\fR option with no symbols following enables
+.I all
+possible symbols.
 
 
 .IP \fB-O\fIsss\fR
@@ -718,6 +721,116 @@ of the equation. This is the default.
 .IP \fB--constructible-subexpressions\fR
 This is a synonym for the \fB-c\fR option, described above.
 
+.IP \fB--define\fR\ \fIweight\fB:\fIname\fB:\fIdescription\
+\fB:\fR[\fB:\fR]\fIformula\fR
+.
+Define a custom operation.  You can define your own operations as postfix
+expressions over the existing set of operations.  The argument must begin
+with a positive integer weight (see \fB--symbol-weights\fR), followed by
+the short name of the operation (which will be shown in the equations when
+it is used), a description of the operation (shown at the bottom of the
+output), and lastly the formula for the operation, all separated by
+colons.
+     The formula can be given in either of two forms: ``short'' form or
+``long'' form.  The short form is the FORTH-like postfix syntax that is
+displayed when you use the \fB-F0\fR option, described above.  There are
+two additional operations available which you might find useful:
+
+.TS
+center;
+cb ci l .
+|	dup	duplicate the top element on the stack
+@	swap	swap the top two elements on the stack
+.TE
+.RE
+
+.IP
+So you could define a function \fIXeX(x) = x \fRexp(\fIx\fR) (the inverse of
+the Lambert W function) with
+.IP
+\fC--define '4:XeX:XeX(x) = x*exp(x):|E*'\fR
+.IP
+Or the hyperbolic sin function (sinh) with
+.IP
+\ \ \ \fC--define '4:sinh:sinh(x) = hyperbolic sine:E|r-2/'\fR
+.IP
+Or the hypotenuse function
+.EQ
+( sqrt { a sup 2 + b sup 2 } )
+.EN
+with
+.IP
+\ \ \ \fC--define '4:hypot:hypot(a, b) = sqrt(a^2+b^2):s@s+q'\fR
+.IP
+Note that you will have to take care to quote your argument against
+expansion by the shell (or breaking on spaces), as shown above.  In a file
+for use with \fB--include\fR you should enclose the argument with
+double-quotes.
+     The ``long form'' for an expression is the same as what you
+would see if you used the ``\fB-F3\fR'' option.  Signal a long-form
+expression by adding an extra colon at the beginning.  Note that in
+long-form expressions, you
+.I must
+separate all operators with spaces.  So the above expressions in long-form
+would look like this:
+.RS 0.2i
+.IP
+.eo
+.nf
+.fam C
+.ps -1
+--define '4:XeX:XeX(x) = x*exp(x)::dup exp *'
+--define '4:sinh:sinh(x) = hyperbolic sine::exp dup recip - 2 /'
+--define '4:hypot:hypot(a,b)=sqrt(a^2+b^2)::dup* swap dup* + sqrt'
+.ps
+.fam
+.fi
+.ec
+.RE
+.IP
+One advantage to using the long form is that you can define functions in
+terms of other functions already defined.  So you can get all three
+hyperbolic trigonometric functions like this:
+.RS 0.2i
+.IP
+.eo
+.nf
+.fam C
+.ps -1
+--define '4:sinh:sinh = hyperbolic sine:E|r-2/'
+--define '4:cosh:cosh = hyperbolic cosine:E|r+2/'
+--define '4:tanh:tanh = hyperbolic tangent::dup sinh swap cosh /'
+.ps
+.fam
+.fi
+.ec
+.ft
+.RE
+.IP
+A
+.B funcs.ries
+file containing some definitions is included with the \fBries\fR source.
+.IP \fB-X\fR\ \fIweight\fB:\fIname\fB:\fIdescription\fB:\fIvalue\fR
+Define a new constant that \fBries\fR can use in its calculations.  So for
+example you might want to allow the Euler-Mascheroni constant \[*g]\ \ to
+be an allowed constant.  You can do so with
+.RS 0.2i
+.IP
+.fam C
+.ps -2
+.nf
+.eo
+-X '4:EulerGamma:Euler-Mascheroni Constant:0.57721566490153286060651209008'
+.ps
+.fam
+.fi
+.ec
+.RE
+.IP
+A
+.B constants.ries
+file containing some sample constants is included with the \fBries\fR
+source code.
 
 .IP \fB--derivative-margin\fR\ \fIvalue\fR
 Specify the limit to how small the derivative of any expression or
@@ -1091,7 +1204,7 @@ it seems appropriate, make \fBries\fR more strict by giving
 \fB--significance-loss-margin\fR with a lesser argument.
 
 
-.IP \fB--symbol-names\fR\ :\fIsym\fR:\fIname\fR\ [\ :\fIsym\fR:\fIname\fR\ ...\ ]
+.IP \fB--symbol-names\fR\ \fB:\fR[\fB:\fR]\fIsym\fR:\fIname\fR\ [\ :\fIsym\fR:\fIname\fR\ ...\ ]
 This option allows you to set the ``names'' of individual symbols.
 This affects how the expressions and equations are printed in any of
 the \fB-F\fR formatting modes, and by special commands such as
@@ -1132,7 +1245,10 @@ substitution by the shell:
 More examples of the use of \fB--symbol-names\fR are found in the
 ``Latin'' and ``Mathematica'' settings files linked from the top
 of the main RIES webpage.
-
+    As with the
+.B -O , -N , -E , -S
+options, you can specify a symbol by its ``long form'' name by adding an
+extra colon at the beginning, e.g. \fC--symbol-names ::phi:GoldenRatio\fR.
 
 .IP \fB--symbol-weights\fR\ \fIN\fR:\fIsym\fR\ [\ \fIN\fR:\fIsym\fR\ ...\ ]
 This option allows you to adjust the ``weights'', or complexity
@@ -1172,6 +1288,9 @@ target value will be treated as a symbol-weight specifier unless you
 place it somewhere else in the parameter list (as shown in the
 example), or use a single dash ``-'' to signal the end of the
 parameters.
+     Symbols can also be specified by their ``long form'' name by
+prepending an extra colon to the symbol name, as \fC--symbol-weights
+1::phi\fR.
      \fINOTE\fR: Changing the symbol weights can greatly reduce
 \fBries\fR's efficiency, causing it to run for a very long time and
 giving little or no output. If this happens, it usually can be fixed
@@ -1259,6 +1378,13 @@ does not guarantee that the expression will be found in an actial
 only appears as the left-hand-side of an equation if the \fIx\fR is the
 first symbol in the postfix form: \fBries\fR will use \FCx2+\FT (\fIx\fR+2)
 but will not use \FC2x+\FT (2+\fIx\fR).
+.IP
+You can use the ``long form'' for operations in the expression (as you
+would see if you used the
+.B -F3
+option) if you precede the expression with a colon (:) and space out the
+operations, for example, using \fC:x x sqrt -\fR for the example
+(\fCxxq-\fR) shown above.
 
 .IP \fB--find-expression\fR\ \fIforth-expr\fR\ [\fIforth-expr\fR\ ...]
 Perform the normal equation-finding search algorithm, and report
@@ -1295,6 +1421,188 @@ the \fBries\fR command-line. Its default weight is set to make it
 occur a little more often than the two-argument exponential and root
 functions; use the \fB--symbol-weights\fR option if you want to change
 this.
+
+
+.SH GSL EXTENSIONS
+This version of \fBries\fR has been configured to use the GNU Scientific
+Library (GSL) for some extended functionality in the form of additional
+available mathematical functions.  The following functions, listed by their
+``long-form'' names, are currently available:
+
+.IP \fBfactorial\fR
+.IP \fBgamma\fR
+These are both invocations of the Gamma function, \[*G](\fIx\fR).  The
+quantity \fIn\fR-factorial, written ``\fIn\fR!'', equals the product of all
+the integers up to and including \fIn\fR, that is,
+.EQ
+1 times 2 times 3 times cdots n .
+.EN
+The Gamma function is often considered to be an extension of the factorials
+to non-integers, since
+.EQ
+Gamma ( x ) = x Gamma ( x - 1 ) ,
+.EN
+but the two functions differ in that there is a slight offset:
+.EQ
+x! = Gamma ( x + 1 ) .
+.EN
+It is recommended that only one or the other of these functions be enabled
+at a given time (see the \fB-N\fR option), as they are redundant to each
+other.
+     Although
+.EQ
+Gamma ( n )
+.EN
+is an integer whenever \fIn\fR is an integer, \fBries\fR currently
+considers the value of the gamma function to be a transcendental number in
+all cases.
+     For typesetting simplicity, the factorial function is represented as
+\fC!(x)\fR rather than \fIx\fR! in \fBries\fR output.
+
+.IP \fBdigamma\fR
+The digamma function,
+.EQ
+psi ( x ) ,
+.EN
+is defined such that
+.EQ
+psi ( x ) = Gamma ' ( x ) / Gamma ( x ) ,
+.EN
+where
+.EQ
+Gamma ' ( x )
+.EN
+is the first derivative of the Gamma function (see above).
+
+.IP \fBEi\fR
+The exponential integral is the function
+.EQ
+Ei ( x ) = - int sub { -x } sup { inf } exp ( -t ) dt / t
+.EN
+
+.IP \fBlngamma\fR
+This is the natural logarithm of the Gamma function,
+.EQ
+ln ( Gamma ( x ) ) .
+.EN
+It is useful as a single function in the context of \fBries\fR in that it
+permits the use of values of \fIx\fR which would normally cause an overflow
+if we computed
+.EQ
+Gamma ( x )
+.EN
+separately.
+
+.IP \fBShi\fR
+The hyperbolic sine is the function
+.EQ
+Shi ( x ) = int sub 0 sup x sinh ( t ) dt / t
+.EN
+where sinh is the hyperbolic sine function.
+
+.IP \fBChi\fR
+The hyperbolic cosine is the function
+.EQ
+Chi ( x ) = Re left ( gamma + log ( x ) + int sub 0 sup x ( cosh ( t ) - 1
+) dt / t right )
+.EN
+where cosh is the hyperbolic cosine function, and \[*g] is the
+Euler-Mascheroni constant,
+.EQ
+gamma = lim sub { n -> inf } left ( sum sub { i = 1 } sup n 1 / i - log ( n
+) right )
+.EN
+
+.IP \fBdilog\fR
+This computes the real part of the dilogarithm,
+.EQ
+Li sub 2 ( x ) = - int sub 0 sup x ( 1 - s ) ds / s
+.EN
+for real values of \fIx\fR.
+
+.IP \fBerf\fR
+This computes the error function,
+.EQ
+erf ( x ) = ( 2 / sqrt { pi } ) int sub 0 sup x exp ( - t sup 2 ) dt
+.EN
+
+.IP \fBW\fR
+This computes the Lambert \fIW\fR function, sometimes called the product
+logarithm.  It is the inverse of the function
+.EQ
+w e sup w .
+.EN
+That is, the value of
+.EQ
+W ( x )
+.EN
+is the value \fIw\fR which is such that
+.EQ
+w exp ( w ) = x .
+.EN
+This can be used to define the ``super-square-root'' of a number, which is
+the number \fIy\fR such that
+.EQ
+y sup y = x .
+.EN
+The super square root of \fIx\fR equals
+.EQ
+exp ( W ( ln ( x ) ) )
+.EN
+so you can define the super-square-root in \fBries\fR by saying
+.RS 0.2i
+.IP
+.fam C
+.nf
+--define '4:ssqrt:ssqrt(x) = y s.t. y^y=x:lWE'
+.fi
+.fam
+.RE
+.IP
+Such a definition is included in the \fBfuncs.ries\fR file.
+
+.IP \fBscbrt\fR
+This computes the ``super-cube-root'', rather like the
+``super-square-root'' described above.  That is, scbrt(x) is the value
+\fIy\fR such that
+.EQ
+y sup { y sup y } = x .
+.EN
+This is computed using GSL's rootfinding capabilities.
+
+.IP \fBzeta\fR
+This computes the Riemann zeta function, which is the analytic continuation
+of the infinite sum
+.EQ
+zeta ( s ) = sum sub { k = 1 } sup { inf } k sup { - s } .
+.EN
+Note that the zeta function has a pole at
+.EQ
+x = 1 .
+.EN
+
+.IP \fBlnpoch\fR
+This computes the logarithm the Pochhammer symbol, or the rising factorial,
+of its \fItwo\fR arguments:
+.EQ
+lnpoch ( x, y ) = ln ( rf ( x, y ) ) = ln left ( Gamma ( x + y ) / Gamma (
+x ) ) .
+.EN
+
+.SS CAVEATS OF SPECIAL FUNCTIONS
+
+.P
+TODO.  Things like coincidences \fBries\fR doesn't know about, e.g. that
+\fCx = -sqrt(lnpoch(e, 1))+x+gamma(1)\fR is trivially true for everything,
+etc. and loss of significance effects for things like \fCerf\fR of values
+over 4, etc.  These latter should be checked for within \fBries\fR, but
+currently are not.
+.P
+Also, remove the standalone maths library section, since I think it isn't
+truly compatible with GSL.
+
+.SH LONG-FORM EXPRESSIONS
+TODO and move.
 
 
 .SH ALGORITHM
@@ -1571,6 +1879,7 @@ primitive-recursive. Contact the author for more information.
 .SH AUTHOR
 
 Robert P. Munafo (contact information on mrob.com)
+ (some extension and modification by Mark Shoulson)
 
 .SH LICENSES
 

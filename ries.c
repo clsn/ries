@@ -11078,7 +11078,7 @@ void init2()
 #ifdef RIES_GSL
   add_symbol(ADDSYM_NAMES('t', "lnpoch", "lnpoch"),
              'c', 2, "t(x) = log(pochhammer(x,y)) = log(Gamma(x+y)/Gamma(x)",
-             "log(pochhammer(x,y)) = log(rising factorial) = log(Gamma(x+y)/Gamma(x)",
+             "log(pochhammer(x,y)) = log(rising factorial) = log(Gamma(x+y)/Gamma(x))",
              "logpochhammer");
 #endif
   /* phantom symbols -- used only for postfix to infix translation */
