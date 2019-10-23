@@ -5441,6 +5441,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
   ries_tgs trv;   /* Tags of result */
   char found=0;
   int f1;         /* flag */
+  double fl;
 #ifdef RIES_GSL
   gsl_sf_result sf_result;
   int er;
@@ -5617,11 +5618,14 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     if (a > k_eXlim) {
       return ERR_EXEC_OVERFLOW;
     }
-    if (a < k_sig_loss) {
+    if (FABS(a) < k_sig_loss) {
       /* Loss-of-significance error, e.g. "e^0.0001" */
       return ERR_EXEC_SIG_LOSS;
     }
     rv = EXP(a);
+    if (FABS(rv * a) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
+    }
     if (do_dx) {
       drv = (ries_dif) (rv * da);
     }
@@ -5774,6 +5778,14 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     if (a > GSL_SF_GAMMA_XMAX) {
       return ERR_EXEC_OVERFLOW;
     }
+    /* Gamma has poles at non-positive integers.  This the right way to
+     * check for significance? */
+    fl = floor(a);
+    /* sometimes the floor is off by nearly 1.0 */
+    if ((fl < 1 && (FABS(a - fl) < k_sig_loss)) ||
+        (fl < 0 && FABS(a - fl - 1) < k_sig_loss)) {
+      return ERR_EXEC_SIG_LOSS;
+    }
     er = gsl_sf_gamma_e(a, &sf_result);
     rv = sf_result.val;
     if (er || isinf(rv) || isnan(rv)) {
@@ -5794,6 +5806,14 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
 
   case 'y':                     /* log(gamma(x)) */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    /* Gamma has poles at non-positive integers.  This the right way to
+     * check for significance? */
+    fl = floor(a);
+    /* sometimes the floor is off by nearly 1.0 */
+    if ((fl < 1.0 && (FABS(a - fl) < k_sig_loss)) ||
+        (fl < 0.0 && FABS(a - fl - 1) < k_sig_loss)) {
+      return ERR_EXEC_SIG_LOSS;
+    }
     er = gsl_sf_lngamma_e(a, &sf_result);
     rv = sf_result.val;
     if (er || isinf(rv) || isnan(rv)) {
@@ -5817,11 +5837,19 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       /* (I know, comparing floats with ==...) */
       return ERR_EXEC_BAD_ARGUMENT;
     }
+    /* This is better, right? */
+    if (FABS(a - 1.0) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
+    }
     er = gsl_sf_zeta_e(a, &sf_result);
     rv = sf_result.val;
     /* check for bad values here, or let them propagate? */
     if (er) {
       return ERR_EXEC_BAD_ARGUMENT;
+    }
+    /* ??? */
+    if (FABS(rv - 1.0) < k_sig_loss || FABS(rv) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
     }
     /* ??? dx ??? */
     drv = 0.0;
@@ -5861,6 +5889,9 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     if (er) {
       return ERR_EXEC_BAD_ARGUMENT;
     }
+    if (FABS(rv - 1.0) < k_sig_loss || FABS(rv + 1.0) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
+    }
     /* d/dx erf(x) = 2*exp(-x^2)/sqrt(pi) */
     /* M_2_SQRTPI is 2/sqrt(pi), by happy coincidence */
     if (do_dx) {
@@ -5881,6 +5912,9 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     if (er) {
       return ERR_EXEC_BAD_ARGUMENT;
     }
+    if (FABS(rv) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
+    }
     /* d/dx Ei(x) = exp(x)/x */
     if (do_dx) {
       drv = exp(a)/a;
@@ -5891,8 +5925,10 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
 
   case 'U':                     /* digamma = psi(0,x) */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
-    if (a <= 0.0 && a == floor(a)) {
-      return ERR_EXEC_BAD_ARGUMENT;
+    fl = floor(a);
+    if ((fl < 1.0 && FABS(a - fl) < k_sig_loss) ||
+        (fl < 0.0 && FABS(a - fl + 1 < k_sig_loss))){
+      return ERR_EXEC_SIG_LOSS;
     }
     drv = 0.0;
     er = gsl_sf_psi_e(a, &sf_result);
@@ -6212,9 +6248,21 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     b = ms_pop(ms, &db, &tgb);
     a = ms_pop(ms, &da, &tga); *undo_count = 2;
     er = gsl_sf_lnpoch_e(a, b, &sf_result);
+    fl = floor(a + b);
+    if (fl <= 0.0 && FABS(a + b - fl) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
+    }
+    fl = floor(b);
+    if (fl <= 0.0 && FABS(b - fl) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
+    }
     rv = sf_result.val;
     if (er || isinf(rv) || isnan(rv)) {
       return ERR_EXEC_BAD_ARGUMENT;
+    }
+    /* ???? */
+    if (FABS(rv) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
     }
     /* d/dy(lnpoch(x,y)) = polygamma(0, x+y) */
     /* d/dx(lnpoch(x,y)) = -polygamma(0, x) + polygamma(0, x + y) */
@@ -12661,7 +12709,7 @@ void parse_args(size_t nargs, char *argv[])
         S_option = B_TRUE;
         NOS_options = B_TRUE;
         g_ONES_opt[g_ONES].which = 'S';
-        g_ONES_opt[g_ONES].syms = pa_this_arg+2;
+        g_ONES_opt[g_ONES].syms = pa_this_arg;
         g_ONES++;
       }
 
