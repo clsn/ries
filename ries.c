@@ -11193,6 +11193,8 @@ void init2()
 #endif
   }
 
+  /* "I" is reserved.  Just hack it and add a dummy name to it... */
+  sym_attrs['I'].sa_name="I";
   for (i = 0; i < symbol_count; i++) {
     /* Find an unused opcode */
     int opcode;
