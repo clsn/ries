@@ -11,7 +11,7 @@
 
 # From source: XeX and Inverse Dilbert Lambda
 --define "4:XeX:XeX(x) = x*exp(x):|E*"
---define "4:IDL:Inverse Dilbert Lambda = x*exp(-x^2):|sEr*"
+--define "4:IDL:Inverse Dilbert Lambda = x*exp(-x^2):|snE*"
 
 --define "4:hypot:Hypot = sqrt(a^2 + b^2):s@s+q"
 --define "4:avg:avg = (a + b)/2:+2/"
@@ -25,5 +25,4 @@
 # and just let that happen on the other side of the = ?
 
 # Gaussian normal function, 1/sqrt(2pi) * exp(-x^2)
-# (ries likes sEr better than snE)
---define "4:normal:normal(x):sEr2pq*/"
+--define "4:normal:normal(x):snE2pq*/"

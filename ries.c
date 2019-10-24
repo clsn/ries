@@ -5533,6 +5533,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     if (a == k_0) {
       return ERR_EXEC_DIV_ZERO;
     }
+    /* Check for loss of significance? */
     if (do_dx) {
       drv = (ries_dif) (( - da) / (a * a));
     }
@@ -5818,6 +5819,9 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     rv = sf_result.val;
     if (er || isinf(rv) || isnan(rv)) {
       return ERR_EXEC_BAD_ARGUMENT;
+    }
+    if (FABS(rv * a) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
     }
     if (do_dx) {
       /* d/dx of lngamma is psi(0,x) */
