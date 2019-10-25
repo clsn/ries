@@ -3354,6 +3354,74 @@ struct stack_triplet {          /* This comes in handy */
   ries_tgs tags;
 };
 
+char *g_all_options[] =
+  {
+   "--list-options ",
+   "-p",
+   "--include ",
+   "--any-exponents ",
+   "--any-subexpressions ",
+   "--any-trig-args ",
+   "--canon-reduction ",
+   "--canon-simplify ",
+   "--derivative-margin ",
+   "--eval-expression ",
+   "--explicit-multiply ",
+   "--find-expression ",
+   "--match-all-digits ",
+   "--mad ",                    /* include this? */
+   "--max-equate-value ",
+   "--max-match-distance ",
+   "--max-matches ",
+   "--max-memory ",
+   "--memory-abort-threshold ",
+   "-X ",
+   "--define ",
+   "--min-equate-value ",
+   "--min-match-distance ",
+   "--max-trig-cycles ",
+   "--min-memory ",
+   "--no-canon-simplify ",
+   "--no-refinement ",
+   "--no-slow-messages ",
+   "--no-solve-for-x ",
+   "--numeric-anagram ",
+   "--one-sided ",
+   "--rational-exponents ",
+   "--rational-trig-args ",
+   "--relative-roots ",
+   "--show-work ",
+   "--significance-loss-margin ",
+   "--symbol-names ",
+   "--symbol-weights ",
+   "--trig-argument-scale ",
+   "-s ",
+   "--try-solve-for-x ",
+   "--version ",
+   "--wide ",
+   "--wide-output ",
+   "-a",
+   "--algebraic-subexpressions ",
+   "-c",
+   "--constructible-subexpressions ",
+   "-D",
+   "-E",
+   "-F",
+   "-i",
+   "--integer-subexpressions ",
+   "-l",
+   "--liouvillian-subexpressions ",
+   "-N",
+   "-O",
+   "-r",
+   "--rational-subexpressions ",
+   "-S",
+   "-x ",
+   "--absolute-roots ",
+   NULL
+  };
+
+
 /* Constants that parametrize functions */
 
 ries_val k_sincos_arg_scale = 0;
@@ -11625,11 +11693,18 @@ void parse_args(size_t nargs, char *argv[])
            as e.g. after the --eval-expression option, before giving the
            target number. */
 
+    } else if (strcmp(pa_this_arg, "--list-options") == 0) {
+      /* List the options, no explanations given.  For use with
+         tab-completion! */
+      for (int i = 0; g_all_options[i]; i++) {
+        printf("%s\n", g_all_options[i]);
+      }
+      exit(0);                  /* And that's it!! */
+
       /* First we check the "--foo-bar VAL" type options, in which the
          "opcode" and its "arguments" are each separate elements of argv[].
          These are used for special or rarely-used commands, like the
          command that gives an expression's complexity score */
-
 
     } else if (strcmp(pa_this_arg, "--any-exponents") == 0) {
       g_restrict_exponents = TYPE_NONE;

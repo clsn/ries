@@ -20,3 +20,6 @@
 # requires riesw
 --define "4:ssqrt:ssqrt(x)^ssqrt(x) = x:lWE"
 
+# Gaussian normal function, 1/sqrt(2pi) * exp(-x^2)
+--define "4:normal:normal(x):snE2p*q/"
+
