@@ -25,4 +25,4 @@
 # and just let that happen on the other side of the = ?
 
 # Gaussian normal function, 1/sqrt(2pi) * exp(-x^2)
---define "4:normal:normal(x):snE2pq*/"
+--define "4:normal:normal(x):snE2p*q/"
