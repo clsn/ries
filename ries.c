@@ -5857,14 +5857,14 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     }
     er = gsl_sf_gamma_e(a, &sf_result);
     rv = sf_result.val;
-    if (er || isinf(rv) || isnan(rv)) {
+    if (er || !isfinite(rv)) {
       return ERR_EXEC_BAD_ARGUMENT;
     }
     if (do_dx) {
       /* d/dx of gamma is gamma(x)*psi(0,x) */
       er = gsl_sf_psi_e(a, &sf_result);
       drv = sf_result.val;
-      if (er || isinf(drv) || isnan(drv)) {
+      if (er || !isfinite(drv)) {
         return ERR_EXEC_ILLEGAL_DERIV;
       }
       drv *= rv;
@@ -5885,7 +5885,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     }
     er = gsl_sf_lngamma_e(a, &sf_result);
     rv = sf_result.val;
-    if (er || isinf(rv) || isnan(rv)) {
+    if (er || !isfinite(rv)) {
       return ERR_EXEC_BAD_ARGUMENT;
     }
     if (FABS(rv * a) < k_sig_loss) {
@@ -5895,7 +5895,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       /* d/dx of lngamma is psi(0,x) */
       er = gsl_sf_psi_e(a, &sf_result);
       drv = sf_result.val;
-      if (er || isinf(drv) || isnan(drv)) {
+      if (er || !isfinite(drv)) {
         return ERR_EXEC_ILLEGAL_DERIV;
       }
     }
@@ -6329,7 +6329,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       return ERR_EXEC_SIG_LOSS;
     }
     rv = sf_result.val;
-    if (er || isinf(rv) || isnan(rv)) {
+    if (er || !isfinite(rv)) {
       return ERR_EXEC_BAD_ARGUMENT;
     }
     /* ???? */
@@ -6344,12 +6344,12 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       double polyx, polyxy;
       er = gsl_sf_psi_e(a, &sf_result);
       polyx = sf_result.val;
-      if (er || isinf(polyx) || isnan(polyx)) {
+      if (er || !isfinite(polyx)) {
         return ERR_EXEC_ILLEGAL_DERIV;
       }
       er = gsl_sf_psi_e(a+b, &sf_result);
       polyxy = sf_result.val;
-      if (er || isinf(polyxy) || isnan(polyxy)) {
+      if (er || !isfinite(polyxy)) {
         return ERR_EXEC_ILLEGAL_DERIV;
       }
       drv = (da+db)*polyxy - da*polyx;
