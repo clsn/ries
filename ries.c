@@ -5973,6 +5973,28 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
+  case 'd':                     /* dilog */
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    drv = 0;
+    er = gsl_sf_dilog_e(a, &sf_result);
+    rv = sf_result.val;
+    if (er) {
+      return ERR_EXEC_BAD_ARGUMENT;
+    }
+    if (FABS(rv) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
+    }
+    /* d/dx Li_2(x) = -log(1-x) */
+    if (do_dx) {
+      if ((1 - a) <= 0) {
+        return ERR_EXEC_ILLEGAL_DERIV;
+      }
+      drv = - log(1 - a);
+    }
+    trv = TGMIN(tga, TYPE_TRAN);
+    ms_push(ms, rv, drv, trv); *undo_count = 2;
+    break;
+
   case 'V':                     /* Ei */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     if (a == 0.0) {
