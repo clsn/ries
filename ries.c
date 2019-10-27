@@ -10430,9 +10430,10 @@ void add_symbol(symbol sym, const char * name_forth, const char * name_infix,
   sym_attrs[sym].sa_wgt = weight;
   sym_attrs[sym].sa_mask = 0;
 
-  if (sym_attrs[sym].sa_alwd == 0) {
-    return;
-  }
+  /* I think this has to go, since enabling can happen after this point. */
+  /* if (sym_attrs[sym].sa_alwd == 0) { */
+  /*   return; */
+  /* } */
 
   /* Set the sa_known flag to keep track of which symbols made it this far;
      this is for use by setup_abc_mmw(). */
