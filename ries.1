@@ -286,6 +286,32 @@ example: \FCries -i 16\FT gives the answer
 because 16^2-16 is close to 3^5. \FCries -i 16 -Ox\FT replaces
 that answer with ``5 \fIx\fR^2 = 6^4''.
 
+.IP \fB--S-RHS=\fIsss\fR
+.IP \fB--N-RHS=\fIsss\fR
+.IP \fB--E-RHS=\fIsss\fR
+.IP \fB--O-RHS=\fIsss\fR
+
+These options work just like the
+\fB-S\fR, \fB-N\fR, \fB-E\fR, and \fB-O\fR
+options listed above, except that they apply
+.I only
+to the RHS of the equation.
+So for example you can get rational-only
+solutions while still permitting exponentiation
+(to get larger numerators and denonimators)
+by using \fC-Ox -S'123456789+-*/' --E-RHS='^'\fR.  If you had
+just included \fB^\fR with the other operators, it might have gotten used
+on the left-hand side of the equation, yielding perhaps
+\fBx^3 = \fIsomething\fR, which then would solve to something involving
+a cube root.
+The
+.B -r
+option disables the
+.B ^
+operator for just this reason.
+But enabling it only on the right-hand side allows it
+to be used safely.
+
 
 .SH Options Limiting the Type of Solutions
 
