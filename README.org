@@ -12,13 +12,13 @@ So, what's available here (at first) is:
 
  + =msal_math64.c= :: A standalone math library (also from Robert Munafo) that can optionally be used in =ries= to provide some more functionality (some transcendental functions.)
 
- + =ries.1= :: The manual page for =ries=.  Also from Munafo.  I have not necessarily updated this to reflect any new features I may have added.
+ + =ries.1= :: The manual page for =ries=.  Also from Munafo.  I try to update this to reflect any new features I may have added, but not necessarily promptly.
 
  + =latin.ries= :: Now we are into =ries= profiles, which are settings of particular sets of =ries= options, including how to display the results, etc (=--symbol-names=).  This is from Munafo, supposed to display the results in Latin text.
 
  + =Mathematica.ries= :: Another profile, also from Munafo, for producing output that could be pasted into Mathematica (perhaps with minor changes.)
 
- + =constants.ries= :: Now we get into files that are from me (Mark Shoulson) and not Robert Munafo.  The main feature I've added is the ability to define additional constants to be used in =ries= equations.  So instead of only being able to generate equations made from single digits, π, ℯ, φ, and functions of them, you can decide, for example, that [[https://en.wikipedia.org/wiki/Ap%C3%A9ry%27s_constant][Apéry's constant]], ζ(3)≈1.20205690315959, is a "base" constant that can be used in your equations.  Or the [[https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant][Euler-Mascheroni constant], γ≈0.57721566490153286, or anything else you like.  This profile contains a selection of such constants:
+ + =constants.ries= :: Now we get into files that are from me (Mark Shoulson) and not Robert Munafo.  A feature I've added is the ability to define additional constants to be used in =ries= equations.  So instead of only being able to generate equations made from single digits, π, ℯ, φ, and functions of them, you can decide, for example, that [[https://en.wikipedia.org/wiki/Ap%C3%A9ry%27s_constant][Apéry's constant]], ζ(3)≈1.20205690315959, is a "base" constant that can be used in your equations.  Or the [[https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant][Euler-Mascheroni constant], γ≈0.57721566490153286, or anything else you like.  This profile contains a selection of such constants:
 
    + [[https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant][Euler-Mascheroni constant]] :: lim_{n→∞} (sum_{i=1}^n 1/i) - ln(n).  Approximately 0.5772156649
 
@@ -38,11 +38,15 @@ So, what's available here (at first) is:
 
    + Γ(γ) :: The [[https://en.wikipedia.org/wiki/Gamma_function][Gamma function]] applied to the Euler-Mascheroni constant (see above).  Because it's lots of gammas.
 
+ + =funcs.ries= :: My =ries= extentions allow you to define your own functions, with =--define 'weight:name:description:formula'=.  This file contains a few sample definitions, like sinh and cosh, etc.
+
  + =pretty.ries= :: A =ries= profile for replacing a few of the mathematical symbols with pretty unicode characters.  The main non-obvious one is that =ries='s n-th root operator (represented "/ in =ries=) is shown as √, while a true square root is ²√.
 
  + =sympy.ries= :: A profile for use with the python symbolic math package [[http://www.sympy.org/][sympy]].  Does only a few very simple substitutions, like constant names, =**= for =^=, and =S.One= for =1=, so reciprocals (at least) won't get evaluated to floating-point numbers and sympy can keep them as rationals.
 
- + =infixnroot.py= :: a small Python script that uses a hack (from [[http://code.activestate.com/recipes/384122-infix-operators/][here]]) to create a Python "infix" operator that does what =ries='s ="/= symbol does: take the /n/-th root of something.  This way, =sympy.ries= above doesn't choke on /n/-th roots.  Still has problems with arbitrary logarithms, though.  (Using =-NvL= won't necessarily help, if you use the =-s= option.  Though changing the "\equal" sign to "-" with ~--symbol-names :=:-~ could let you copy-paste into sympy and let sympy do the solving...)
+ + =infixnroot.py= :: a small Python script that uses a hack (from [[http://code.activestate.com/recipes/384122-infix-operators/][here]]) to create a Python "infix" operator that does what =ries='s ="/= symbol does: take the /n/-th root of something.  This way, =sympy.ries= above doesn't choke on /n/-th roots.  Even gotten arbitrary logarithms to work, albeit by means of some rather evil Python.
+
+ + =rcomplete.sh= :: a little shellscript to enable tab-completion for =ries= options.
 
  + =Makefile= :: A simple Makefile for building =ries=, as well as =riesw=, which is a name I gave to the version of =ries= with the =msal_math64.c= extensions included (because it supports the /W/-function), and processing the manual page to text, cleaning, etc.
 
@@ -50,6 +54,8 @@ It would be nice if Robert Munafo would eventually move =ries= onto github, and 
 
 ** Extensions to =ries=
 
-As mentioned above, the one thing I've added to =ries= myself is the ability to add more constants.  You do this with the =-X= option, followed by a string of the form =symbol:weight:value=.  The symbol should be one character long and not already in use by =ries= (or other added constants).  The weight is used by =ries= to decide how "expensive" it is to use this constant, i.e. how much more "complicated" it makes the resulting expression.  I usually set this at 4, mostly just to pick a number.
+As mentioned above, one thing I've added to =ries= myself is the ability to add more constants.  You do this with the =-X= option, followed by a string of the form =weight:name:description:value=.  The weight is used by =ries= to decide how "expensive" it is to use this constant, i.e. how much more "complicated" it makes the resulting expression.  I usually set this at 4, mostly just to pick a number.
 
-I think Munafo has not added this to =ries= yet because he's actually working on a more general solution allowing you to define your own /functions/, not just constants.  Which is good, and I'll be glad to remove this when we have something better, but this is just one more thing to play with--and playing is what =ries= does best.
+I've also added the ability to define your own functions, with the =--define= option, which should be followed by a string of the form =weight:name:description:formula=, where the formula is the postfix notation formula to be computed.  This uses =ries='s =-F0= syntax, with one-letter symbols for the operations.  Alternatively, you can use the FORTH-like =-F3= format, with full names for the operators, if you separate them with spaces /and/ put an extra colon (=:=) at the very beginning.  This also works for the =-O=, =-N=, =-E=, and =-S= options, etc; see the =ries.1= documentation file.
+
+Not yet pushed is a branch incorporating the GNU Scientific Library (GSL) into =ries=.  I'll push that +soon+ one of these days.
