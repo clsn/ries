@@ -185,8 +185,13 @@ Lambert W function. Only available if using the stand-alone maths library,
 described in the section ``STAND-ALONE MATHS LIBRARY'' below. In addition,
 one must explicitly choose it with \fB\-EW\fR.
 .RE
-.IP
 
+.IP
+You can specify the operators in ``long form'' by preceding the list with a
+colon (:) and separating them with whitespace.  Be sure to quote the
+parameter so the shell does not split the option apart.  See also below
+regarding LONG-FORM EXPRESSIONS.
+.IP
 There are lots of potential uses for \fB\-N\fR. For example,
 if you invoke \fBries\fR on a small irrational number,
 you might get several solutions that involve
@@ -246,7 +251,9 @@ re-enable some or all of them. It is also required for use of the
 Lambert W function, which is disabled by default. See ``STAND-ALONE
 MATHS LIBRARY'' for instructions and use the option \fB-EW\fR to
 request use of the Lambert W function in a \fBries\fR command.
-
+A bare \fB-E\fR option with no symbols following enables
+.I all
+possible symbols.
 
 .IP \fB-O\fIsss\fR
 Only One: Specifies symbols which should appear no more than once
@@ -718,6 +725,116 @@ of the equation. This is the default.
 .IP \fB--constructible-subexpressions\fR
 This is a synonym for the \fB-c\fR option, described above.
 
+.IP \fB--define\fR\ \fIweight\fB:\fIname\fB:\fIdescription\
+\fB:\fR[\fB:\fR]\fIformula\fR
+.
+Define a custom operation.  You can define your own operations as postfix
+expressions over the existing set of operations.  The argument must begin
+with a positive integer weight (see \fB--symbol-weights\fR), followed by
+the short name of the operation (which will be shown in the equations when
+it is used), a description of the operation (shown at the bottom of the
+output), and lastly the formula for the operation, all separated by
+colons.
+     The formula can be given in either of two forms: ``short'' form or
+``long'' form.  The short form is the FORTH-like postfix syntax that is
+displayed when you use the \fB-F0\fR option, described above.  There are
+two additional operations available which you might find useful:
+
+.TS
+center;
+cb ci l .
+|	dup	duplicate the top element on the stack
+@	swap	swap the top two elements on the stack
+.TE
+.RE
+
+.IP
+So you could define a function \fIXeX(x) = x \fRexp(\fIx\fR) (the inverse of
+the Lambert W function) with
+.IP
+\fC--define '4:XeX:XeX(x) = x*exp(x):|E*'\fR
+.IP
+Or the hyperbolic sin function (sinh) with
+.IP
+\ \ \ \fC--define '4:sinh:sinh(x) = hyperbolic sine:E|r-2/'\fR
+.IP
+Or the hypotenuse function
+.EQ
+( sqrt { a sup 2 + b sup 2 } )
+.EN
+with
+.IP
+\ \ \ \fC--define '4:hypot:hypot(a, b) = sqrt(a^2+b^2):s@s+q'\fR
+.IP
+Note that you will have to take care to quote your argument against
+expansion by the shell (or breaking on spaces), as shown above.  In a file
+for use with \fB--include\fR you should enclose the argument with
+double-quotes.
+     The ``long form'' for an expression is the same as what you
+would see if you used the ``\fB-F3\fR'' option.  Signal a long-form
+expression by adding an extra colon at the beginning.  Note that in
+long-form expressions, you
+.I must
+separate all operators with spaces.  So the above expressions in long-form
+would look like this:
+.RS 0.2i
+.IP
+.eo
+.nf
+.fam C
+.ps -1
+--define '4:XeX:XeX(x) = x*exp(x)::dup exp *'
+--define '4:sinh:sinh(x) = hyperbolic sine::exp dup recip - 2 /'
+--define '4:hypot:hypot(a,b)=sqrt(a^2+b^2)::dup* swap dup* + sqrt'
+.ps
+.fam
+.fi
+.ec
+.RE
+.IP
+One advantage to using the long form is that you can define functions in
+terms of other functions already defined.  So you can get all three
+hyperbolic trigonometric functions like this:
+.RS 0.2i
+.IP
+.eo
+.nf
+.fam C
+.ps -1
+--define '4:sinh:sinh = hyperbolic sine:E|r-2/'
+--define '4:cosh:cosh = hyperbolic cosine:E|r+2/'
+--define '4:tanh:tanh = hyperbolic tangent::dup sinh swap cosh /'
+.ps
+.fam
+.fi
+.ec
+.ft
+.RE
+.IP
+A
+.B funcs.ries
+file containing some definitions is included with the \fBries\fR source.
+.IP \fB-X\fR\ \fIweight\fB:\fIname\fB:\fIdescription\fB:\fIvalue\fR
+Define a new constant that \fBries\fR can use in its calculations.  So for
+example you might want to allow the Euler-Mascheroni constant \[*g]\ \ to
+be an allowed constant.  You can do so with
+.RS 0.2i
+.IP
+.fam C
+.ps -2
+.nf
+.eo
+-X '4:EulerGamma:Euler-Mascheroni Constant:0.57721566490153286060651209008'
+.ps
+.fam
+.fi
+.ec
+.RE
+.IP
+A
+.B constants.ries
+file containing some sample constants is included with the \fBries\fR
+source code.
 
 .IP \fB--derivative-margin\fR\ \fIvalue\fR
 Specify the limit to how small the derivative of any expression or
@@ -1091,7 +1208,7 @@ it seems appropriate, make \fBries\fR more strict by giving
 \fB--significance-loss-margin\fR with a lesser argument.
 
 
-.IP \fB--symbol-names\fR\ :\fIsym\fR:\fIname\fR\ [\ :\fIsym\fR:\fIname\fR\ ...\ ]
+.IP \fB--symbol-names\fR\ \fB:\fR[\fB:\fR]\fIsym\fR:\fIname\fR\ [\ :\fIsym\fR:\fIname\fR\ ...\ ]
 This option allows you to set the ``names'' of individual symbols.
 This affects how the expressions and equations are printed in any of
 the \fB-F\fR formatting modes, and by special commands such as
@@ -1132,7 +1249,10 @@ substitution by the shell:
 More examples of the use of \fB--symbol-names\fR are found in the
 ``Latin'' and ``Mathematica'' settings files linked from the top
 of the main RIES webpage.
-
+    As with the
+.B -O , -N , -E , -S
+options, you can specify a symbol by its ``long form'' name by adding an
+extra colon at the beginning, e.g. \fC--symbol-names ::phi:GoldenRatio\fR.
 
 .IP \fB--symbol-weights\fR\ \fIN\fR:\fIsym\fR\ [\ \fIN\fR:\fIsym\fR\ ...\ ]
 This option allows you to adjust the ``weights'', or complexity
@@ -1172,6 +1292,9 @@ target value will be treated as a symbol-weight specifier unless you
 place it somewhere else in the parameter list (as shown in the
 example), or use a single dash ``-'' to signal the end of the
 parameters.
+     Symbols can also be specified by their ``long form'' name by
+prepending an extra colon to the symbol name, as \fC--symbol-weights
+1::phi\fR.
      \fINOTE\fR: Changing the symbol weights can greatly reduce
 \fBries\fR's efficiency, causing it to run for a very long time and
 giving little or no output. If this happens, it usually can be fixed
@@ -1259,6 +1382,13 @@ does not guarantee that the expression will be found in an actial
 only appears as the left-hand-side of an equation if the \fIx\fR is the
 first symbol in the postfix form: \fBries\fR will use \FCx2+\FT (\fIx\fR+2)
 but will not use \FC2x+\FT (2+\fIx\fR).
+.IP
+You can use the ``long form'' for operations in the expression (as you
+would see if you used the
+.B -F3
+option) if you precede the expression with a colon (:) and space out the
+operations, for example, using \fC:x x sqrt -\fR for the example
+(\fCxxq-\fR) shown above.
 
 .IP \fB--find-expression\fR\ \fIforth-expr\fR\ [\fIforth-expr\fR\ ...]
 Perform the normal equation-finding search algorithm, and report
@@ -1295,6 +1425,9 @@ the \fBries\fR command-line. Its default weight is set to make it
 occur a little more often than the two-argument exponential and root
 functions; use the \fB--symbol-weights\fR option if you want to change
 this.
+
+.SH LONG-FORM EXPRESSIONS
+TODO and move.
 
 
 .SH ALGORITHM
@@ -1571,6 +1704,7 @@ primitive-recursive. Contact the author for more information.
 .SH AUTHOR
 
 Robert P. Munafo (contact information on mrob.com)
+ (some extension and modification by Mark Shoulson)
 
 .SH LICENSES
 
