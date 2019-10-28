@@ -3166,6 +3166,8 @@ typedef struct sym_attr_block {
   s16    preempt_weight;
   attr_bits sa_mask; /* Attributes, masked with this, must be 0 */
   s16    sa_alwd;    /* Number of symbols allowed in each expression */
+  s16    sa_RHSalwd; /* if non-negative, number allowed on RHS, overriding
+                        sa_alwd. */
   s16    sa_ct;      /* used in ge.2() to keep track of how many symbols
                         are in expression; part of -O option. */
   const char * defn; /* symbol definition for legend */
@@ -9460,6 +9462,7 @@ s16 canonval(
       ip, bpe->elen, bpe->sym, dbl(x), dx);
   }
 
+  /* I decree that sa_RHSalwd does not apply to canonicalization. */
   if ((g_canon_ops & CANONVAL_NEGATE)
     && (sym_attrs[OP_NEG].sa_ct < sym_attrs[OP_NEG].sa_alwd)
     && (x < 0.0) && (ip < MAX_ELEN))
@@ -10122,7 +10125,11 @@ stats_count ge_2(
       recurse = 0;
 
     /* Check symbol count for this symbol */
-    } else if (sym_attrs[sym].sa_ct >= sym_attrs[sym].sa_alwd) {
+      /* if !using_x, we're on the RHS, right? */
+    } else if (sym_attrs[sym].sa_ct >=
+               (!using_x && (sym_attrs[sym].sa_RHSalwd >= 0) ?
+                sym_attrs[sym].sa_RHSalwd :
+                sym_attrs[sym].sa_alwd)) {
       if (debug_L & g_dbg_side) {
         printf("prune symcount[%c]\n", sym);
       }
@@ -10615,6 +10622,7 @@ void setup_abc_mmw(void)
   for (i=0; i<SYMBOL_RANGE; i++) {
     if (sym_attrs[i].sa_known) {
       /* This symbol was enabled at init.2() time */
+      /* XXXXX What about sa_RHSalwd??? */
       if (sym_attrs[i].sa_alwd) {
         /* We want this symbol for this petit cycle. %%% For proper solve-for-x
            with restricted symbol sets, this part of the test will
@@ -10713,6 +10721,7 @@ void add_rule(const char * ss, char sy, attr_bits mask)
      against the INTERSECTION of the LHS and RHS symbol sets */
   allowed = 1;
   s = symset;
+  /* XXXXX What about sa_RHSalwd??? */
   while((sreq = *s++)) {
     if (sym_attrs[sreq].sa_alwd < MAX_ELEN) {
       allowed = 0;
@@ -10891,6 +10900,30 @@ void somesyms_set(symbol * s, s16 n)
   }
 }
 
+void allsyms_set_RHS(s16 n, int include_x)
+{
+  int i;
+
+  for(i=0; i<SYMBOL_RANGE; i++) {
+    if (include_x || ((char) i != 'x')) {
+      sym_attrs[i].sa_RHSalwd = n;
+    }
+  }
+}
+
+void somesyms_set_RHS(symbol * s, s16 n)
+{
+  symbol ns[SYMBOL_RANGE];
+  if (s && s[0] == LONGFORM) {
+    convert_formula(s, ns);
+    s = ns;
+  }
+  while (s && *s) {
+    sym_attrs[*s].sa_RHSalwd = n;
+    s++;
+  }
+}
+
 void endisable_symbols()
 {
   /* Process the -S/-N/-E/-O options, AFTER the symbols have been defined,
@@ -10911,6 +10944,19 @@ void endisable_symbols()
       break;
     case 'O':
       somesyms_set(syms, 1);
+      break;
+
+    case 's':
+      allsyms_set_RHS(0, 0);
+      /* FALL THROUGH */
+    case 'e':
+      somesyms_set_RHS(syms, MAX_ELEN);
+      break;
+    case 'o':
+      somesyms_set_RHS(syms, 1);
+      break;
+    case 'n':
+      somesyms_set_RHS(syms, 0);
       break;
     }
   }
@@ -11086,6 +11132,7 @@ void init1()
   */
   for(i=0; i<SYMBOL_RANGE; i++) {
     sym_attrs[i].preempt_weight = -1;
+    sym_attrs[i].sa_RHSalwd = -1;
   }
   allsyms_set(MAX_ELEN, 1);
   /* "Extended" functions disabled by default. */
@@ -12848,6 +12895,13 @@ void parse_args(size_t nargs, char *argv[])
         g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-E" */
         g_ONES++;
       }
+    } else if (strncmp(pa_this_arg, "--E-RHS=", 8) == 0) {
+      /* Enable these symbols *on the RHS*! */
+      NOS_options = B_TRUE;
+      /* process this later. */
+      g_ONES_opt[g_ONES].which = 'e';
+      g_ONES_opt[g_ONES].syms = pa_this_arg+8;
+      g_ONES++;
     } else if (strncmp(pa_this_arg, "-F", 2) == 0) {
       /* Select expression display format */
       pa_this_arg += 2;   /* skip the "-F" */
@@ -12922,11 +12976,23 @@ void parse_args(size_t nargs, char *argv[])
       g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-N" */
       g_ONES++;
 
+    } else if (strncmp(pa_this_arg, "--N-RHS=", 8) == 0) {
+      NOS_options = B_TRUE;
+      g_ONES_opt[g_ONES].which = 'n';
+      g_ONES_opt[g_ONES].syms = pa_this_arg + 8;
+      g_ONES++;
+
     } else if (strncmp(pa_this_arg, "-O", 2) == 0) {
       /* Once-only symbols */
       NOS_options = B_TRUE;
       g_ONES_opt[g_ONES].which = 'O';
       g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-O" */
+      g_ONES++;
+    } else if (strncmp(pa_this_arg, "--O-RHS=", 8) == 0) {
+      /* Once-only symbols, on the RHS only! */
+      NOS_options = B_TRUE;
+      g_ONES_opt[g_ONES].which = 'o';
+      g_ONES_opt[g_ONES].syms = pa_this_arg+8;
       g_ONES++;
     } else if ((strncmp(pa_this_arg, "-r", 2) == 0)
              || (strcmp(pa_this_arg, "--rational-subexpressions") == 0)) {
@@ -12950,6 +13016,15 @@ void parse_args(size_t nargs, char *argv[])
         g_ONES_opt[g_ONES].syms = pa_this_arg;
         g_ONES++;
       }
+
+    } else if (strncmp(pa_this_arg, "--S-RHS=", 8) == 0) {
+      /* Only these symbols */
+      pa_this_arg += 8;   /* skip the "-S" */
+      S_option = B_TRUE;
+      NOS_options = B_TRUE;
+      g_ONES_opt[g_ONES].which = 's';
+      g_ONES_opt[g_ONES].syms = pa_this_arg;
+      g_ONES++;
 
     } else if ((strcmp(pa_this_arg, "-x") == 0)
             || (strcmp(pa_this_arg, "--absolute-roots") == 0)) {
