@@ -11177,7 +11177,7 @@ void init2()
              'b', 5, "y(x) = lngamma(x) = ln(Gamma(x))",
              "lngamma(x) = ln(Gamma(x))", "lngamma");
   add_symbol(ADDSYM_NAMES('d', "dilog", "dilog"),
-             'b', 5, "d(x) = dilog(x) = dilogarithm (Li_2)",
+             'b', 5, "d(x) = Re(dilog(x)) = dilogarithm (Li_2)",
              "dilog(x) = dilogarithm (Li_2)", "dilog");
   add_symbol(ADDSYM_NAMES('c', "Chi", "Chi"),
              'b', 5, "c(x) = Chi(x) = hyperbolic cosine integral",
