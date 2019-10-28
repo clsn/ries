@@ -11454,6 +11454,16 @@ void init2()
   add_rule("Ln",   'L', AM_r);  /* [rL] => [Ln]             */
   add_rule("",     'L', AM_1K); /* [1KL] => 0               */
 
+#ifdef RIES_GSL
+  /* Attempting to add some rules relevant to GSL extensions... */
+  add_rule("",     'G', AM_1);  /* [1G] => 0                */
+  add_rule("1",    '!', AM_1);  /* [1!] => 1                */
+  /* Chi is an even function */
+  add_rule("c",    'c', AM_n);  /* [nc] => [c]              */
+  add_rule("",     'y', AM_1);  /* [1y] => 0                */
+  add_rule("",     'Z', AM_1);  /* [1A] => undefined        */
+#endif
+
   if (k_sincos_arg_scale == 1.0) {
     /* Added on 20070511 */
     add_rule("",     'S', AM_pi); /* [pS] => 0              */
