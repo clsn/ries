@@ -1,26 +1,18 @@
-# lim{n->oo} sum_{i=1}^n 1/i - ln(n)
--X g:4:0.57721566490153286060651209008		# Euler Gamma
-# RootOf(x^3-x-1)
--X P:4:1.324717957244746025960908854		# Plastic number
--X A:4:1.20205690315959428539973816151		# Apery's const (zeta(3))
+# -X 4:EulerGamma:"lim{n->oo}sum_{i=1}^n1/i-ln(n)":0.57721566490153286060651209008
+-X 4:plastic:"RootOf(x^3-x-1)":1.324717957244746025960908854
+-X 4:apery:"Apery's constant ζ(3)":1.20205690315959428539973816151
 # geometric mean of partial quotients of almost all continued fractions
 # ='exp(Sum(((-1)**(2*x)*lerchphi(exp_polar(I*pi), 1, 2*x) + log(2))*(zeta(2*x) - 1)/x, (x, 1, oo))/log(2))' (in sympy)
--X K:4:2.68545200106530644530971483548		# Khinchin's const
+-X 4:Khinchin:"Khinchin's Constant":2.68545200106530644530971483548
 # I(1,2)/I(0,2) (Bessel I)
--X F:4:0.69777465796400798200679059255		# CF [0,1,2,3,4...]
+-X 4:CF:"CF([1,2,3,4...])":0.69777465796400798200679059255
 # lim{n->oo} q_n^(1/n) for q_n being denominators of convergents
 # of almost all continued fractions.
 # = exp(pi^2/(12*ln(2)))
--X Y:4:3.27582291872181115978768188245		# Lévy's constant
+-X 4:Levy:"Levy's constant, exp(pi^2/(12*ln(2)))":3.27582291872181115978768188245
 # sum of reciprocals of fibonacci numbers
--X B:4:3.3598856662431775531720113029		# Reciprocal Fib. Constant
+-X 4:RFib:"reciprocal fibonacci constant":3.3598856662431775531720113029
 # alternating sum of squares of odd numbers
--X D:4:0.915965594177219015054603514932		# Catalan's Constant
-# gamma(EulerGamma)
--X h:4:1.5438817418156616987201193884		# Gammagamma!
-
-# i^i
--X i:4:0.207879576350761908546955619835
-
---symbol-names :g:EulerGamma :P:plastic :A:apery :K:Khinchin :F:CF :Y:Levy :B:RF :D:Catalan :h:gamma(EulerGamma) :i:(I**I)
-# --symbol-names :G:γ :P:ρ :A:ζ(3) :h:Γ(γ)
+-X 4:Catalan:"Catalan's constant":0.915965594177219015054603514932
+-X 4:gammaG:"Γ(γ)":1.5438817418156616987201193884
+-X 4:(I**I):"i^i":0.207879576350761908546955619835

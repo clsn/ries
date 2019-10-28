@@ -705,6 +705,7 @@ TABLE OF FUNCTIONS
   s   (a -- s)      Square: s(a) = a*a
   v   (a b -- v)    Root: v(a,b) = a^(1/b)
   x   (-- x)        The user's target number
+  @   (a b -- b a)  Swap top two stack elements
 
 */ /*
 
@@ -2876,6 +2877,11 @@ typedef unsigned char symbol;
 #define PS_REVPOW 4   /* argument-reversed exponentiation */
 #define IS_PHANTOM(x) (x < 10)
 
+/* Stack-processing symbols.  Also phantom-like, but they need to be typable. */
+#define STACK_DUP '|'
+#define STACK_SWAP '@'
+#define IS_STACK(x) (STACK_DUP == (x) || STACK_SWAP == (x))
+
 /* A "ries_val" is a numeric value attained by performing calculations
    according to an postfix expression. ries_val's are created mainly
    by successive calls to exec(). */
@@ -3300,8 +3306,121 @@ ries_val   k_7 = 7.0L;
 ries_val   k_8 = 8.0L;
 ries_val   k_9 = 9.0L;
 
-struct { char symbol[2]; int wt; ries_val value; } custom_symbols[30];
+#define MAX_DESC (50)
+/* max length of a formula */
+#define FORM_LEN (16)
+#define NAME_LEN (10)
+/* There are reasons for this: */
+#define MAX_DESC_STR "50"
+#define FORM_LEN_STR "16"
+#define NAME_LEN_STR "10"
+/* Probably could be done with appropriately sneaky preprocessor commands,
+   if you trust those to be there when you need them. */
+
+/* for quoting things in .ries files. */
+#define QUOT ('"')
+/* Prefix to indicate "long-form" formulae */
+#define LONGFORM (':')
+struct custom_symbol_t {
+  char symbol[2];
+  int wt;
+  ries_val value;
+  char *long_form;
+  char formula[FORM_LEN];
+  char name[NAME_LEN];
+  char desc[MAX_DESC];
+  char seft;
+} custom_symbols[30];
 size_t symbol_count=0;
+
+/* I need to move processing the -E/-O/-S/-N options out of parse.args;
+   hold the values until then. */
+struct {
+  char which;
+  char *syms;
+} g_ONES_opt[FORM_LEN];
+size_t g_ONES = 0;
+
+/* Ditto for --symbol-names.  symbol-weights too. */
+char *g_renames[FORM_LEN];
+size_t g_renames_num = 0;
+
+char *g_reweights[FORM_LEN];
+size_t g_reweights_num = 0;
+
+struct stack_triplet {          /* This comes in handy */
+  ries_val x;
+  ries_dif dx;
+  ries_tgs tags;
+};
+
+char *g_all_options[] =
+  {
+   "--list-options ",
+   "-p",
+   "--include ",
+   "--any-exponents ",
+   "--any-subexpressions ",
+   "--any-trig-args ",
+   "--canon-reduction ",
+   "--canon-simplify ",
+   "--derivative-margin ",
+   "--eval-expression ",
+   "--explicit-multiply ",
+   "--find-expression ",
+   "--match-all-digits ",
+   "--mad ",                    /* include this? */
+   "--max-equate-value ",
+   "--max-match-distance ",
+   "--max-matches ",
+   "--max-memory ",
+   "--memory-abort-threshold ",
+   "-X ",
+   "--define ",
+   "--min-equate-value ",
+   "--min-match-distance ",
+   "--max-trig-cycles ",
+   "--min-memory ",
+   "--no-canon-simplify ",
+   "--no-refinement ",
+   "--no-slow-messages ",
+   "--no-solve-for-x ",
+   "--numeric-anagram ",
+   "--one-sided ",
+   "--rational-exponents ",
+   "--rational-trig-args ",
+   "--relative-roots ",
+   "--show-work ",
+   "--significance-loss-margin ",
+   "--symbol-names ",
+   "--symbol-weights ",
+   "--trig-argument-scale ",
+   "-s ",
+   "--try-solve-for-x ",
+   "--version ",
+   "--wide ",
+   "--wide-output ",
+   "-a",
+   "--algebraic-subexpressions ",
+   "-c",
+   "--constructible-subexpressions ",
+   "-D",
+   "-E",
+   "-F",
+   "-i",
+   "--integer-subexpressions ",
+   "-l",
+   "--liouvillian-subexpressions ",
+   "-N",
+   "-O",
+   "-r",
+   "--rational-subexpressions ",
+   "-S",
+   "-x ",
+   "--absolute-roots ",
+   NULL
+  };
+
 
 /* Constants that parametrize functions */
 
@@ -3571,6 +3690,9 @@ int expr_break(symbol * expr, symbol * op, symbol * seft,
 void expr_print_infix(symbol * expr, int justify);
 void eqn_print_infix(symbol * lhs, symbol * rhs);
 
+s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
+          s16 * sptr, s16 show_work, s16 contains_x,
+          struct stack_triplet *init, size_t arity);
 s16 eval(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
          s16 * sptr, s16 show_work);
 void try_solve(symbol * l, symbol * r,
@@ -4436,10 +4558,13 @@ void delimit_args(const char *rawbuf, size_t * nargs, char * * * argv)
       /* We are now at a null or a blank space; loop can now continue. */
     }
 
+    /* Quoted strings will make this count wrong, but only in making it too
+     * big, not too small. */
+
     /* Now n is the number of args, and we can allocate the argv */
     av = (char **) malloc(n * sizeof(char *));
     if (av == 0) {
-      fprintf(stderr, "%s: Cannot alloate argv block.\n", g_argv0);
+      fprintf(stderr, "%s: Cannot allocate argv block.\n", g_argv0);
       print_end(-1);
     }
     if (nargs) { *nargs = n; }
@@ -4454,18 +4579,35 @@ void delimit_args(const char *rawbuf, size_t * nargs, char * * * argv)
 
       /* If there is an arg, count it */
       if (*p) {
+        b001 in_quote = B_FALSE;
         /* Save a pointer to this string, with (paranoid) check to avoid
            overwriting the argv */
+        if (*p == QUOT) {
+          p++;                  /* Skip the quote */
+          in_quote = B_TRUE;
+        }
         if (n > 0) {
           *av = (char *) p;
           av++;
           n--;
         }
         /* Skip the nonspace */
-        while(*p && (*p != ' ')) { p++; }
+        /* Need to be able to read in whitespace too, in function descs! */
+        while(*p && (*p != ' ')) {
+          if (in_quote) {
+            /* Skip ahead to close quote */
+            while(*p && (*p != QUOT)) { p++; }
+            *p = 0;
+          }
+          p++;
+        }
       }
 
       /* We are now at a null or a blank space; loop can now continue. */
+    }
+    /* Now if we overcounted strings before, n is not yet down to zero. */
+    if (nargs) {
+      *nargs -= n;
     }
   }
 } /* End of delimit_args */
@@ -4947,11 +5089,11 @@ void ms_push(metastack *ms, ries_val x, ries_dif dx, ries_tgs tags)
 
   /* remember */
   msp = ms->msp;
-  ms->ms[msp] = MSO_PUSH;
-
   if (debug_m) {
     printf("push %d %g (%g)%x '%d'\n", sp, dbl(x), dx, tags, msp);
   }
+  ms->ms[msp] = MSO_PUSH;
+
 
   /* for a push, we don't need to add any undo values */
 
@@ -4972,6 +5114,12 @@ ries_val ms_pop(metastack *ms, ries_dif *diff, ries_tgs * tags)
   /* pop a value */
   sp = ms->sp;
   sp--;
+  if (sp < 0) {
+    // This should not happen... check for it anyway?  Exit if it does?
+    fprintf(stdout, "Popping below BOS (%d)!\n", sp);
+    // sp = 0;
+    exit(2);
+  }
   rv = (ms->s)[sp];
   drv = (ms->ds)[sp];
   if (diff) {
@@ -5045,6 +5193,12 @@ void ms_undo(metastack *ms)
   if (opcode == MSO_PUSH) {
     /* to undo a PUSH is easy -- just pop the SP. */
     ms->sp--;
+    /* ..except when you don't?  This should not happen. */
+    if (ms->sp < 0) {
+      fprintf(stdout, "Undoing a push below BOS (%d)!\n", ms->sp);
+      // ms->sp = 0;
+      exit(2);
+    }
     if (debug_m) { printf("undo-push\n"); }
   } else {
     s16 uvp, sp;
@@ -5260,6 +5414,57 @@ Jacobi elliptic functions:
 
 _____________________________________________________________________________*/
 
+struct custom_symbol_t *find_custom(symbol sym) {
+  for (int i=0; i < symbol_count; i++) {
+    if (sym == custom_symbols[i].symbol[0]) {
+      return &custom_symbols[i];
+    }
+  }
+  return NULL;
+}
+
+struct custom_symbol_t *find_custom_by_name(char *name) {
+  for (int i=0; i < symbol_count; i++) {
+    if (!strcmp(custom_symbols[i].name, name)) {
+      return &custom_symbols[i];
+    }
+  }
+  return NULL;
+}
+
+symbol symbol_lookup(char *name) {
+  for (int i=0; i < SYMBOL_RANGE; i++) {
+    sym_attr_block *s = &sym_attrs[i];
+    if (s && s->name_forth && !strcmp(name, s->name_forth)) {
+      return i;
+    }
+  }
+  return 0;
+}
+
+void convert_formula(char *formula, char *buff) {
+  /* convert a formula from "long" form to symbols. */
+  char *w;
+  int i = 0;
+  /* SKIP INITIAL COLON */
+  for (w = strtok(formula+1, "_ \t\r\n"); w; w = strtok(NULL, "_ \t\r\n")) {
+    // printf("  w is (%s)\n", w);
+    symbol sym = symbol_lookup(w);
+    // printf("  which came out to '%c' (%d)\n", sym, sym);
+    if (!sym) {
+      /* ??? */
+      printf("Error converting symbol \"%s\"\n", w);
+      exit(1);
+    }
+    buff[i++] = sym;
+    if (i > FORM_LEN) {
+      printf("Formula may not expand to more than %d ops\n", FORM_LEN);
+      print_end(1);
+    }
+  }
+  buff[i] = '\0';
+}
+
 /* exec actually executes an opcode, using a metastack. It returns a
    nonzero value if there was an error, e.g. divide-by-zero. It also
    sets undo_count to a number indicating the number of times you have to
@@ -5291,6 +5496,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
   ries_tgs trv;   /* Tags of result */
   char found=0;
   int f1;         /* flag */
+  struct custom_symbol_t * symbl;
 
   /* set default for derivative (overridden if we compute it) */
   drv = (ries_dif)k_0;
@@ -5302,6 +5508,22 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     rv = 0; *undo_count = 0; break;  /* ' ' is a no-op */
 
     /* Roll '(' or ')' operators might go here */
+    /* Not roll, but at least a swap... */
+  case STACK_SWAP:
+    b = ms_pop(ms, &db, &tgb);
+    a = ms_pop(ms, &da, &tga); *undo_count = 2;
+    ms_push(ms, b, db, tgb);
+    ms_push(ms, a, da, tga); *undo_count = 4;
+    rv = a;
+    break;
+
+    /* And a dup? */
+  case STACK_DUP:
+    a = ms_pop(ms, &da, &tga); *undo_count = 1;
+    ms_push(ms, a, da, tga);
+    ms_push(ms, a, da, tga); *undo_count = 3;
+    rv = a;
+    break;
 
     /* seft 'a' ( -- K ) symbols. For all constants the derivative is zero;
        for X the derivative is 1.0 */
@@ -5446,11 +5668,14 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     if (a > k_eXlim) {
       return ERR_EXEC_OVERFLOW;
     }
-    if (a < k_sig_loss) {
+    if (FABS(a) < k_sig_loss) {
       /* Loss-of-significance error, e.g. "e^0.0001" */
       return ERR_EXEC_SIG_LOSS;
     }
     rv = EXP(a);
+    if (FABS(rv * a) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
+    }
     if (do_dx) {
       drv = (ries_dif) (rv * da);
     }
@@ -5883,18 +6108,61 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
 #endif
 
   default:
-    for (int i=0; i < symbol_count; i++) {
-      if (op == custom_symbols[i].symbol[0]) {
-	rv = custom_symbols[i].value;
-	ms_push(ms, rv, (ries_dif) k_0, TYPE_TRAN /*?*/); *undo_count=1;
-	found=1;
-	break;
+    if (symbl = find_custom(op)) {
+      found=1;
+      if (!symbl->formula[0]) {
+        /* Custom constant */
+        rv = symbl->value;
+        ms_push(ms, rv, (ries_dif) k_0, TYPE_TRAN /*?*/); *undo_count=1;
+      }
+      else {
+        /* Custom expression/function */
+        ries_val tval;
+        ries_dif tdif;
+        ries_tgs ttags;
+        s16 tptr;
+        s16 err;
+
+        if (symbl->seft == 'c') {
+          struct stack_triplet operands[2];
+          a = ms_pop(ms, &da, &tga); *undo_count = 1;
+          operands[1].x = a;
+          operands[1].dx = da;
+          operands[1].tags = tga;
+          b = ms_pop(ms, &db, &tgb); *undo_count = 2;
+          operands[0].x = b;
+          operands[0].dx = db;
+          operands[0].tags = tgb;
+          err = eval2(symbl->formula, &tval, &tdif, &ttags,
+                      &tptr, 0, do_dx, operands, 2);
+        }
+        else if (symbl->seft == 'a') {
+          /* Sort of redundant with defining a constant,
+             but for completeness... */
+          err = eval2(symbl->formula, &tval, &tdif, &ttags,
+                      &tptr, 0, do_dx, NULL, 0);
+        }
+        else {                /* default to seft 'b' */
+          /* do peek^W pop first. */
+          struct stack_triplet operand;
+          a = ms_pop(ms, &da, &tga); *undo_count = 1;
+          operand.x = a;
+          operand.dx = da;
+          operand.tags = tga;
+          err = eval2(symbl->formula, &tval, &tdif, &ttags,
+                      &tptr, 0, do_dx, &operand, 1);
+        }
+        if (err) {
+          return err;
+        }
+        rv = tval;
+        trv = TYPE_NONE;                               /* ?????? */
+        ms_push(ms, tval, tdif, ttags); (*undo_count)++;
       }
     }
-    if (found) {
-      break;
+    else {
+      return ERR_EXEC_ILLEGAL_SYMBOL;
     }
-    return ERR_EXEC_ILLEGAL_SYMBOL;
   }
 
   if (debug_r) {
@@ -5969,6 +6237,7 @@ s16 infix_1(
   symbol op_t;   /* for swapping op_a and op_b */
   char * s;      /* for copying subterms to output */
   s16 paren_a, paren_b; /* precedence flags for seft 'c' operators */
+  struct custom_symbol_t *symbl;
 
   optr = 0;
   /* go to the end */
@@ -6136,9 +6405,15 @@ s16 infix_1(
     /* We're all set to generate output. */
 
     /* Emit leading operator for two-argument custom functions and 'L' */
+    symbl = find_custom(op);
     if (op == 'L') {
       /* This operator goes in front of both arguments */
       term[optr++] = (char) op;
+    }
+    if (symbl) {
+      /* 2-argument custom functions should be func(a, b) */
+      term[optr++] = (char) op;
+      term[optr++] = '(';
     }
 
     /* Emit first argument */
@@ -6174,6 +6449,9 @@ s16 infix_1(
       }
     } else if (op == 'L') {
       /* We already emitted it */
+    } else if (symbl) {
+      /* comma between function params */
+      term[optr++] = ',';
     } else {
       term[optr++] = (char) op;
     }
@@ -6188,12 +6466,15 @@ s16 infix_1(
     if (paren_b) {
       term[optr++] = ')';
     }
+    if (symbl) {
+      /* need closing paren */
+      term[optr++] = ')';
+    }
     break;
   }
 
   /* terminate input and output strings */
   term[optr] = 0;
-
   return 0;
 } /* End of infix.1 */
 
@@ -6735,21 +7016,37 @@ Return value is an error code like ERR_EVAL_TOO_LONG
 s16 eval(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
          s16 * sptr, s16 show_work)
 {
-  s16 contains_x;
+  return eval2(expr, val, dx, tags, sptr, show_work, -1, NULL, 0);
+}
+s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
+          s16 * sptr, s16 show_work, s16 contains_x,
+          struct stack_triplet *operands, size_t arity)
+{
   metastack ms;
   symbol * s;
   symbol dbg_scratch[EXPR_ALLOC];
   s16 err, i;
   s16 undo_count;
 
-  contains_x = (symstrsym(expr, 'x') != 0);
+  /* If this is a sub-eval doing a user-defined function, we may not have
+     'x' in the string even though it's involved.  So let the caller tell
+     us (0, 1).  Otherwise, if contains_x is negative, we find out for
+     ourselves, the old-fashioned way. */
+  if (contains_x < 0) {
+    contains_x = (symstrsym(expr, 'x') != 0) ? 1 : 0;
+  }
 
+  ms_init(&ms);
+  if (operands) {
+    for (int i = 0; i < arity; i++) {
+      ms_push(&ms, operands[i].x, operands[i].dx, operands[i].tags);
+    }
+  }
   /* default return values */
   if (val) { *val = k_0; }
   if (dx) { *dx = (ries_dif) k_0; }
   if (tags) { *tags = 0; }
 
-  ms_init(&ms);
   for(s = expr, i=0; s[i]; i++) {
     if (i >= MAX_ELEN) {
       return ERR_EVAL_TOO_LONG;
@@ -6809,7 +7106,6 @@ s16 eval(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
       }
     }
   }
-
   { /* Store any requested results in the pointers passed to us */
     ries_val v;
     v = ms_peek(&ms, dx, tags, sptr);
@@ -7870,7 +8166,7 @@ void report_match(symbol * lhs, symbol * rhs, symbol * exm,
     for(i=0; i<g_num_matches; i++) {
       if (*closeness == delta) {
         if (debug_o) {
-          printf("reject4 [%s]=[%s], duplicte delta value\n",
+          printf("reject4 [%s]=[%s], duplicate delta value\n",
                                                    (char *)lhs, (char *)rhs);
         }
         return;
@@ -9810,7 +10106,7 @@ void add_symbol(symbol sym, const char * name_forth, const char * name_infix,
 
   sym_attrs[sym].seft = seft;
 
-  if (IS_PHANTOM(sym)) {
+  if (IS_PHANTOM(sym) || IS_STACK(sym)) {
     return;
   }
 
@@ -9825,9 +10121,10 @@ void add_symbol(symbol sym, const char * name_forth, const char * name_infix,
   sym_attrs[sym].sa_wgt = weight;
   sym_attrs[sym].sa_mask = 0;
 
-  if (sym_attrs[sym].sa_alwd == 0) {
-    return;
-  }
+  /* I think this has to go, since enabling can happen after this point. */
+  /* if (sym_attrs[sym].sa_alwd == 0) { */
+  /*   return; */
+  /* } */
 
   /* Set the sa_known flag to keep track of which symbols made it this far;
      this is for use by setup_abc_mmw(). */
@@ -9922,7 +10219,8 @@ void show_symset(void)
     printf("%s:\n", seft_names[seft-'a']);
     printf(" sym seft wght name description\n");
     for (i=0; i<SYMBOL_RANGE; i++) {
-      if (!(IS_PHANTOM(i)) && (sym_attrs[i].seft == seft) && (sym_attrs[i].sa_alwd)) {
+      if (!((IS_PHANTOM(i)) || (IS_STACK(i)))
+          && (sym_attrs[i].seft == seft) && (sym_attrs[i].sa_alwd)) {
         printf("  %c    %c   %2d   %-4s", i, sym_attrs[i].seft,
           sym_attrs[i].sa_wgt, sym_attrs[i].sa_name);
         def = sym_attrs[i].defn;
@@ -10139,12 +10437,150 @@ void allsyms_set(s16 n, int include_x)
 
 void somesyms_set(symbol * s, s16 n)
 {
+  symbol ns[SYMBOL_RANGE];
+  if (s && s[0] == LONGFORM) {
+    convert_formula(s, ns);
+    s = ns;
+  }
   while (s && *s) {
     sym_attrs[*s].sa_alwd = n;
     /* if (*s == 'W') { printf("Set W to %d\n", n); } */
     s++;
   }
 }
+
+void endisable_symbols()
+{
+  /* Process the -S/-N/-E/-O options, AFTER the symbols have been defined,
+     so as to be able to use "long forms" */
+  int i;
+  /* Process them in the order encountered on the command-line etc. */
+  for (i = 0; i < g_ONES; i++) {
+    symbol *syms = g_ONES_opt[i].syms;
+    switch (g_ONES_opt[i].which) {
+    case 'S':
+      allsyms_set(0, 0);        /* this resets each time, doesn't it? */
+      /* FALL THROUGH */
+    case 'E':
+      somesyms_set(syms, MAX_ELEN);
+      break;
+    case 'N':
+      somesyms_set(syms, 0);
+      break;
+    case 'O':
+      somesyms_set(syms, 1);
+      break;
+    }
+  }
+}
+
+void set_symname(char *a)
+{
+  char space_sym = ' ';
+  symbol sym;
+  if (  (a[0] == ':') && a[1]
+        && (a[2] == ':') && (a[3]==a[1]) && (a[4] == 0)
+        && (space_sym == ' ')) {
+    /* This syntax is used to define a symbol that stands in for
+       blank space. */
+    space_sym = a[1];
+  } else if ((a[0] == ':') && (a[1] == LONGFORM)) {
+    /* redefining name by "long" name. */
+    char *name = strtok(a + 1, ":");
+    sym = symbol_lookup(name);
+    if (!sym) {
+      printf("Could not find operator \"%s\" to rename\n", name);
+      /* not a fatal error though. */
+    }
+    else {
+      char *newname = a + strlen(name) + 3;
+      if (strlen(newname) <= MAX_SYM_NAME_LEN) {
+        str_remap(newname, space_sym, ' ');
+        sym_attrs[sym].sa_name =
+          sym_attrs[sym].name_forth = newname;
+      }
+      else {
+        printf("%s: Symbol name can be at most %d characters\n"
+               "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
+        print_end(-1);
+      }
+    }
+  } else if ((a[0] == ':') && a[1] && (a[2] == ':')) {
+    sym = (symbol) a[1];
+    if (strlen(a+3) <= MAX_SYM_NAME_LEN) {
+      str_remap(a+3, space_sym, ' ');
+      sym_attrs[sym].sa_name =
+        sym_attrs[sym].name_forth = a+3;
+      /* printf("setsym %c:%s\n", sym, a+3); */
+    } else {
+      printf("%s: Symbol name can be at most %d characters\n"
+             "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
+      print_end(-1);
+    }
+  } else {
+    printf("%s: --symbol-names argument syntax is :<sym>:name,"
+           " for example\n"
+           "  :-:deme   to set name of '-' to 'deme'\n"
+           "  Instead I got '%s'\n", g_argv0, a);
+    print_end(-1);
+  }
+}
+
+void do_renames() {
+  int i;
+  for (i = 0; i < g_renames_num; i++) {
+    set_symname(g_renames[i]);
+  }
+}
+
+void set_symweight(char *a) {
+  unsigned char argtmp[20];
+  int i; ries_dif w;
+  ries_strncpy((char *) argtmp, a, 20);
+  /* Skip the numeric portion */
+  symbol sym;
+  for(i=0;
+      (argtmp[i]=='.') || ((argtmp[i]>='0') && (argtmp[i]<='9'));
+      i++ ) {  }
+  if ((argtmp[i] == ':') && (argtmp[i+1])) {
+    if (argtmp[i+1] != LONGFORM) {
+      sym = argtmp[i+1];
+    }
+    else {
+      sym = symbol_lookup(argtmp + i + 2);
+      if (!sym) {
+        printf("%s: Could not find symbol \"%s\" for setting weight.\n",
+               g_argv0, argtmp + i + 2);
+        return;                  /* Not a fatal error? */
+      }
+    }
+    argtmp[i++] = 0; /* Null-terminate the numeric portion by
+                        overwriting the ':' */
+    w = strtod((char *) argtmp, 0);
+    if (w <= MIN_SYMBOL_WEIGHT) {
+      printf("%s: Symbol weight may not be %f or less.\n",
+             g_argv0, MIN_SYMBOL_WEIGHT);
+      print_end(-1);
+    }
+    if (w > MAX_SYMBOL_WEIGHT) { w = MAX_SYMBOL_WEIGHT; }
+    /* printf("set weight of '%c' to %d\n", sym, (int) w); */
+    sym_attrs[sym].sa_wgt = (s16) floor(w + 0.5);
+  } else {
+    printf("%s: --symbol-weights argument syntax is NUMBER:<sym>,"
+           " for example\n"
+           "  12:^   to set weight of '^' to 12\n"
+           "  Instead I got '%s'\n", g_argv0, a);
+    print_end(-1);
+  }
+}
+
+void do_reweights() {
+  int i;
+  for (i = 0; i < g_reweights_num; i++) {
+    set_symweight(g_reweights[i]);
+  }
+}
+
 
 void set_anagram(char * anagram)
 {
@@ -10319,33 +10755,33 @@ void init2()
 
   /* seft 'a' symbols are constants.
      For most of these, the weight is close to 10.0*ln(x)/ln(10) */
-  add_symbol(ADDSYM_NAMES('1', 0,       "1"),
+  add_symbol(ADDSYM_NAMES('1', "1",       "1"),
     'a', 0,     0, 0, "integer");
   add_symbol(ADDSYM_NAMES('f', "phi",   "phi"),
     'a', 8,  "f = phi, the golden ratio, (1+sqrt(5))/2",
                                            "phi = the golden ratio, (1+sqrt(5))/2", "");
-  add_symbol(ADDSYM_NAMES('2', 0,       "2"),
+  add_symbol(ADDSYM_NAMES('2', "2",       "2"),
     'a', 3,     0, 0, "integer");
   add_symbol(ADDSYM_NAMES('e', "e",     "e"),
     'a', 6,    "e = base of natural logarithms, 2.71828...",
                                            "e = base of natural logarithms, 2.71828...", "");
-  add_symbol(ADDSYM_NAMES('3', 0,       "3"),
+  add_symbol(ADDSYM_NAMES('3', "3",       "3"),
     'a', 5,     0, 0, "integer");
   add_symbol(ADDSYM_NAMES('p', "pi",    "pi"),
     'a', 4,   "p = pi, 3.14159...", "pi = 3.14159...", "");
-  add_symbol(ADDSYM_NAMES('4', 0,       "4"),
+  add_symbol(ADDSYM_NAMES('4', "4",       "4"),
     'a', 6,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('5', 0,       "5"),
+  add_symbol(ADDSYM_NAMES('5', "5",       "5"),
     'a', 7,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('6', 0,       "6"),
+  add_symbol(ADDSYM_NAMES('6', "6",       "6"),
     'a', 8,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('7', 0,       "7"),
+  add_symbol(ADDSYM_NAMES('7', "7",       "7"),
     'a', 8,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('8', 0,       "8"),
+  add_symbol(ADDSYM_NAMES('8', "8",       "8"),
     'a', 9,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('9', 0,       "9"),
+  add_symbol(ADDSYM_NAMES('9', "9",       "9"),
     'a', 9,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('x', 0,       "x"),
+  add_symbol(ADDSYM_NAMES('x', "x",       "x"),
     'a', 5,     0, 0, "the variable of the equation");
 
   /* seft 'b' symbols */
@@ -10425,11 +10861,21 @@ void init2()
   add_symbol(ADDSYM_NAMES(PS_REVPOW, 0, "!^"),
     'c', 0,   0, 0, 0);
 
+  /* Stack-control ops, for making user-defined functions. */
+  /* (Otherwise they'll need rules and all...) */
+  /* Swap is effectively seft 'b', as it doesn't change the size of the stack. */
+  add_symbol(ADDSYM_NAMES(STACK_SWAP, "swap", "(swap)"),
+             'b', 0, 0, 0, "swap");
+  /* dup effectively acts like an 'a', increasing the stack size. */
+  add_symbol(ADDSYM_NAMES(STACK_DUP, "dup", "(dup)"),
+             'a', 0, 0, 0, "dup");
+
   /* These are used for infix formatting */
   /* sym_attrs['('].sa_name = "("; sym_attrs[')'].sa_name = ")"; */
   add_symbol(ADDSYM_NAMES('(', 0, "("), 0, 0, 0, 0, 0);
   add_symbol(ADDSYM_NAMES(')', 0, ")"), 0, 0, 0, 0, 0);
   add_symbol(ADDSYM_NAMES('=', 0, "="), 0, 0, 0, 0, 0);
+  add_symbol(ADDSYM_NAMES(',', 0, ", "), 0, 0, 0, 0, 0);
 
   /* This symbol is a temporary placeholder for infix multiplication.
      %%% Figure out if I need this at all, or use PS_cross instead */
@@ -10465,11 +10911,72 @@ void init2()
 #endif
   }
 
+  /* "I" is reserved.  Just hack it and add a dummy name to it... */
+  sym_attrs['I'].sa_name="I";
   for (i = 0; i < symbol_count; i++) {
-    add_symbol(ADDSYM_NAMES(custom_symbols[i].symbol[0], custom_symbols[i].symbol,
-			    custom_symbols[i].symbol),
-	       'a', 4, custom_symbols[i].symbol, custom_symbols[i].symbol,
-	       custom_symbols[i].symbol);
+    /* Find an unused opcode */
+    int opcode;
+    for (opcode = 33; sym_attrs[opcode].sa_name[0]
+           && opcode < SYMBOL_RANGE; opcode++)
+      ;
+    if (opcode >= SYMBOL_RANGE) {
+      printf("no opcode found for user-defined function '%s'",
+             custom_symbols[i].name);
+      print_end(-1);
+    }
+    custom_symbols[i].symbol[0] = opcode;
+    custom_symbols[i].symbol[1] = '\0';
+    /* convert from long to short HERE. */
+    /* Can only define in terms of functions defined earlier: order matters. */
+    if (custom_symbols[i].long_form &&
+        custom_symbols[i].long_form[0] == LONGFORM) {
+      /* printf("converting (%s)\n", custom_symbols[i].long_form); */
+      convert_formula(custom_symbols[i].long_form,
+                      custom_symbols[i].formula);
+      printf(" converted to (%s)\n", custom_symbols[i].formula);
+      free(custom_symbols[i].long_form);
+      custom_symbols[i].long_form = NULL;
+    }
+    if (custom_symbols[i].formula[0]) {
+      /* deduce the seft from the formula */
+      /* has to be done here after other opcodes have been added */
+      int stackchange = 0;
+      for (char *f = custom_symbols[i].formula; *f; f++) {
+        char this_seft = sym_attrs[*f].seft;
+        switch (this_seft) {
+        case 'a':
+          stackchange++;
+          break;
+        case 'b':
+          /* no change; take one and leave one */
+        case 0:
+          break;
+        case 'c':
+          stackchange--;
+          break;
+          /* default??? */
+        }
+      }
+      switch (stackchange) {
+      case -1:
+        custom_symbols[i].seft = 'c';
+        break;
+      case 0:
+        custom_symbols[i].seft = 'b';
+        break;
+      case 1:
+        custom_symbols[i].seft = 'a';
+        break;
+        /* default??? */
+      }
+    }
+    add_symbol(ADDSYM_NAMES(opcode,
+                            custom_symbols[i].name,
+                            custom_symbols[i].name),
+               custom_symbols[i].seft,
+               custom_symbols[i].wt,
+               custom_symbols[i].desc, custom_symbols[i].desc,
+               custom_symbols[i].name);
   }
 
   /* Setup the g_{a|b|c}_{min|max}w variables */
@@ -11190,11 +11697,18 @@ void parse_args(size_t nargs, char *argv[])
            as e.g. after the --eval-expression option, before giving the
            target number. */
 
+    } else if (strcmp(pa_this_arg, "--list-options") == 0) {
+      /* List the options, no explanations given.  For use with
+         tab-completion! */
+      for (int i = 0; g_all_options[i]; i++) {
+        printf("%s\n", g_all_options[i]);
+      }
+      exit(0);                  /* And that's it!! */
+
       /* First we check the "--foo-bar VAL" type options, in which the
          "opcode" and its "arguments" are each separate elements of argv[].
          These are used for special or rarely-used commands, like the
          command that gives an expression's complexity score */
-
 
     } else if (strcmp(pa_this_arg, "--any-exponents") == 0) {
       g_restrict_exponents = TYPE_NONE;
@@ -11439,26 +11953,85 @@ void parse_args(size_t nargs, char *argv[])
       int wt;
       ries_val t;
       pa_get_arg();
-      if (pa_this_arg && sscanf(pa_this_arg,
+      /* -X WEIGHT:NAME:DESC:VALUE */
+      if (pa_this_arg && sscanf(pa_this_arg, "%d:%" NAME_LEN_STR "[^ \r\n\t:]:%"
+                                MAX_DESC_STR "[^:]:"
 #ifdef RIES_VAL_LDBL
-			      "%c:%d:%Lf", &symbol, &wt, &t
+                                "%Lf",
 #else
-			      "%c:%d:%lf", &symbol, &wt, &t
+                                "%lf",
 #endif
-
-				) && 
-	  !strchr("+-*/ 0123456789fepnrsqlESCT^vL()=I", symbol)
-	  && symbol_count < 30) {
-	custom_symbols[symbol_count].symbol[0]=symbol;
-	custom_symbols[symbol_count].symbol[1]='\0';
-	custom_symbols[symbol_count].wt=wt;
-	custom_symbols[symbol_count].value=t;
-	symbol_count++;
+                                &wt,
+                                custom_symbols[symbol_count].name,
+                                custom_symbols[symbol_count].desc,
+                                &t)
+          && symbol_count < 30) {
+        custom_symbols[symbol_count].wt=wt;
+        custom_symbols[symbol_count].value=t;
+        custom_symbols[symbol_count].formula[0]='\0';
+        custom_symbols[symbol_count].seft='a';
+        symbol_count++;
       }
       else {
-	printf("%s: -X should be followed by symbol:weight:value.\nThe symbol should be one character long and not already in use.\n", g_argv0);
-	brief_help();
-	print_end(-1);
+        printf("%s: -X should be followed by weight:name:desc:value.\n", g_argv0);
+        brief_help();
+        print_end(-1);
+      }
+    } else if (strcmp(pa_this_arg, "--define") == 0) {
+      char symbol;
+      int wt;
+      char seft;
+      char desc[MAX_DESC];
+      char name[NAME_LEN];
+      char *formula;
+      char translated[FORM_LEN];
+      ries_val t;
+      pa_get_arg();
+      /* Simple syntax.  Hm.
+       * WEIGHT:NAME:DESC:FORMULA
+       * For now, supporting long and short names.  Long forms have to
+       * start with a colon, so WEIGHT:NAME:DESC::FORMULA
+       */
+      /* Names mustn't have spaces in them.  Perhaps retrict further? */
+      int howfar;
+      if (pa_this_arg && sscanf(pa_this_arg, "%d:%" NAME_LEN_STR "[^: \r\n\t]:%"
+                                MAX_DESC_STR "[^:]:%n",
+                                &wt, name, desc, &howfar)
+          && symbol_count < 30) {
+        formula = strdup(pa_this_arg + howfar);
+        /* These can no longer happen... but neither will they warn you
+           if things are truncated.  Hmm. */
+        if (strlen(desc) > MAX_DESC) { /* ...and for some reason didn't crash */
+          printf("%s: --define should be followed by weight:name:desc:formula.\nThe desc may not be longer than %d characters.\n", g_argv0, MAX_DESC);
+          brief_help();
+          print_end(-1);
+        }
+        if (strlen(name) > MAX_ELEN) { /* ...and for some reason didn't crash */
+          printf("%s: --define should be followed by weight:name:desc:formula.\nThe name may not be longer than %d characters.\n", g_argv0, MAX_ELEN);
+          brief_help();
+          print_end(-1);
+        }
+        custom_symbols[symbol_count].wt=wt;
+        strcpy(custom_symbols[symbol_count].name, name);
+        strcpy(custom_symbols[symbol_count].desc, desc);
+        if (formula[0] != LONGFORM) {
+          /* Already in short form */
+          if (strlen(formula) >= FORM_LEN) {
+            printf("%s: A short-form formula may not be longer than %d characters\n",
+                   g_argv0, FORM_LEN);
+            brief_help();
+            print_end(-1);
+          }
+          strcpy(custom_symbols[symbol_count].formula, formula);
+          free(formula);
+          custom_symbols[symbol_count].long_form = NULL;
+        }
+        else {
+          /* Do NOT translate from "long" to "short" form here!! */
+          /* Wait until we know all the symbols. */
+          custom_symbols[symbol_count].long_form = formula;
+        }
+        symbol_count++;
       }
     } else if (strcmp(pa_this_arg, "--min-equate-value") == 0) {
         ries_val t;
@@ -11628,33 +12201,8 @@ void parse_args(size_t nargs, char *argv[])
            be given. */
         while(pa_next_isparam()) {
           char * a;
-          symbol sym;
           a = pa_get_arg();
-          if (  (a[0] == ':') && a[1]
-             && (a[2] == ':') && (a[3]==a[1]) && (a[4] == 0)
-             && (space_sym == ' ')) {
-            /* This syntax is used to define a symbol that stands in for
-               blank space. */
-            space_sym = a[1];
-          } else if ((a[0] == ':') && a[1] && (a[2] == ':')) {
-            sym = (symbol) a[1];
-            if (strlen(a+3) <= MAX_SYM_NAME_LEN) {
-              str_remap(a+3, space_sym, ' ');
-              sym_attrs[sym].sa_name =
-              sym_attrs[sym].name_forth = a+3;
-              /* printf("setsym %c:%s\n", sym, a+3); */
-            } else {
-              printf("%s: Symbol name can be at most %d characters\n"
-                  "(I got '%s')\n", g_argv0, MAX_SYM_NAME_LEN, a+3);
-              print_end(-1);
-            }
-          } else {
-            printf("%s: --symbol-names argument syntax is :<sym>:name,"
-                                                              " for example\n"
-                "  :-:deme   to set name of '-' to 'deme'\n"
-                "  Instead I got '%s'\n", g_argv0, a);
-            print_end(-1);
-          }
+          g_renames[g_renames_num++] = a;
         }
       } else {
         printf(
@@ -11670,34 +12218,10 @@ void parse_args(size_t nargs, char *argv[])
            be given. */
         while(pa_next_isparam()) {
           char * a;
-          unsigned char argtmp[20];
-          int i; ries_dif w;
           a = pa_get_arg();
-          ries_strncpy((char *) argtmp, a, 20);
-          /* Skip the numeric portion */
-          for(i=0;
-              (argtmp[i]=='.') || ((argtmp[i]>='0') && (argtmp[i]<='9'));
-              i++ ) {  }
-          if ((argtmp[i] == ':') && (argtmp[i+1])) {
-            argtmp[i++] = 0; /* Null-terminate the numeric portion by
-                                overwriting the ':' */
-            w = strtod((char *) argtmp, 0);
-            if (w <= MIN_SYMBOL_WEIGHT) {
-              printf("%s: Symbol weight may not be %f or less.\n",
-                g_argv0, MIN_SYMBOL_WEIGHT);
-              print_end(-1);
-            }
-            if (w > MAX_SYMBOL_WEIGHT) { w = MAX_SYMBOL_WEIGHT; }
-            /* printf("set weight of '%c' to %d\n", argtmp[i], (int) w); */
-            sym_attrs[argtmp[i]].preempt_weight = (s16) floor(w + 0.5);
-          } else {
-            printf("%s: --symbol-weights argument syntax is NUMBER:<sym>,"
-                                                              " for example\n"
-                "  12:^   to set weight of '^' to 12\n"
-                "  Instead I got '%s'\n", g_argv0, a);
-            print_end(-1);
-          }
+          g_reweights[g_reweights_num++] = a;
         }
+        
       } else {
         printf(
             "%s: --symbol-weights should be followed by one or more tuples\n"
@@ -11705,7 +12229,6 @@ void parse_args(size_t nargs, char *argv[])
                              " 12:^   to set weight of '^' to 12\n", g_argv0);
         print_end(-1);
       }
-
     } else if (strcmp(pa_this_arg, "--trig-argument-scale") == 0) {
       ries_val t;
       pa_get_arg();
@@ -11809,8 +12332,16 @@ void parse_args(size_t nargs, char *argv[])
       /* Enable these symbols: Like -S but doesn't clear everything else
          out */
       NOS_options = B_TRUE;
-      somesyms_set((symbol *) (pa_this_arg+2), MAX_ELEN); /* +2 skips "-E" */
-
+      /* If none are specified, enable ALL */
+      if (!pa_this_arg[2]) {
+        allsyms_set(MAX_ELEN, 1); /* OK to do this now? */
+      }
+      else {
+        /* process this later. */
+        g_ONES_opt[g_ONES].which = 'E';
+        g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-E" */
+        g_ONES++;
+      }
     } else if (strncmp(pa_this_arg, "-F", 2) == 0) {
       /* Select expression display format */
       pa_this_arg += 2;   /* skip the "-F" */
@@ -11881,13 +12412,16 @@ void parse_args(size_t nargs, char *argv[])
     } else if (strncmp(pa_this_arg, "-N", 2) == 0) {
       /* Not these symbols */
       NOS_options = B_TRUE;
-      somesyms_set((symbol *) (pa_this_arg+2), 0); /* +2 skips "-N" */
+      g_ONES_opt[g_ONES].which = 'N';
+      g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-N" */
+      g_ONES++;
 
     } else if (strncmp(pa_this_arg, "-O", 2) == 0) {
       /* Once-only symbols */
       NOS_options = B_TRUE;
-      somesyms_set((symbol *) (pa_this_arg+2), 1); /* +2 skips "-O" */
-
+      g_ONES_opt[g_ONES].which = 'O';
+      g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-O" */
+      g_ONES++;
     } else if ((strncmp(pa_this_arg, "-r", 2) == 0)
              || (strcmp(pa_this_arg, "--rational-subexpressions") == 0)) {
       /* Rational subexpressions */
@@ -11906,8 +12440,9 @@ void parse_args(size_t nargs, char *argv[])
       } else {
         S_option = B_TRUE;
         NOS_options = B_TRUE;
-        allsyms_set(0, 0);
-        somesyms_set((symbol *) pa_this_arg, MAX_ELEN);
+        g_ONES_opt[g_ONES].which = 'S';
+        g_ONES_opt[g_ONES].syms = pa_this_arg;
+        g_ONES++;
       }
 
     } else if ((strcmp(pa_this_arg, "-x") == 0)
@@ -12078,6 +12613,10 @@ int main(int nargs, char *argv[])
   /* init the evaluation system */
   init2();
 
+  endisable_symbols();
+  do_renames();
+  do_reweights();
+
   /* Execute the '-S' command */
   if (g_show_ss) {
     show_symset();
@@ -12114,6 +12653,12 @@ int main(int nargs, char *argv[])
     exec_x = g_target;
     for(i=0; i<g_num_find_expr; i++) {
       expr = g_find_expr[i];
+      if (expr[0] == LONGFORM) {
+        /* it's in long form! */
+        char buff[MAX_ELEN];
+        convert_formula(expr, buff);
+        strcpy(expr, buff);
+      }
       printf("Evaluating postfix expression '%s'", expr);
       contains_x = (symstrsym(expr, 'x') != 0);
       if (contains_x) {
