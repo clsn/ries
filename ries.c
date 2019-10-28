@@ -5668,11 +5668,14 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     if (a > k_eXlim) {
       return ERR_EXEC_OVERFLOW;
     }
-    if (a < k_sig_loss) {
+    if (FABS(a) < k_sig_loss) {
       /* Loss-of-significance error, e.g. "e^0.0001" */
       return ERR_EXEC_SIG_LOSS;
     }
     rv = EXP(a);
+    if (FABS(rv * a) < k_sig_loss) {
+      return ERR_EXEC_SIG_LOSS;
+    }
     if (do_dx) {
       drv = (ries_dif) (rv * da);
     }
@@ -12438,7 +12441,7 @@ void parse_args(size_t nargs, char *argv[])
         S_option = B_TRUE;
         NOS_options = B_TRUE;
         g_ONES_opt[g_ONES].which = 'S';
-        g_ONES_opt[g_ONES].syms = pa_this_arg+2;
+        g_ONES_opt[g_ONES].syms = pa_this_arg;
         g_ONES++;
       }
 
