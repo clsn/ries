@@ -11462,6 +11462,8 @@ void init2()
   add_rule("c",    'c', AM_n);  /* [nc] => [c]              */
   add_rule("",     'y', AM_1);  /* [1y] => 0                */
   add_rule("",     'Z', AM_1);  /* [1A] => undefined        */
+  add_rule("l",    't', AM_1);  /* [..1t] => [..l]          */
+  add_rule("!",    't', AM_a1_1); /* [1..t] => [..!] */
 #endif
 
   if (k_sincos_arg_scale == 1.0) {
