@@ -5953,10 +5953,8 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     }
     /* Gamma has poles at non-positive integers.  This the right way to
      * check for significance? */
-    fl = floor(a);
-    /* sometimes the floor is off by nearly 1.0 */
-    if ((fl < 1 && (FABS(a - fl) < k_sig_loss)) ||
-        (fl < 0 && FABS(a - fl - 1) < k_sig_loss)) {
+    fl = round(a);
+    if (fl <= 0.0 && (FABS(a - fl) < k_sig_loss)) {
       return ERR_EXEC_SIG_LOSS;
     }
     er = gsl_sf_gamma_e(a, &sf_result);
@@ -5981,10 +5979,8 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     /* Gamma has poles at non-positive integers.  This the right way to
      * check for significance? */
-    fl = floor(a);
-    /* sometimes the floor is off by nearly 1.0 */
-    if ((fl < 1.0 && (FABS(a - fl) < k_sig_loss)) ||
-        (fl < 0.0 && FABS(a - fl - 1) < k_sig_loss)) {
+    fl = round(a);
+    if (fl < 0.0 && (FABS(a - fl) < k_sig_loss)) {
       return ERR_EXEC_SIG_LOSS;
     }
     er = gsl_sf_lngamma_e(a, &sf_result);
@@ -6123,9 +6119,8 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
 
   case OP_DIGAMMA:                     /* digamma = psi(0,x) */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
-    fl = floor(a);
-    if ((fl < 1.0 && FABS(a - fl) < k_sig_loss) ||
-        (fl < 0.0 && FABS(a - fl + 1 < k_sig_loss))){
+    fl = round(a);
+    if (fl <= 0.0 && FABS(a - fl) < k_sig_loss) {
       return ERR_EXEC_SIG_LOSS;
     }
     drv = 0.0;
@@ -6446,11 +6441,11 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     b = ms_pop(ms, &db, &tgb);
     a = ms_pop(ms, &da, &tga); *undo_count = 2;
     er = gsl_sf_lnpoch_e(a, b, &sf_result);
-    fl = floor(a + b);
+    fl = round(a + b);
     if (fl <= 0.0 && FABS(a + b - fl) < k_sig_loss) {
       return ERR_EXEC_SIG_LOSS;
     }
-    fl = floor(b);
+    fl = round(b);
     if (fl <= 0.0 && FABS(b - fl) < k_sig_loss) {
       return ERR_EXEC_SIG_LOSS;
     }
