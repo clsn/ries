@@ -3285,11 +3285,30 @@ b001 g_explicit_multiply; /* Always show '*' symbol for multiplication */
 # define OP_LOGGAMMA    'y'
 # define OP_ZETA        'Z'
 # define OP_SHI         'z'
+# define OP_CHI         'c'
 # define OP_ERF         'b'
 # define OP_DILOG       'd'
 # define OP_EI          'V'
 # define OP_DIGAMMA     'U'
 # define OP_SCBRT       'u'
+# define OP_LNPOCH      't'
+
+/* Strings, for making rule-strings with them. */
+/* Sigh.  There just isn't a way to bamboozle the preprocessor into doing
+   this automatically.  It doesn't handle single quotes well. */
+
+# define STR_FACTORIAL  "!"
+# define STR_GAMMA      "G"
+# define STR_LOGGAMMA   "y"
+# define STR_ZETA       "Z"
+# define STR_SHI        "z"
+# define STR_CHI        "c"
+# define STR_ERF        "b"
+# define STR_DILOG      "d"
+# define STR_EI         "V"
+# define STR_DIGAMMA    "U"
+# define STR_SCBRT      "u"
+# define STR_LNPOCH     "t"
 #endif
 /* Maybe good to define for the rest as well? */
 #define OP_1            '1'
@@ -3323,6 +3342,40 @@ b001 g_explicit_multiply; /* Always show '*' symbol for multiplication */
 #define OP_POW          '^'
 #define OP_ROOT         'v'
 #define OP_LOGBASE      'L'
+#define OP_NOOP         ' '
+
+#define STR_1            "1"
+#define STR_2            "2"
+#define STR_3            "3"
+#define STR_4            "4"
+#define STR_5            "5"
+#define STR_6            "6"
+#define STR_7            "7"
+#define STR_8            "8"
+#define STR_9            "9"
+#define STR_PHI          "f"
+#define STR_E            "e"
+#define STR_PI           "p"
+#define STR_X            "x"
+#define STR_IDENTITY     "I"
+#define STR_NEG          "n"
+#define STR_RECIP        "r"
+#define STR_SQUARE       "s"
+#define STR_SQRT         "q"
+#define STR_LN           "l"
+#define STR_EXP          "E"
+#define STR_SIN          "S"
+#define STR_COS          "C"
+#define STR_TAN          "T"
+#define STR_W            "W"
+#define STR_PLUS         "+"
+#define STR_MINUS        "-"
+#define STR_MUL          "*"
+#define STR_DIV          "/"
+#define STR_POW          "^"
+#define STR_ROOT         "v"
+#define STR_LOGBASE      "L"
+#define STR_NUL          ""
 /* =============================== */
 
 #define MAX_SEFT_POP 40
@@ -5573,7 +5626,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
 
   switch(op) {
     /* seft '0' ( -- ) symbols. These do nothing. */
-  case ' ' :
+  case OP_NOOP :
     rv = 0; *undo_count = 0; break;  /* ' ' is a no-op */
 
     /* Roll '(' or ')' operators might go here */
@@ -6387,7 +6440,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     break;
 #ifdef RIES_GSL
 
-  case 't':                     /* log(pochhammer) */
+  case OP_LNPOCH:            /* log(pochhammer) */
     /* Just to demonstrate doing a seft 'c' op. */
     /* log(gamma(x+y)/gamma(y)), but computed "atomically" by GSL */
     b = ms_pop(ms, &db, &tgb);
@@ -6755,7 +6808,7 @@ s16 infix_1(
       /* This operator goes in front of both arguments */
       term[optr++] = (char) op;
     }
-    if (symbl || op == 't') {
+    if (symbl || op == OP_LNPOCH) {
       /* 2-argument custom functions should be func(a, b) */
       term[optr++] = (char) op;
       term[optr++] = '(';
@@ -6794,7 +6847,7 @@ s16 infix_1(
       }
     } else if (op == OP_LOGBASE) {
       /* We already emitted it */
-    } else if (symbl || op == 't') {
+    } else if (symbl || op == OP_LNPOCH) {
       /* comma between function params */
       term[optr++] = ',';
     } else {
@@ -6811,7 +6864,7 @@ s16 infix_1(
     if (paren_b) {
       term[optr++] = ')';
     }
-    if (symbl || op == 't') {
+    if (symbl || op == OP_LNPOCH) {
       /* need closing paren */
       term[optr++] = ')';
     }
@@ -6879,7 +6932,7 @@ void infix_preproc(symbol * expr, symbol * out)
       *o++ = PS_REVDIV;
       s ++;
 
-    } else if (*s == ' ') {
+    } else if (*s == OP_NOOP) {
       /* ' ' is a no-op */
     } else if ((*s == OP_NEG) && (sym_attrs[*(s+1)].seft == 'a') && (*(s+2) == OP_PLUS)) {
       /* converting [n2+] into [2_]. Test case: 1.3204 gives
@@ -11134,7 +11187,7 @@ void init2()
      we actually know about. %%% This will include custom constants from the
      queue built up during argument scanning. */
 
-  add_symbol(ADDSYM_NAMES(' ', 0,       "NOP"),
+  add_symbol(ADDSYM_NAMES(OP_NOOP, 0,       "NOP"),
     '0', 0,   0, 0, "no operation");
 
   /* seft 'a' symbols are constants.
@@ -11230,7 +11283,7 @@ void init2()
   add_symbol(ADDSYM_NAMES(OP_DILOG, "dilog", "dilog"),
              'b', 5, "d(x) = Re(dilog(x)) = dilogarithm (Li_2)",
              "dilog(x) = dilogarithm (Li_2)", "dilog");
-  add_symbol(ADDSYM_NAMES('c', "Chi", "Chi"),
+  add_symbol(ADDSYM_NAMES(OP_CHI, "Chi", "Chi"),
              'b', 5, "c(x) = Chi(x) = hyperbolic cosine integral",
              "Chi(x) = hyperbolic cosine integral", "Chi");
   add_symbol(ADDSYM_NAMES(OP_SHI, "Shi", "Shi"),
@@ -11270,7 +11323,7 @@ void init2()
                                         "arctan(x,y) = arctangent of x/y", "");
 #endif
 #ifdef RIES_GSL
-  add_symbol(ADDSYM_NAMES('t', "lnpoch", "lnpoch"),
+  add_symbol(ADDSYM_NAMES(OP_LNPOCH, "lnpoch", "lnpoch"),
              'c', 2, "t(x) = log(pochhammer(x,y)) = log(Gamma(x+y)/Gamma(x)",
              "log(pochhammer(x,y)) = log(rising factorial) = log(Gamma(x+y)/Gamma(x))",
              "logpochhammer");
@@ -11441,26 +11494,27 @@ void init2()
    *    Each rule has a symbolset which must be present in order for that
    * rule to be used (in a few cases this symset is null).
    *      symset   sym  mask  mval          */
-  add_rule("",     OP_X, AM_RHS);
-  add_rule("nr",   OP_NEG, AM_r);  /* [rn] => [nr]             */
-  add_rule("",     OP_NEG, AM_n);  /* [nn] => []               */
-  add_rule("1",    OP_RECIP, AM_1);  /* [1r] => [1]              */
-  add_rule("",     OP_RECIP, AM_r);  /* [rr] => []               */
-  add_rule("1",    OP_SQUARE, AM_1);  /* [1s] => [1]              */
-  add_rule("4",    OP_SQUARE, AM_2);  /* [2s] => [4]              */
-  add_rule("s",    OP_SQUARE, AM_n);  /* [ns] => [s]              */
-  add_rule("rs",   OP_SQUARE, AM_r);  /* [rs] => [sr]             */
-  add_rule("4^",   OP_SQUARE, AM_sq); /* [qs] => []; [ss] => [4^] */
-  add_rule("1",    OP_SQRT, AM_1);  /* [1q] => [1]              */
-  add_rule("rq",   OP_SQRT, AM_r);  /* [rq] => [qr]             */
-  add_rule("4v",   OP_SQRT, AM_sq); /* [sq] => []; [qq] => [4v] */
-  add_rule("",     OP_LN, AM_1);  /* [1l] => 0                */
-  add_rule("ln",   OP_LN, AM_r);  /* [rl] => [ln]             */
-  add_rule("",     OP_LN, AM_E);  /* [El] => []               */
-  add_rule("",     OP_EXP, AM_l);  /* [lE] => []               */
-  add_rule("Er",   OP_EXP, AM_n);  /* [nE] => [Er]             */
-  add_rule("Sn",   OP_SIN, AM_n);  /* [nS] => [Sn]             */
-  add_rule("C",    OP_COS, AM_n);  /* [nC] => [C]              */
+  add_rule(STR_NUL,     OP_X, AM_RHS);
+  add_rule(STR_NEG STR_RECIP,   OP_NEG, AM_r); /* [rn] => [nr]             */
+  add_rule(STR_NUL,     OP_NEG, AM_n);  /* [nn] => []               */
+  add_rule(STR_1,  OP_RECIP, AM_1);  /* [1r] => [1]              */
+  add_rule(STR_NUL,     OP_RECIP, AM_r);  /* [rr] => []               */
+  add_rule(STR_1,  OP_SQUARE, AM_1);  /* [1s] => [1]              */
+  add_rule(STR_4,  OP_SQUARE, AM_2);  /* [2s] => [4]              */
+  add_rule(STR_SQUARE, OP_SQUARE, AM_n);  /* [ns] => [s]              */
+  add_rule(STR_RECIP STR_SQUARE,
+           OP_SQUARE, AM_r);  /* [rs] => [sr]             */
+  add_rule(STR_4 STR_POW, OP_SQUARE, AM_sq); /* [qs] => []; [ss] => [4^] */
+  add_rule(STR_1,  OP_SQRT, AM_1);  /* [1q] => [1]              */
+  add_rule(STR_RECIP STR_SQRT, OP_SQRT, AM_r);  /* [rq] => [qr]             */
+  add_rule(STR_4 STR_ROOT, OP_SQRT, AM_sq); /* [sq] => []; [qq] => [4v] */
+  add_rule(STR_NUL,     OP_LN, AM_1);  /* [1l] => 0                */
+  add_rule(STR_LN STR_NEG, OP_LN, AM_r);  /* [rl] => [ln]             */
+  add_rule(STR_NUL,     OP_LN, AM_E);  /* [El] => []               */
+  add_rule(STR_NUL,     OP_EXP, AM_l);  /* [lE] => []               */
+  add_rule(STR_EXP STR_RECIP, OP_EXP, AM_n);  /* [nE] => [Er]             */
+  add_rule(STR_SIN STR_NEG,   OP_SIN, AM_n);  /* [nS] => [Sn]             */
+  add_rule(STR_COS,    OP_COS, AM_n);  /* [nC] => [C]              */
 
   /* The operators are not included in their own require-symset string
      unless they are also used in the target of the forced transformation.
@@ -11469,97 +11523,101 @@ void init2()
      "a more important", i.e. irreducible, use. Of course, it doesn't
      actually prevent solutions from being found, it just makes them get
      found sooner. */
-  add_rule("2*",   OP_PLUS, AM_KK); /* [KK+] => [K2*]           */
-  add_rule("*23456789", /* If our integers maxed out at an even number we
-                           wouldn't need the "*" here */
+  add_rule(STR_2 STR_MUL, OP_PLUS, AM_KK); /* [KK+] => [K2*]           */
+  add_rule(STR_MUL "23456789", /* If our integers maxed out at an even number we
+                                  wouldn't need the "*" here */
                    OP_PLUS, AM_55); /* [25+]=>[7]; [55+]=>[52*] */
-  add_rule("+",    OP_PLUS, AM_jK); /* [jK+] => [Kj+]           */
-  add_rule("-",    OP_PLUS, AM_n);  /* [n+] => [-]              */
-  add_rule("",     OP_MINUS, AM_KK); /* [KK-] => 0               */
-  add_rule("1234n",OP_MINUS, AM_55); /* [JK-] => [L] or [Ln]     */
-  add_rule("12345678n",
+  add_rule(STR_PLUS,    OP_PLUS, AM_jK); /* [jK+] => [Kj+]           */
+  add_rule(STR_MINUS,   OP_PLUS, AM_n);  /* [n+] => [-]              */
+  add_rule(STR_NUL,     OP_MINUS, AM_KK); /* [KK-] => 0               */
+  add_rule("1234" STR_NEG,  OP_MINUS, AM_55); /* [JK-] => [L] or [Ln]     */
+  add_rule("12345678" STR_NEG,
                    OP_MINUS, AM_jK); /* [35-] => [2n]            */
-  add_rule("+",    OP_MINUS, AM_n);  /* [n-] => [+]              */
-  add_rule("s",    OP_MUL, AM_KK); /* [KK*] => [Ks]            */
-  add_rule("*",    OP_MUL, AM_jK); /* [jK*] => [Kj*]           */
-  add_rule("*",    OP_MUL, AM_1);  /* [1*] => []               */
-  add_rule("*n",   OP_MUL, AM_n);  /* [n*] => [*n]             */
-  add_rule("/",    OP_MUL, AM_r);  /* [r*] => [/]              */
-  add_rule("1",    OP_DIV, AM_KK); /* [KK/] => [1]             */
-  add_rule("r",    OP_DIV, AM_1K); /* [1K/] => [Kr]            */
-  add_rule("",     OP_DIV, AM_1);  /* [1/] => []               */
-  add_rule("/n",   OP_DIV, AM_n);  /* [n/] => [/n]             */
-  add_rule("*",    OP_DIV, AM_r);  /* [r/] => [*]              */
-  add_rule("",     OP_POW, AM_1);  /* [1^] => []               */
-  add_rule("s",    OP_POW, AM_2);  /* [2^] => [s]              */
-  add_rule("^r",   OP_POW, AM_n);  /* [n^] => [^r]             */
-  add_rule("1",    OP_POW, AM_1K); /* [1K^] => [1]             */
-  add_rule("v",    OP_POW, AM_r);  /* [r^] => [v]              */
-  add_rule("",     OP_ROOT, AM_1);  /* [1v] => []               */
-  add_rule("q",    OP_ROOT, AM_2);  /* [2v] => [q]              */
-  add_rule("vr",   OP_ROOT, AM_n);  /* [nv] => [vr]             */
-  add_rule("1",    OP_ROOT, AM_1K); /* [1Kv] => [1]             */
-  add_rule("^",    OP_ROOT, AM_r);  /* [rv] => [^]              */
-  add_rule("1",    OP_LOGBASE, AM_KK); /* [KKL] => [1]             */
-  add_rule("",     OP_LOGBASE, AM_1);  /* [1L] => undefined        */
-  add_rule("Ln",   OP_LOGBASE, AM_r);  /* [rL] => [Ln]             */
-  add_rule("",     OP_LOGBASE, AM_1K); /* [1KL] => 0               */
+  add_rule(STR_PLUS,     OP_MINUS, AM_n);  /* [n-] => [+]              */
+  add_rule(STR_SQUARE,   OP_MUL, AM_KK); /* [KK*] => [Ks]            */
+  add_rule(STR_MUL,      OP_MUL, AM_jK); /* [jK*] => [Kj*]           */
+  add_rule(STR_MUL,      OP_MUL, AM_1);  /* [1*] => []               */
+  add_rule(STR_MUL STR_NEG,   OP_MUL, AM_n);  /* [n*] => [*n]             */
+  add_rule(STR_DIV,      OP_MUL, AM_r);  /* [r*] => [/]              */
+  add_rule(STR_1,        OP_DIV, AM_KK); /* [KK/] => [1]             */
+  add_rule(STR_RECIP,    OP_DIV, AM_1K); /* [1K/] => [Kr]            */
+  add_rule(STR_NUL,           OP_DIV, AM_1);  /* [1/] => []               */
+  add_rule(STR_DIV STR_NEG,   OP_DIV, AM_n);  /* [n/] => [/n]             */
+  add_rule(STR_MUL,      OP_DIV, AM_r);  /* [r/] => [*]              */
+  add_rule(STR_NUL,           OP_POW, AM_1);  /* [1^] => []               */
+  add_rule(STR_SQUARE,   OP_POW, AM_2);  /* [2^] => [s]              */
+  add_rule(STR_POW STR_RECIP,   OP_POW, AM_n);  /* [n^] => [^r]             */
+  add_rule(STR_1,        OP_POW, AM_1K); /* [1K^] => [1]             */
+  add_rule(STR_ROOT,     OP_POW, AM_r);  /* [r^] => [v]              */
+  add_rule(STR_NUL,           OP_ROOT, AM_1);  /* [1v] => []               */
+  add_rule(STR_SQRT,     OP_ROOT, AM_2);  /* [2v] => [q]              */
+  add_rule(STR_ROOT STR_RECIP,   OP_ROOT, AM_n);  /* [nv] => [vr]             */
+  add_rule(STR_1,        OP_ROOT, AM_1K); /* [1Kv] => [1]             */
+  add_rule(STR_POW,      OP_ROOT, AM_r);  /* [rv] => [^]              */
+  add_rule(STR_1,        OP_LOGBASE, AM_KK); /* [KKL] => [1]             */
+  add_rule(STR_NUL,           OP_LOGBASE, AM_1);  /* [1L] => undefined        */
+  add_rule(STR_LOGBASE STR_NEG,   OP_LOGBASE, AM_r);  /* [rL] => [Ln]     */
+  add_rule(STR_NUL,           OP_LOGBASE, AM_1K); /* [1KL] => 0               */
 
 #ifdef RIES_GSL
   /* Attempting to add some rules relevant to GSL extensions... */
-  add_rule("",     OP_GAMMA, AM_1);     /* [1G] => 0                */
-  add_rule("1",    OP_FACTORIAL, AM_1); /* [1!] => 1                */
+  add_rule(STR_NUL,            OP_GAMMA, AM_1);     /* [1G] => 0         */
+  add_rule(STR_1,              OP_FACTORIAL, AM_1); /* [1!] => 1         */
   /* Chi is an even function */
-  add_rule("c",    'c', AM_n);         /* [nc] => [c]              */
-  add_rule("",     OP_LOGGAMMA, AM_1); /* [1y] => 0                */
-  add_rule("",     OP_ZETA, AM_1);     /* [1Z] => undefined        */
-  add_rule("l",    't', AM_1);         /* [..1t] => [..l]          */
-  add_rule("!",    't', AM_a1_1);      /* [1..t] => [..!] */
+  add_rule(STR_CHI,            OP_CHI, AM_n);       /* [nc] => [c]       */
+  /* And Shi is an odd one */
+  add_rule(STR_SHI STR_NEG,    OP_SHI, AM_n);       /* [nz] => [zn]      */
+  /* So is erf! */
+  add_rule(STR_ERF STR_NEG,    OP_ERF, AM_n);       /* [nb] => [bn]      */
+  add_rule(STR_NUL,            OP_LOGGAMMA, AM_1);  /* [1y] => 0         */
+  add_rule(STR_NUL,            OP_ZETA, AM_1);      /* [1Z] => undefined */
+  add_rule(STR_LN,             OP_LNPOCH, AM_1);    /* [..1t] => [..l]   */
+  add_rule(STR_FACTORIAL,      OP_LNPOCH, AM_a1_1); /* [1..t] => [..!]   */
 #endif
 
   if (k_sincos_arg_scale == 1.0) {
     /* Added on 20070511 */
-    add_rule("",     OP_SIN, AM_pi); /* [pS] => 0              */
+    add_rule(STR_NUL,     OP_SIN, AM_pi); /* [pS] => 0              */
     /* Added on 20090513 */
-    add_rule("1n",   OP_COS, AM_pi); /* [pC] => [1n]           */
+    add_rule(STR_1 STR_NEG,   OP_COS, AM_pi); /* [pC] => [1n]           */
   }
 
   /* Added on 20090513 */
-  add_rule("",     OP_DIV, AM_KxK);/* [K*K/] -> []             */
+  add_rule(STR_NUL,     OP_DIV, AM_KxK);/* [K*K/] -> []             */
 
   /* Added on 20111230 */
-  add_rule("",     OP_MINUS, AM_KpK);/* [K+K-] -> []             */
+  add_rule(STR_NUL,     OP_MINUS, AM_KpK);/* [K+K-] -> []             */
 
   /* 20130130: The commutative operators + and * have the property
      that A+(B+C) = (A+B)+C. Thus, we can add a rule that forces
      one or the other of these two forms; the easier one to force
      is left-hand associative, i.e. do each operation as soon as
      possible. */
-  add_rule("",     OP_PLUS, AM_plus); /* [ABC++] -> [AB+C+]     */
-  add_rule("",     OP_MUL, AM_mul);  /* [ABC**] -> [AB*C*]     */
+  add_rule(STR_NUL,     OP_PLUS, AM_plus); /* [ABC++] -> [AB+C+]     */
+  add_rule(STR_NUL,     OP_MUL, AM_mul);  /* [ABC**] -> [AB*C*]     */
 
   /* 20130130: Here we force A^(B*C) into the equivalent form
      (A^B)^C, which is only available if more than one ^ symbol
      is allowed. */
-  add_rule("^",    OP_POW, AM_mul);  /* [ABC*^] -> [AB^C^]     */
+  add_rule(STR_POW,    OP_POW, AM_mul);  /* [ABC*^] -> [AB^C^]     */
 
   /* 20130130: [AB^q] = sqrt(A^B) is the same as [AqB^] = sqrt(A)^B */
-  add_rule("",     OP_SQRT, AM_pow);  /* [AB^q] -> [AqB^]       */
+  add_rule(STR_NUL,     OP_SQRT, AM_pow);  /* [AB^q] -> [AqB^]       */
 
   /* 20141212: [2E]->[es], e.g. 1.07822380518236 finds xfLr = 2E1- */
-  add_rule("es",   OP_EXP, AM_2);    /* [2E] => [es]           */
-  add_rule("E",    OP_POW, AM_a1_e); /* [e..^] => [..E]        */
+  add_rule(STR_E STR_SQUARE,      OP_EXP, AM_2);    /* [2E] => [es]      */
+  add_rule(STR_EXP,               OP_POW, AM_a1_e); /* [e..^] => [..E]   */
 
   /* 20141213 If I disable these I can find examples with the
      #search1# script, e.g. the command ./search1 es '1ab/'
      found that "ries 3.31130856083748 -F0 -n999 -l3 --no-refinement --max-match-distance 1e-6" gave the result "x4xr-+ = 31pq/v" */
-  add_rule("",     OP_MUL, AM_a1_1); /* [1..*] => [..]         */
-  add_rule("r",    OP_DIV, AM_a1_1); /* [1../] => [..r]        */
+  add_rule(STR_NUL,     OP_MUL, AM_a1_1); /* [1..*] => [..]         */
+  add_rule(STR_RECIP,    OP_DIV, AM_a1_1); /* [1../] => [..r]        */
 
   /* 20141215 More redundancy found via ./search1 es '[1r]ab*[v^]' */
-  add_rule("",     OP_ROOT, AM_a1_r); /* [r..v] => [..vr]       */
-  add_rule("",     OP_POW, AM_a1_r); /* [r..^] => [..^r]       */
-  add_rule("e",    OP_EXP, AM_1);    /* [1E] => [e]            */
+  add_rule(STR_NUL,     OP_ROOT, AM_a1_r); /* [r..v] => [..vr]       */
+  add_rule(STR_NUL,     OP_POW, AM_a1_r); /* [r..^] => [..^r]       */
+  add_rule(STR_E,    OP_EXP, AM_1);    /* [1E] => [e]            */
 
   /* Compute the weight of the most complex expression that could possibly
      fit in the available MAX_ELEN symbols */
