@@ -3303,6 +3303,7 @@ b001 g_explicit_multiply; /* Always show '*' symbol for multiplication */
 #define OP_9            '9'
 #define OP_PHI          'f'
 #define OP_E            'e'
+#define OP_PI		'p'
 #define OP_X            'x'
 #define OP_IDENTITY     'I'
 #define OP_NEG          'n'
@@ -5595,37 +5596,37 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
 
     /* seft 'a' ( -- K ) symbols. For all constants the derivative is zero;
        for X the derivative is 1.0 */
-  case '1' :
+  case OP_1 :
     rv = k_1; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
-  case 'f' :
+  case OP_PHI :
     rv = k_phi; ms_push(ms, rv, (ries_dif) k_0, tg_phi); *undo_count = 1; break;
-  case '2' :
+  case OP_2 :
     rv = k_2; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
-  case 'e' :
+  case OP_E :
     rv = k_e; ms_push(ms, rv, (ries_dif) k_0, tg_e); *undo_count = 1; break;
-  case '3' :
+  case OP_3 :
     rv = k_3; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
-  case 'p' :
+  case OP_PI :
     rv = k_pi; ms_push(ms, rv, (ries_dif) k_0, tg_pi); *undo_count = 1; break;
-  case '4' :
+  case OP_4 :
     rv = k_4; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
-  case '5' :
+  case OP_5 :
     rv = k_5; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
-  case '6' :
+  case OP_6 :
     rv = k_6; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
-  case '7' :
+  case OP_7 :
     rv = k_7; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
-  case '8' :
+  case OP_8 :
     rv = k_8; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
-  case '9' :
+  case OP_9 :
     rv = k_9; ms_push(ms, rv, (ries_dif) k_0, TYPE_INT); *undo_count = 1; break;
 
-  case 'x' :
+  case OP_X :
     rv = exec_x; drv = (ries_dif) k_1;
     ms_push(ms, rv, drv, g_targ_tags); *undo_count = 1; break;
 
     /* seft 'b' ( arg -- val ) symbols */
-  case 'I' :        /* Identity: used only when all other seft-b symbols
+  case OP_IDENTITY :        /* Identity: used only when all other seft-b symbols
                        have been excluded */
     a = ms_pop(ms, &da, &tga);
     rv = a;
@@ -5634,7 +5635,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'n' :        /* negate */
+  case OP_NEG :        /* negate */
     /* n(a+bi) = -a + -bi */
     a = ms_pop(ms, &da, &tga);
     if (do_dx) {
@@ -5645,7 +5646,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'r' :         /* reciprocal */
+  case OP_RECIP :         /* reciprocal */
     /* r(a+bi) = (a-bi) / (a^2 + b^2) */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     if (a == k_0) {
@@ -5664,7 +5665,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 's' :        /* squared */
+  case OP_SQUARE :        /* squared */
     a = ms_pop(ms, &da, &tga);
     if (do_dx) {
       drv = (ries_dif) (k_2 * a * da);
@@ -5674,7 +5675,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'q' :         /* square root */
+  case OP_SQRT :         /* square root */
     /* q(a+bi) is the conjugate with the same imaginary sign as bi.
        for example, q(i) = (1+i)/sqrt(2); q(-i) = (1-i)/sqrt(2) */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
@@ -5697,7 +5698,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'l' :         /* ln */
+  case OP_LN :         /* ln */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     if (g_restrict_exponents) {
       if ((da != 0) /* a is a subexpression containing x */
@@ -5725,7 +5726,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'E' :         /* e ^ X */
+  case OP_EXP :         /* e ^ X */
     /* E(a+bi) = e^x (cos b + sin b i) */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     if (g_restrict_exponents) {
@@ -5752,7 +5753,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'S' :        /* sine */
+  case OP_SIN :        /* sine */
     /* d/dx sin(u) = cos(u) */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     if (g_restrict_trig_args) {
@@ -5805,7 +5806,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'C' :        /* cosine */
+  case OP_COS :        /* cosine */
     /* d/dx cos(u) = - sin(u) */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     if (g_restrict_trig_args) {
@@ -5846,7 +5847,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'T' :        /* tangent */
+  case OP_TAN :        /* tangent */
     /* d/dx tan(u) = (1 + tan^2(u)) du */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     if (g_restrict_trig_args) {
@@ -6112,7 +6113,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
 
 #endif  /* RIES_GSL */
 
-  case 'W':  /* Lambert W function */
+  case OP_W:  /* Lambert W function */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     if (a < k_ern) {
       /* If x is less than -1/e, W(x) has complex values. This is kind of like
@@ -6145,14 +6146,14 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     break;
 
     /* seft 'c' ( arg1 arg2 -- val ) symbols */
-  case '-' :
+  case OP_MINUS :
     b = ms_pop(ms, &db, &tgb);
     a = ms_pop(ms, &da, &tga); *undo_count = 2;
     /* this operator shares the loss-of-significance tests with '+' */
     b = - b; db = - db;
     goto add_common;
 
-  case '+' :
+  case OP_PLUS :
     b = ms_pop(ms, &db, &tgb);
     a = ms_pop(ms, &da, &tga); *undo_count = 2;
   add_common: ;
@@ -6191,7 +6192,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 3;
     break;
 
-  case '*' :
+  case OP_MUL :
     /* d/dx u v = v du + u dv */
     b = ms_pop(ms, &db, &tgb);
     a = ms_pop(ms, &da, &tga);
@@ -6204,7 +6205,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 3;
     break;
 
-  case '/' :
+  case OP_DIV :
     /* d/dx u/v = (v du - u dv) / v^2 */
     b = ms_pop(ms, &db, &tgb); *undo_count = 1;
     if (b == k_0) {
@@ -6229,7 +6230,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 3;
     break;
 
-  case '^' :        /* a to the power of b */
+  case OP_POW :        /* a to the power of b */
     /* d/dx u^v = v u^(v-1) du + ln(u) u^v dv */
     b = ms_pop(ms, &db, &tgb); *undo_count = 1;
     if (g_restrict_exponents) {
@@ -6283,7 +6284,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 3;
     break;
 
-  case 'v' :       /* the bth root of a, that is, a^(1/b) */
+  case OP_ROOT :       /* the bth root of a, that is, a^(1/b) */
     b = ms_pop(ms, &db, &tgb); *undo_count = 1;
     if (g_restrict_exponents) {
       if ((db != 0) /* b is a subexpression containing x */
@@ -6341,7 +6342,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 3;
     break;
 
-  case 'L' :       /* [<a><b>L] is the log base b of a, that is, ln(a)/ln(b) */
+  case OP_LOGBASE :       /* [<a><b>L] is the log base b of a, that is, ln(a)/ln(b) */
     b = ms_pop(ms, &db, &tgb); *undo_count = 1;
     if (g_restrict_exponents) {
       if ((db != 0) /* b is a subexpression containing x */
@@ -6610,11 +6611,11 @@ s16 infix_1(
       return 1;
     }
     swap = 0;
-    if (op == 's') {
+    if (op == OP_SQUARE) {
       swap = 1;
     }
     paren_a = 1;
-    if ((op == 'n') && (sym_attrs[op_a].seft != 'c')) {
+    if ((op == OP_NEG) && (sym_attrs[op_a].seft != 'c')) {
       paren_a = 0;
     }
 
@@ -6649,55 +6650,55 @@ s16 infix_1(
 
     /* optional swaps for the commutative operators
        if adding, try to put a constant at the end */
-    if ((op == '+') && (sym_attrs[op_a].seft == 'a') && (op_a != 'x')) {
+    if ((op == OP_PLUS) && (sym_attrs[op_a].seft == 'a') && (op_a != OP_X)) {
       swap = 1;
     }
     /* rules for multiplying */
-    if (op == '*') {
+    if (op == OP_MUL) {
       int a_has_x, b_has_x;
 
-      a_has_x = (strchr(term_a, 'x') != 0);
-      b_has_x = (strchr(term_b, 'x') != 0);
+      a_has_x = (strchr(term_a, OP_X) != 0);
+      b_has_x = (strchr(term_b, OP_X) != 0);
       /* a bare seft-a symbol always precedes an expression
          %%% this swap should not be done if the baresymbol is 'x' and
          the expression has no 'x' */
-      if ((! a_has_x) && (op_b == 'x')) {
+      if ((! a_has_x) && (op_b == OP_X)) {
         /* no swappy */
       } else if ((sym_attrs[op_a].seft != 'a') && (sym_attrs[op_b].seft == 'a')) {
         swap = 1;
-      } else if ((op_a == 'x') && (! b_has_x)) {
+      } else if ((op_a == OP_X) && (! b_has_x)) {
         swap = 1;
       }
       /* with two bare symbols multiplied by each other, swap if the
          latter is an integer. Note: the integer test of op_b implicitly
          tests for the second term being seft-a. */
-      if ((sym_attrs[op_a].seft == 'a') && (op_b >= '0') && (op_b <= '9')) {
+      if ((sym_attrs[op_a].seft == 'a') && (op_b >= '0') && (op_b <= OP_9)) {
         swap = 1;
-      } else if ((op_a == 'x') &&
-          ( (op_b == 'e') || (op_b == 'f') || (op_b == 'p')) ) {
+      } else if ((op_a == OP_X) &&
+          ( (op_b == OP_E) || (op_b == OP_PHI) || (op_b == OP_PI)) ) {
         /* "x pi" -> "pi x" */
         swap = 1;
       }
     }
     /* Always swap for operators that are inherently swapped. */
-    if (op == 'v') {
+    if (op == OP_ROOT) {
       swap = 1;
-    } else if (op == 'L') {
+    } else if (op == OP_LOGBASE) {
       swap = 1;
     }
     /* Check for phantom symbols */
     if (op == PS_REVSUB) {
       swap = 1;
-      op = '-';
-      *t_op = '-';
+      op = OP_MINUS;
+      *t_op = OP_MINUS;
     } else if (op == PS_REVDIV) {
       swap = 1;
-      op = '/';
-      *t_op = '/';
+      op = OP_DIV;
+      *t_op = OP_DIV;
     } else if (op == PS_REVPOW) {
       swap = 1;
-      op = '^';
-      *t_op = '^';
+      op = OP_POW;
+      *t_op = OP_POW;
     }
 
     /* okay, do the swap */
@@ -6709,7 +6710,7 @@ s16 infix_1(
     /* determine precedence */
     paren_a = paren_b = 0; /* default don't use parens */
 
-    if (op == 'L') {
+    if (op == OP_LOGBASE) {
       /* Latter part is always in parens; first part (base) is
          in parens only if it's an expression */
       paren_b = 1;
@@ -6731,16 +6732,16 @@ s16 infix_1(
     if (sym_attrs[op_b].seft == 'c') {
       /* We have s1 op (s2 op_b s3) */
       paren_b = 1; /* default use parens */
-      if ((op == '+') && strchr("+-*/^v", op_b)) {
+      if ((op == OP_PLUS) && strchr("+-*/^v", op_b)) {
         /* + followed by anything doesn't need parens */
         paren_b = 0;
-      } else if ((op == '-') && strchr("*/^v", op_b)) {
+      } else if ((op == OP_MINUS) && strchr("*/^v", op_b)) {
         /* - followed by mult or higher operators doesn't need parens */
         paren_b = 0;
-      } else if ((op == '*') && strchr("*/^v", op_b)) {
+      } else if ((op == OP_MUL) && strchr("*/^v", op_b)) {
         /* * followed by mult or higher operators doesn't need parens */
         paren_b = 0;
-      } else if ((op == '/') && strchr("^v", op_b)) {
+      } else if ((op == OP_DIV) && strchr("^v", op_b)) {
         /* / followed by ^ or v doesn't need parens */
         paren_b = 0;
       }
@@ -6750,7 +6751,7 @@ s16 infix_1(
 
     /* Emit leading operator for two-argument custom functions and 'L' */
     symbl = find_custom(op);
-    if (op == 'L') {
+    if (op == OP_LOGBASE) {
       /* This operator goes in front of both arguments */
       term[optr++] = (char) op;
     }
@@ -6772,26 +6773,26 @@ s16 infix_1(
     }
 
     /* Emit infix operator */
-    if (op == '*') {
+    if (op == OP_MUL) {
       if (g_explicit_multiply) {
         term[optr++] = (char) op; /* emit an actual "*" */
-      } else if ((op_a <= '9') && paren_b) {
+      } else if ((op_a <= OP_9) && paren_b) {
         /* digit times anything starting with parentheses */
         /* Emit no symbol at all */
-      } else if ((op_a <= '9') && (term_b[0] <= '9')) {
+      } else if ((op_a <= OP_9) && (term_b[0] <= OP_9)) {
         /* digit times anything starting with a bare digit */
         term[optr++] = (char) op; /* emit an actual "*" */
-      } else if (op_b == 'n') {
+      } else if (op_b == OP_NEG) {
         /* A times negative B, require explicit '*' */
         term[optr++] = (char) op;
       } else if ((sym_attrs[op_a].seft != 'a') || (sym_attrs[op_b].seft != 'a')
-                        || (term_b[0] > '9')) {
+                        || (term_b[0] > OP_9)) {
         /* printf("op_a '%c' op_b '%c' mult '.'\n", op_a, op_b);  */
         term[optr++] = '.'; /* This becomes a blank space " " */
       } else {
         term[optr++] = (char) op;
       }
-    } else if (op == 'L') {
+    } else if (op == OP_LOGBASE) {
       /* We already emitted it */
     } else if (symbl || op == 't') {
       /* comma between function params */
@@ -6861,7 +6862,7 @@ void infix_preproc(symbol * expr, symbol * out)
   while(*s) {
     if (0) {
 
-    } else if ((*s == '-') && (*(s+1) == 'n')) {
+    } else if ((*s == OP_MINUS) && (*(s+1) == OP_NEG)) {
        /* [-n] is seen when --canon-reduction is used. Here we convert
        [-n] "-(a-b)" into [_] "b-a", where '_' represents the reversed
        subtract phantom op. This makes e.g. "1/-(x-pi)" into "pi-x". */
@@ -6869,7 +6870,7 @@ void infix_preproc(symbol * expr, symbol * out)
       *o++ = PS_REVSUB;
       s ++;
 
-    } else if ((*s == '/') && (*(s+1) == 'r')) {
+    } else if ((*s == OP_DIV) && (*(s+1) == OP_RECIP)) {
        /* [/r] is also seen when --canon-reduction is enabled, e.g. [27/r]
        in the output of "ries 2.4284920346331 --canon-reduction nr25".
        Here we convert [/r] "1/(a/b)" into [\] "b/a", where '\' is
@@ -6880,27 +6881,27 @@ void infix_preproc(symbol * expr, symbol * out)
 
     } else if (*s == ' ') {
       /* ' ' is a no-op */
-    } else if ((*s == 'n') && (sym_attrs[*(s+1)].seft == 'a') && (*(s+2) == '+')) {
+    } else if ((*s == OP_NEG) && (sym_attrs[*(s+1)].seft == 'a') && (*(s+2) == OP_PLUS)) {
       /* converting [n2+] into [2_]. Test case: 1.3204 gives
          "-(x)+2 = e/4" without this conversion and "2-x = e/4" with. */
       if (debug_p) { printf("  [nA+]->[A_]\n"); }
       *o++ = *(s+1);
       *o++ = PS_REVSUB;
       s += 2;
-    } else if (*s == 's') {
+    } else if (*s == OP_SQUARE) {
       /* [s] -> [2^] */
       if (debug_p) { printf("  [s]->[2^]\n"); }
-      *o++ = '2';
-      *o++ = '^';
-    } else if (*s == 'r') {
+      *o++ = OP_2;
+      *o++ = OP_POW;
+    } else if (*s == OP_RECIP) {
       /* [r] -> [1\] */
       if (debug_p) { printf("  [r]->[1\\]\n"); }
-      *o++ = '1';
+      *o++ = OP_1;
       *o++ = PS_REVDIV;
-    } else if (*s == 'E') {
+    } else if (*s == OP_EXP) {
       /* [E] -> [e`] where ` is reverse power */
       if (debug_p) { printf("  [E]->[e`]\n"); }
-      *o++ = 'e';
+      *o++ = OP_E;
       *o++ = PS_REVPOW;
     } else {
       *o++ = *s;
@@ -7414,7 +7415,7 @@ s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
      us (0, 1).  Otherwise, if contains_x is negative, we find out for
      ourselves, the old-fashioned way. */
   if (contains_x < 0) {
-    contains_x = (symstrsym(expr, 'x') != 0) ? 1 : 0;
+    contains_x = (symstrsym(expr, OP_X) != 0) ? 1 : 0;
   }
 
   ms_init(&ms);
@@ -7548,7 +7549,7 @@ void try_solve(symbol * l, symbol * r,
 
     if (0) {
     /* -------------------- Seft c symbols -------------------- */
-    } else if (op == '+') {
+    } else if (op == OP_PLUS) {
       if (debug_S) {
         printf("transforming: ");
         eqn_print_infix(lhs, rhs);
@@ -7561,7 +7562,7 @@ void try_solve(symbol * l, symbol * r,
       symstrncat(rhs, ((symbol *) "-"), TS_ALLOC_R);
       symstrncpy0(lhs, part1, TS_ALLOC_L);
       /* printf("now [%s]:[%s]\n", lhs, rhs); */
-    } else if (op == '-') {
+    } else if (op == OP_MINUS) {
       if (debug_S) {
         printf("transforming: ");
         eqn_print_infix(lhs, rhs);
@@ -7572,7 +7573,7 @@ void try_solve(symbol * l, symbol * r,
       symstrncat(rhs, part2, TS_ALLOC_R);
       symstrncat(rhs, ((symbol *) "+"), TS_ALLOC_R);
       symstrncpy0(lhs, part1, TS_ALLOC_L);
-    } else if (op == '*') {
+    } else if (op == OP_MUL) {
       if (debug_S) {
         printf("transforming: ");
         eqn_print_infix(lhs, rhs);
@@ -7583,7 +7584,7 @@ void try_solve(symbol * l, symbol * r,
       symstrncat(rhs, part2, TS_ALLOC_R);
       symstrncat(rhs, ((symbol *) "/"), TS_ALLOC_R);
       symstrncpy0(lhs, part1, TS_ALLOC_L);
-    } else if (op == '/') {
+    } else if (op == OP_DIV) {
       if (debug_S) {
         printf("transforming: ");
         eqn_print_infix(lhs, rhs);
@@ -7594,7 +7595,7 @@ void try_solve(symbol * l, symbol * r,
       symstrncat(rhs, part2, TS_ALLOC_R);
       symstrncat(rhs, ((symbol *) "*"), TS_ALLOC_R);
       symstrncpy0(lhs, part1, TS_ALLOC_L);
-    } else if (op == '^') {
+    } else if (op == OP_POW) {
       if (debug_S) {
         printf("transforming: ");
         eqn_print_infix(lhs, rhs);
@@ -7605,7 +7606,7 @@ void try_solve(symbol * l, symbol * r,
       symstrncat(rhs, part2, TS_ALLOC_R);
       symstrncat(rhs, ((symbol *) "v"), TS_ALLOC_R);
       symstrncpy0(lhs, part1, TS_ALLOC_L);
-    } else if (op == 'L') {
+    } else if (op == OP_LOGBASE) {
       /* [<p1><p2>L] = [<r>]  log to base <part2> of <part1> = <rhs>
          [<p1>] = [<p2><r>^]  <part1> = <part2> ^ <rhs> */
       symbol rtmp[TS_ALLOC_R];
@@ -7622,7 +7623,7 @@ void try_solve(symbol * l, symbol * r,
       symstrncat(rtmp, ((symbol *) "^"), TS_ALLOC_R);
       symstrncpy0(rhs, rtmp, TS_ALLOC_R);
       symstrncpy0(lhs, part1, TS_ALLOC_L);
-    } else if (op == 'v') {
+    } else if (op == OP_ROOT) {
       if (debug_S) {
         printf("transforming: ");
         eqn_print_infix(lhs, rhs);
@@ -7636,7 +7637,7 @@ void try_solve(symbol * l, symbol * r,
 
     /* -------------------- Seft b symbols -------------------- */
 
-    } else if (op == 'E') {
+    } else if (op == OP_EXP) {
       if (debug_S) {
         printf("transforming: ");
         eqn_print_infix(lhs, rhs);
@@ -7646,7 +7647,7 @@ void try_solve(symbol * l, symbol * r,
       symstrncat(rhs, ((symbol *) "l"), TS_ALLOC_R);
       symstrncpy0(lhs, part1, TS_ALLOC_L);
       /* printf("now [%s]:[%s]\n", lhs, rhs); */
-    } else if (op == 'l') {
+    } else if (op == OP_LN) {
       if (debug_S) {
         printf("transforming: ");
         eqn_print_infix(lhs, rhs);
@@ -7654,7 +7655,7 @@ void try_solve(symbol * l, symbol * r,
       }
       symstrncat(rhs, ((symbol *) "E"), TS_ALLOC_R);
       symstrncpy0(lhs, part1, TS_ALLOC_L);
-    } else if (op == 'n') {
+    } else if (op == OP_NEG) {
       if (debug_S) {
         printf("transforming: ");
         eqn_print_infix(lhs, rhs);
@@ -7662,7 +7663,7 @@ void try_solve(symbol * l, symbol * r,
       }
       symstrncat(rhs, ((symbol *) "n"), TS_ALLOC_R);
       symstrncpy0(lhs, part1, TS_ALLOC_L);
-    } else if (op == 'q') {
+    } else if (op == OP_SQRT) {
       if (debug_S) {
         printf("transforming: ");
         eqn_print_infix(lhs, rhs);
@@ -7670,7 +7671,7 @@ void try_solve(symbol * l, symbol * r,
       }
       symstrncat(rhs, ((symbol *) "s"), TS_ALLOC_R);
       symstrncpy0(lhs, part1, TS_ALLOC_L);
-    } else if (op == 'r') {
+    } else if (op == OP_RECIP) {
       if (debug_S) {
         printf("transforming: ");
         eqn_print_infix(lhs, rhs);
@@ -7678,7 +7679,7 @@ void try_solve(symbol * l, symbol * r,
       }
       symstrncat(rhs, ((symbol *) "r"), TS_ALLOC_R);
       symstrncpy0(lhs, part1, TS_ALLOC_L);
-    } else if (op == 's') {
+    } else if (op == OP_SQUARE) {
       ries_val lsqrt, rsqrt;
       if (debug_S) {
         printf("transforming: ");
@@ -7704,7 +7705,7 @@ void try_solve(symbol * l, symbol * r,
         symstrncat(rhs, ((symbol *) "n"), TS_ALLOC_R);
       }
 
-    } else if (op == 'W') {
+    } else if (op == OP_W) {
 
       /* The inverse of y=W(x) is x=w e^y, thus we solve this one by
       /  changing "W(x)=RHS" by "x = RHS*e^RHS". This causes the RHS
@@ -7787,7 +7788,7 @@ s16 newton(symbol * lhs, symbol * rhs, ries_val *root, ries_dif *diff_dx,
   *diff_dx = 0;
   if (tags) { *tags = TYPE_NONE; }
 
-  rhs_has_x = (symstrsym(rhs, 'x') != 0);
+  rhs_has_x = (symstrsym(rhs, OP_X) != 0);
 
   /* first get the RHS value. */
   rhs_dx = 0; rhs_tg = TYPE_NONE; /* Assumed defaults */
@@ -9408,11 +9409,11 @@ s16 canonval(
   }
 
   if ((g_canon_ops & CANONVAL_NEGATE)
-    && (sym_attrs['n'].sa_ct < sym_attrs['n'].sa_alwd)
+    && (sym_attrs[OP_NEG].sa_ct < sym_attrs[OP_NEG].sa_alwd)
     && (x < 0.0) && (ip < MAX_ELEN))
   {
     /* Negate */
-    bpe->sym[ip++] = 'n';
+    bpe->sym[ip++] = OP_NEG;
     exec_err = exec(ms, bpe->sym[ip-1], &uc, using_x); muc=(s16)(muc+uc);
     if (exec_err) {
       *muc_ptr = muc;
@@ -9427,12 +9428,12 @@ s16 canonval(
   }
 
   if ((g_canon_ops & CANONVAL_RECIPROCAL)
-    && (sym_attrs['r'].sa_ct < sym_attrs['r'].sa_alwd)
+    && (sym_attrs[OP_RECIP].sa_ct < sym_attrs[OP_RECIP].sa_alwd)
     && (x*x < 1.0) /* faster way to test if (fabs(x) < 1.0) */
     && (ip < MAX_ELEN))
   {
     /* Take the reciprocal */
-    bpe->sym[ip++] = 'r';
+    bpe->sym[ip++] = OP_RECIP;
     exec_err = exec(ms, bpe->sym[ip-1], &uc, using_x); muc=(s16)(muc+uc);
     if (exec_err) {
       *muc_ptr = muc;
@@ -9447,19 +9448,19 @@ s16 canonval(
   }
 
   if ((g_canon_ops & CANONVAL_DIV2)
-    && (sym_attrs['/'].sa_ct < sym_attrs['/'].sa_alwd)
-    && (sym_attrs['2'].sa_ct < sym_attrs['2'].sa_alwd)
+    && (sym_attrs[OP_DIV].sa_ct < sym_attrs[OP_DIV].sa_alwd)
+    && (sym_attrs[OP_2].sa_ct < sym_attrs[OP_2].sa_alwd)
     && (x*x >= 4.0) /* faster way to test if (fabs(x) >= 2.0) */
     && (ip+1 < MAX_ELEN))
   {
     /* Divide by 2 */
-    bpe->sym[ip++] = '2';
+    bpe->sym[ip++] = OP_2;
     exec_err = exec(ms, bpe->sym[ip-1], &uc, using_x); muc=(s16)(muc+uc);
     if (exec_err) {
       *muc_ptr = muc;
       return exec_err;
     }
-    bpe->sym[ip++] = '/';
+    bpe->sym[ip++] = OP_DIV;
     exec_err = exec(ms, bpe->sym[ip-1], &uc, using_x); muc=(s16)(muc+uc);
     if (exec_err) {
       *muc_ptr = muc;
@@ -9474,19 +9475,19 @@ s16 canonval(
   }
 
   if ((g_canon_ops & CANONVAL_MUL2)
-    && (sym_attrs['*'].sa_ct < sym_attrs['*'].sa_alwd)
-    && (sym_attrs['2'].sa_ct < sym_attrs['2'].sa_alwd)
+    && (sym_attrs[OP_MUL].sa_ct < sym_attrs[OP_MUL].sa_alwd)
+    && (sym_attrs[OP_2].sa_ct < sym_attrs[OP_2].sa_alwd)
     && (x*x < 1.0) /* faster way to test if (fabs(x) < 1.0) */
     && (ip+1 < MAX_ELEN))
   {
     /* Multiply by 2 */
-    bpe->sym[ip++] = '2';
+    bpe->sym[ip++] = OP_2;
     exec_err = exec(ms, bpe->sym[ip-1], &uc, using_x); muc=(s16)(muc+uc);
     if (exec_err) {
       *muc_ptr = muc;
       return exec_err;
     }
-    bpe->sym[ip++] = '*';
+    bpe->sym[ip++] = OP_MUL;
     exec_err = exec(ms, bpe->sym[ip-1], &uc, using_x); muc=(s16)(muc+uc);
     if (exec_err) {
       *muc_ptr = muc;
@@ -9875,10 +9876,10 @@ stats_count ge_2(
       }
       /* KxK rule is true if we do K * K with the same constant both times. */
       if (bpe->sym[ip-1] == bpe->sym[ip-3]) {
-        if (bpe->sym[ip-2] == '*') {
+        if (bpe->sym[ip-2] == OP_MUL) {
           atts |= AM_KxK;
           if (debug_H & g_dbg_side) { printf(" K*K"); }
-        } else if (bpe->sym[ip-2] == '+') {
+        } else if (bpe->sym[ip-2] == OP_PLUS) {
           atts |= AM_KpK;
           if (debug_H & g_dbg_side) { printf(" K+K"); }
         }
@@ -9895,13 +9896,13 @@ stats_count ge_2(
       /* next symbol will be a binary operator; look at arg1 */
       a1i = base->arg1[ip];
       if (a1i >= 0) {
-        if (bpe->sym[a1i] == 'e') {
+        if (bpe->sym[a1i] == OP_E) {
           atts |= AM_a1_e;
           if (debug_H & g_dbg_side) { printf(" e..<op>"); }
-        } else if (bpe->sym[a1i] == '1') {
+        } else if (bpe->sym[a1i] == OP_1) {
           atts |= AM_a1_1;
           if (debug_H & g_dbg_side) { printf(" 1..<op>"); }
-        } else if (bpe->sym[a1i] == 'r') {
+        } else if (bpe->sym[a1i] == OP_RECIP) {
           atts |= AM_a1_r;
           if (debug_H & g_dbg_side) { printf(" r..<op>"); }
         }
@@ -9923,14 +9924,14 @@ stats_count ge_2(
 
       /* 55 rule is true if both constants are integers less than or equal
        * to 5. */
-      if ((bpe->sym[ip-1] < '6')
-          && (bpe->sym[ip-2] < '6')) {
+      if ((bpe->sym[ip-1] < OP_6)
+          && (bpe->sym[ip-2] < OP_6)) {
         atts |= AM_55;
         if (debug_H & g_dbg_side) { printf(" 55"); }
       }
 
       /* 1K rule is true if first constant is 1 */
-      if (bpe->sym[ip-2] == '1') {
+      if (bpe->sym[ip-2] == OP_1) {
         atts |= AM_1K;
         if (debug_H & g_dbg_side) { printf(" 1K"); }
       }
@@ -9955,29 +9956,29 @@ stats_count ge_2(
     if (debug_H & g_dbg_side) {
       printf(" (%c)", bpe->sym[ip-1]);
     }
-    if (bpe->sym[ip-1] == '1') {
+    if (bpe->sym[ip-1] == OP_1) {
       atts |= AM_1;
       if (debug_H & g_dbg_side) { printf(" 1"); }
-    } else if (bpe->sym[ip-1] == '2') {
+    } else if (bpe->sym[ip-1] == OP_2) {
       atts |= AM_2;
       if (debug_H & g_dbg_side) { printf(" 2"); }
-    } else if (bpe->sym[ip-1] == 'n') {
+    } else if (bpe->sym[ip-1] == OP_NEG) {
       atts |= AM_n;
       if (debug_H & g_dbg_side) { printf(" n"); }
-    } else if (bpe->sym[ip-1] == 'r') {
+    } else if (bpe->sym[ip-1] == OP_RECIP) {
       atts |= AM_r;
       if (debug_H & g_dbg_side) { printf(" r"); }
-    } else if (bpe->sym[ip-1] == 'l') {
+    } else if (bpe->sym[ip-1] == OP_LN) {
       atts |= AM_l;
       if (debug_H & g_dbg_side) { printf(" l"); }
-    } else if (bpe->sym[ip-1] == 'E') {
+    } else if (bpe->sym[ip-1] == OP_EXP) {
       atts |= AM_E;
       if (debug_H & g_dbg_side) { printf(" E"); }
-    } else if (bpe->sym[ip-1] == 'p') {
+    } else if (bpe->sym[ip-1] == OP_PI) {
       atts |= AM_pi;
       if (debug_H & g_dbg_side) { printf(" p"); }
-    } else if ((bpe->sym[ip-1] == 's')
-               || (bpe->sym[ip-1] == 'q')) {
+    } else if ((bpe->sym[ip-1] == OP_SQUARE)
+               || (bpe->sym[ip-1] == OP_SQRT)) {
       atts |= AM_sq;
       if (debug_H & g_dbg_side) { printf(" sq"); }
     }
@@ -10054,7 +10055,7 @@ stats_count ge_2(
       recurse = 0;
 
     /* LHS expressions always start with 'x' */
-    } else if (using_x && (ip == 0) && (sym != 'x')) {
+    } else if (using_x && (ip == 0) && (sym != OP_X)) {
       if (debug_K & g_dbg_side) {
         printf("prune LHS must start with 'x'\n");
       }
@@ -10810,7 +10811,7 @@ void allsyms_set(s16 n, int include_x)
   int i;
 
   for(i=0; i<SYMBOL_RANGE; i++) {
-    if (include_x || ((char) i != 'x')) {
+    if (include_x || ((char) i != OP_X)) {
       sym_attrs[i].sa_alwd = n;
     }
   }
@@ -11099,14 +11100,14 @@ void init2()
   lhs_root = 0;
 
   /* Prohibit -Nx (act as if -Sx was given unless they specified -Ox) */
-  if (sym_attrs['x'].sa_alwd == 1) {
+  if (sym_attrs[OP_X].sa_alwd == 1) {
     x_lhs_only = B_TRUE;
   } else {
-    sym_attrs['x'].sa_alwd = MAX_ELEN;
+    sym_attrs[OP_X].sa_alwd = MAX_ELEN;
   }
 
 #ifdef DUMMY_LAMBERT
-  if (sym_attrs['W'].sa_alwd) {
+  if (sym_attrs[OP_W].sa_alwd) {
     printf("%s: The Lambert W function 'W' requires the stand-alone maths library.\n",
       g_argv0);
     brief_help();
@@ -11138,59 +11139,59 @@ void init2()
 
   /* seft 'a' symbols are constants.
      For most of these, the weight is close to 10.0*ln(x)/ln(10) */
-  add_symbol(ADDSYM_NAMES('1', "1",       "1"),
+  add_symbol(ADDSYM_NAMES(OP_1, "1",       "1"),
     'a', 0,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('f', "phi",   "phi"),
+  add_symbol(ADDSYM_NAMES(OP_PHI, "phi",   "phi"),
     'a', 8,  "f = phi, the golden ratio, (1+sqrt(5))/2",
                                            "phi = the golden ratio, (1+sqrt(5))/2", "");
-  add_symbol(ADDSYM_NAMES('2', "2",       "2"),
+  add_symbol(ADDSYM_NAMES(OP_2, "2",       "2"),
     'a', 3,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('e', "e",     "e"),
+  add_symbol(ADDSYM_NAMES(OP_E, "e",     "e"),
     'a', 6,    "e = base of natural logarithms, 2.71828...",
                                            "e = base of natural logarithms, 2.71828...", "");
-  add_symbol(ADDSYM_NAMES('3', "3",       "3"),
+  add_symbol(ADDSYM_NAMES(OP_3, "3",       "3"),
     'a', 5,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('p', "pi",    "pi"),
+  add_symbol(ADDSYM_NAMES(OP_PI, "pi",    "pi"),
     'a', 4,   "p = pi, 3.14159...", "pi = 3.14159...", "");
-  add_symbol(ADDSYM_NAMES('4', "4",       "4"),
+  add_symbol(ADDSYM_NAMES(OP_4, "4",       "4"),
     'a', 6,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('5', "5",       "5"),
+  add_symbol(ADDSYM_NAMES(OP_5, "5",       "5"),
     'a', 7,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('6', "6",       "6"),
+  add_symbol(ADDSYM_NAMES(OP_6, "6",       "6"),
     'a', 8,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('7', "7",       "7"),
+  add_symbol(ADDSYM_NAMES(OP_7, "7",       "7"),
     'a', 8,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('8', "8",       "8"),
+  add_symbol(ADDSYM_NAMES(OP_8, "8",       "8"),
     'a', 9,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('9', "9",       "9"),
+  add_symbol(ADDSYM_NAMES(OP_9, "9",       "9"),
     'a', 9,     0, 0, "integer");
-  add_symbol(ADDSYM_NAMES('x', "x",       "x"),
+  add_symbol(ADDSYM_NAMES(OP_X, "x",       "x"),
     'a', 5,     0, 0, "the variable of the equation");
 
   /* seft 'b' symbols */
-  add_symbol(ADDSYM_NAMES('n', "neg",  "-"),
+  add_symbol(ADDSYM_NAMES(OP_NEG, "neg",  "-"),
     'b', -3,    "n = negative", 0, "negate");
-  add_symbol(ADDSYM_NAMES('r', "recip","1/"),
+  add_symbol(ADDSYM_NAMES(OP_RECIP, "recip","1/"),
     'b', -3,    0, 0, "reciprocal");
-  add_symbol(ADDSYM_NAMES('s', "dup*", "^2"),
+  add_symbol(ADDSYM_NAMES(OP_SQUARE, "dup*", "^2"),
     'b', -1,    0, 0, "square");
-  add_symbol(ADDSYM_NAMES('q', "sqrt", "sqrt"),
+  add_symbol(ADDSYM_NAMES(OP_SQRT, "sqrt", "sqrt"),
     'b', -1, "q = square root", "sqrt(x) = square root", "");
-  add_symbol(ADDSYM_NAMES('l', "ln",   "ln"),
+  add_symbol(ADDSYM_NAMES(OP_LN, "ln",   "ln"),
     'b',  3,   "l = ln, natural logarithm or log base e",
                                            "ln(x) = natural logarithm or log base e", "");
-  add_symbol(ADDSYM_NAMES('E', "exp",  "e^"),
+  add_symbol(ADDSYM_NAMES(OP_EXP, "exp",  "e^"),
     'b',  3,    0, 0, "natural exponent function");
 
   if (k_sincos_arg_scale == k_pi) {
     /* With a scale factor of pi we'll call the functions "sinpi", etc. */
-    add_symbol(ADDSYM_NAMES('S', "sinpi", "sinpi"),
+    add_symbol(ADDSYM_NAMES(OP_SIN, "sinpi", "sinpi"),
       'b',  3, "S(x) = sinpi(x) = sin(pi * x)",
                                            "sinpi(X) = sin(pi * x)", "sinpi");
-    add_symbol(ADDSYM_NAMES('C', "cospi", "cospi"),
+    add_symbol(ADDSYM_NAMES(OP_COS, "cospi", "cospi"),
       'b',  3, "C(x) = cospi(x) = cos(pi * x)",
                                            "cospi(X) = cos(pi * x)", "cospi");
-    add_symbol(ADDSYM_NAMES('T', "tanpi", "tanpi"),
+    add_symbol(ADDSYM_NAMES(OP_TAN, "tanpi", "tanpi"),
       'b',  6, "T(x) = tanpi(x) = tan(pi * x)",
                                            "tanpi(X) = tan(pi * x)", "tanpi");
   } else {
@@ -11199,15 +11200,15 @@ void init2()
        test for: degrees, grads, and of course natural units, plus all
        the nonstandard units). Presumably if the user gave a scale factor,
        she knows what the definition is. */
-    add_symbol(ADDSYM_NAMES('S', "sin",  "sin"),
+    add_symbol(ADDSYM_NAMES(OP_SIN, "sin",  "sin"),
       'b',  3,  "S(x) = sine", 0, "sine");
-    add_symbol(ADDSYM_NAMES('C', "cos",  "cos"),
+    add_symbol(ADDSYM_NAMES(OP_COS, "cos",  "cos"),
       'b',  3,  "C(x) = cosine", 0, "cosine");
-    add_symbol(ADDSYM_NAMES('T', "tan",  "tan"),
+    add_symbol(ADDSYM_NAMES(OP_TAN, "tan",  "tan"),
       'b',  6,  "T(x) = tangent", 0, "tangent");
   }
 
-  add_symbol(ADDSYM_NAMES('W', "W", "W"),
+  add_symbol(ADDSYM_NAMES(OP_W, "W", "W"),
       'b', 5, "W(x) = LambertW(x) = inverse(x=w*e^w)",
                                "W(x) = LambertW(x) = inverse(x=w*e^w)", "W");
 #ifdef RIES_GSL
@@ -11248,19 +11249,19 @@ void init2()
 
 
   /* seft 'c' symbols */
-  add_symbol(ADDSYM_NAMES('+', "+",    "+"),
+  add_symbol(ADDSYM_NAMES(OP_PLUS, "+",    "+"),
     'c', -6,    0, 0, "add");
-  add_symbol(ADDSYM_NAMES('-', "-",    "-"),
+  add_symbol(ADDSYM_NAMES(OP_MINUS, "-",    "-"),
     'c', -5,    0, 0, "subtract");
-  add_symbol(ADDSYM_NAMES('*', "*",    "*"),
+  add_symbol(ADDSYM_NAMES(OP_MUL, "*",    "*"),
     'c', -6,    0, 0, "multiply");
-  add_symbol(ADDSYM_NAMES('/', "/",    "/"),
+  add_symbol(ADDSYM_NAMES(OP_DIV, "/",    "/"),
     'c', -5,    0, 0, "divide");
-  add_symbol(ADDSYM_NAMES('^', "**",   "^"),
+  add_symbol(ADDSYM_NAMES(OP_POW, "**",   "^"),
     'c', -4,    0, 0, "A ^ B = A to the power of B");
-  add_symbol(ADDSYM_NAMES('v', "root", "\"/"),
+  add_symbol(ADDSYM_NAMES(OP_ROOT, "root", "\"/"),
     'c', -3,  "A v B = Ath root of B", "A\"/B = Ath root of B", ""); /* Power[B, Rational[1, A]] */
-  add_symbol(ADDSYM_NAMES('L', "logN", "log_"),
+  add_symbol(ADDSYM_NAMES(OP_LOGBASE, "logN", "log_"),
     'c', -1, "A L B = logarithm to base A of B = ln(B) / ln(A)",
                                            "log_A(B) = logarithm to base A of B = ln(B) / ln(A)", ""); /* Log_x(y) */
 #if 0
@@ -11327,15 +11328,15 @@ void init2()
     /* With the "no identity" optimization we don't need this kludge. */
 #else
     /* Add "identity" operator if there are no type B symbols */
-    sym_attrs['I'].sa_alwd = MAX_ELEN;
-    add_symbol(ADDSYM_NAMES('I', "nop", "I"),
+    sym_attrs[OP_IDENTITY].sa_alwd = MAX_ELEN;
+    add_symbol(ADDSYM_NAMES(OP_IDENTITY, "nop", "I"),
       'b', 10, "I = identity", 0, "identity");
     g_used_identity = B_TRUE;
 #endif
   }
 
   /* "I" is reserved.  Just hack it and add a dummy name to it... */
-  sym_attrs['I'].sa_name="I";
+  sym_attrs[OP_IDENTITY].sa_name="I";
   for (i = 0; i < symbol_count; i++) {
     /* Find an unused opcode */
     int opcode;
@@ -11440,26 +11441,26 @@ void init2()
    *    Each rule has a symbolset which must be present in order for that
    * rule to be used (in a few cases this symset is null).
    *      symset   sym  mask  mval          */
-  add_rule("",     'x', AM_RHS);
-  add_rule("nr",   'n', AM_r);  /* [rn] => [nr]             */
-  add_rule("",     'n', AM_n);  /* [nn] => []               */
-  add_rule("1",    'r', AM_1);  /* [1r] => [1]              */
-  add_rule("",     'r', AM_r);  /* [rr] => []               */
-  add_rule("1",    's', AM_1);  /* [1s] => [1]              */
-  add_rule("4",    's', AM_2);  /* [2s] => [4]              */
-  add_rule("s",    's', AM_n);  /* [ns] => [s]              */
-  add_rule("rs",   's', AM_r);  /* [rs] => [sr]             */
-  add_rule("4^",   's', AM_sq); /* [qs] => []; [ss] => [4^] */
-  add_rule("1",    'q', AM_1);  /* [1q] => [1]              */
-  add_rule("rq",   'q', AM_r);  /* [rq] => [qr]             */
-  add_rule("4v",   'q', AM_sq); /* [sq] => []; [qq] => [4v] */
-  add_rule("",     'l', AM_1);  /* [1l] => 0                */
-  add_rule("ln",   'l', AM_r);  /* [rl] => [ln]             */
-  add_rule("",     'l', AM_E);  /* [El] => []               */
-  add_rule("",     'E', AM_l);  /* [lE] => []               */
-  add_rule("Er",   'E', AM_n);  /* [nE] => [Er]             */
-  add_rule("Sn",   'S', AM_n);  /* [nS] => [Sn]             */
-  add_rule("C",    'C', AM_n);  /* [nC] => [C]              */
+  add_rule("",     OP_X, AM_RHS);
+  add_rule("nr",   OP_NEG, AM_r);  /* [rn] => [nr]             */
+  add_rule("",     OP_NEG, AM_n);  /* [nn] => []               */
+  add_rule("1",    OP_RECIP, AM_1);  /* [1r] => [1]              */
+  add_rule("",     OP_RECIP, AM_r);  /* [rr] => []               */
+  add_rule("1",    OP_SQUARE, AM_1);  /* [1s] => [1]              */
+  add_rule("4",    OP_SQUARE, AM_2);  /* [2s] => [4]              */
+  add_rule("s",    OP_SQUARE, AM_n);  /* [ns] => [s]              */
+  add_rule("rs",   OP_SQUARE, AM_r);  /* [rs] => [sr]             */
+  add_rule("4^",   OP_SQUARE, AM_sq); /* [qs] => []; [ss] => [4^] */
+  add_rule("1",    OP_SQRT, AM_1);  /* [1q] => [1]              */
+  add_rule("rq",   OP_SQRT, AM_r);  /* [rq] => [qr]             */
+  add_rule("4v",   OP_SQRT, AM_sq); /* [sq] => []; [qq] => [4v] */
+  add_rule("",     OP_LN, AM_1);  /* [1l] => 0                */
+  add_rule("ln",   OP_LN, AM_r);  /* [rl] => [ln]             */
+  add_rule("",     OP_LN, AM_E);  /* [El] => []               */
+  add_rule("",     OP_EXP, AM_l);  /* [lE] => []               */
+  add_rule("Er",   OP_EXP, AM_n);  /* [nE] => [Er]             */
+  add_rule("Sn",   OP_SIN, AM_n);  /* [nS] => [Sn]             */
+  add_rule("C",    OP_COS, AM_n);  /* [nC] => [C]              */
 
   /* The operators are not included in their own require-symset string
      unless they are also used in the target of the forced transformation.
@@ -11468,41 +11469,41 @@ void init2()
      "a more important", i.e. irreducible, use. Of course, it doesn't
      actually prevent solutions from being found, it just makes them get
      found sooner. */
-  add_rule("2*",   '+', AM_KK); /* [KK+] => [K2*]           */
+  add_rule("2*",   OP_PLUS, AM_KK); /* [KK+] => [K2*]           */
   add_rule("*23456789", /* If our integers maxed out at an even number we
                            wouldn't need the "*" here */
-                   '+', AM_55); /* [25+]=>[7]; [55+]=>[52*] */
-  add_rule("+",    '+', AM_jK); /* [jK+] => [Kj+]           */
-  add_rule("-",    '+', AM_n);  /* [n+] => [-]              */
-  add_rule("",     '-', AM_KK); /* [KK-] => 0               */
-  add_rule("1234n",'-', AM_55); /* [JK-] => [L] or [Ln]     */
+                   OP_PLUS, AM_55); /* [25+]=>[7]; [55+]=>[52*] */
+  add_rule("+",    OP_PLUS, AM_jK); /* [jK+] => [Kj+]           */
+  add_rule("-",    OP_PLUS, AM_n);  /* [n+] => [-]              */
+  add_rule("",     OP_MINUS, AM_KK); /* [KK-] => 0               */
+  add_rule("1234n",OP_MINUS, AM_55); /* [JK-] => [L] or [Ln]     */
   add_rule("12345678n",
-                   '-', AM_jK); /* [35-] => [2n]            */
-  add_rule("+",    '-', AM_n);  /* [n-] => [+]              */
-  add_rule("s",    '*', AM_KK); /* [KK*] => [Ks]            */
-  add_rule("*",    '*', AM_jK); /* [jK*] => [Kj*]           */
-  add_rule("*",    '*', AM_1);  /* [1*] => []               */
-  add_rule("*n",   '*', AM_n);  /* [n*] => [*n]             */
-  add_rule("/",    '*', AM_r);  /* [r*] => [/]              */
-  add_rule("1",    '/', AM_KK); /* [KK/] => [1]             */
-  add_rule("r",    '/', AM_1K); /* [1K/] => [Kr]            */
-  add_rule("",     '/', AM_1);  /* [1/] => []               */
-  add_rule("/n",   '/', AM_n);  /* [n/] => [/n]             */
-  add_rule("*",    '/', AM_r);  /* [r/] => [*]              */
-  add_rule("",     '^', AM_1);  /* [1^] => []               */
-  add_rule("s",    '^', AM_2);  /* [2^] => [s]              */
-  add_rule("^r",   '^', AM_n);  /* [n^] => [^r]             */
-  add_rule("1",    '^', AM_1K); /* [1K^] => [1]             */
-  add_rule("v",    '^', AM_r);  /* [r^] => [v]              */
-  add_rule("",     'v', AM_1);  /* [1v] => []               */
-  add_rule("q",    'v', AM_2);  /* [2v] => [q]              */
-  add_rule("vr",   'v', AM_n);  /* [nv] => [vr]             */
-  add_rule("1",    'v', AM_1K); /* [1Kv] => [1]             */
-  add_rule("^",    'v', AM_r);  /* [rv] => [^]              */
-  add_rule("1",    'L', AM_KK); /* [KKL] => [1]             */
-  add_rule("",     'L', AM_1);  /* [1L] => undefined        */
-  add_rule("Ln",   'L', AM_r);  /* [rL] => [Ln]             */
-  add_rule("",     'L', AM_1K); /* [1KL] => 0               */
+                   OP_MINUS, AM_jK); /* [35-] => [2n]            */
+  add_rule("+",    OP_MINUS, AM_n);  /* [n-] => [+]              */
+  add_rule("s",    OP_MUL, AM_KK); /* [KK*] => [Ks]            */
+  add_rule("*",    OP_MUL, AM_jK); /* [jK*] => [Kj*]           */
+  add_rule("*",    OP_MUL, AM_1);  /* [1*] => []               */
+  add_rule("*n",   OP_MUL, AM_n);  /* [n*] => [*n]             */
+  add_rule("/",    OP_MUL, AM_r);  /* [r*] => [/]              */
+  add_rule("1",    OP_DIV, AM_KK); /* [KK/] => [1]             */
+  add_rule("r",    OP_DIV, AM_1K); /* [1K/] => [Kr]            */
+  add_rule("",     OP_DIV, AM_1);  /* [1/] => []               */
+  add_rule("/n",   OP_DIV, AM_n);  /* [n/] => [/n]             */
+  add_rule("*",    OP_DIV, AM_r);  /* [r/] => [*]              */
+  add_rule("",     OP_POW, AM_1);  /* [1^] => []               */
+  add_rule("s",    OP_POW, AM_2);  /* [2^] => [s]              */
+  add_rule("^r",   OP_POW, AM_n);  /* [n^] => [^r]             */
+  add_rule("1",    OP_POW, AM_1K); /* [1K^] => [1]             */
+  add_rule("v",    OP_POW, AM_r);  /* [r^] => [v]              */
+  add_rule("",     OP_ROOT, AM_1);  /* [1v] => []               */
+  add_rule("q",    OP_ROOT, AM_2);  /* [2v] => [q]              */
+  add_rule("vr",   OP_ROOT, AM_n);  /* [nv] => [vr]             */
+  add_rule("1",    OP_ROOT, AM_1K); /* [1Kv] => [1]             */
+  add_rule("^",    OP_ROOT, AM_r);  /* [rv] => [^]              */
+  add_rule("1",    OP_LOGBASE, AM_KK); /* [KKL] => [1]             */
+  add_rule("",     OP_LOGBASE, AM_1);  /* [1L] => undefined        */
+  add_rule("Ln",   OP_LOGBASE, AM_r);  /* [rL] => [Ln]             */
+  add_rule("",     OP_LOGBASE, AM_1K); /* [1KL] => 0               */
 
 #ifdef RIES_GSL
   /* Attempting to add some rules relevant to GSL extensions... */
@@ -11518,47 +11519,47 @@ void init2()
 
   if (k_sincos_arg_scale == 1.0) {
     /* Added on 20070511 */
-    add_rule("",     'S', AM_pi); /* [pS] => 0              */
+    add_rule("",     OP_SIN, AM_pi); /* [pS] => 0              */
     /* Added on 20090513 */
-    add_rule("1n",   'C', AM_pi); /* [pC] => [1n]           */
+    add_rule("1n",   OP_COS, AM_pi); /* [pC] => [1n]           */
   }
 
   /* Added on 20090513 */
-  add_rule("",     '/', AM_KxK);/* [K*K/] -> []             */
+  add_rule("",     OP_DIV, AM_KxK);/* [K*K/] -> []             */
 
   /* Added on 20111230 */
-  add_rule("",     '-', AM_KpK);/* [K+K-] -> []             */
+  add_rule("",     OP_MINUS, AM_KpK);/* [K+K-] -> []             */
 
   /* 20130130: The commutative operators + and * have the property
      that A+(B+C) = (A+B)+C. Thus, we can add a rule that forces
      one or the other of these two forms; the easier one to force
      is left-hand associative, i.e. do each operation as soon as
      possible. */
-  add_rule("",     '+', AM_plus); /* [ABC++] -> [AB+C+]     */
-  add_rule("",     '*', AM_mul);  /* [ABC**] -> [AB*C*]     */
+  add_rule("",     OP_PLUS, AM_plus); /* [ABC++] -> [AB+C+]     */
+  add_rule("",     OP_MUL, AM_mul);  /* [ABC**] -> [AB*C*]     */
 
   /* 20130130: Here we force A^(B*C) into the equivalent form
      (A^B)^C, which is only available if more than one ^ symbol
      is allowed. */
-  add_rule("^",    '^', AM_mul);  /* [ABC*^] -> [AB^C^]     */
+  add_rule("^",    OP_POW, AM_mul);  /* [ABC*^] -> [AB^C^]     */
 
   /* 20130130: [AB^q] = sqrt(A^B) is the same as [AqB^] = sqrt(A)^B */
-  add_rule("",     'q', AM_pow);  /* [AB^q] -> [AqB^]       */
+  add_rule("",     OP_SQRT, AM_pow);  /* [AB^q] -> [AqB^]       */
 
   /* 20141212: [2E]->[es], e.g. 1.07822380518236 finds xfLr = 2E1- */
-  add_rule("es",   'E', AM_2);    /* [2E] => [es]           */
-  add_rule("E",    '^', AM_a1_e); /* [e..^] => [..E]        */
+  add_rule("es",   OP_EXP, AM_2);    /* [2E] => [es]           */
+  add_rule("E",    OP_POW, AM_a1_e); /* [e..^] => [..E]        */
 
   /* 20141213 If I disable these I can find examples with the
      #search1# script, e.g. the command ./search1 es '1ab/'
      found that "ries 3.31130856083748 -F0 -n999 -l3 --no-refinement --max-match-distance 1e-6" gave the result "x4xr-+ = 31pq/v" */
-  add_rule("",     '*', AM_a1_1); /* [1..*] => [..]         */
-  add_rule("r",    '/', AM_a1_1); /* [1../] => [..r]        */
+  add_rule("",     OP_MUL, AM_a1_1); /* [1..*] => [..]         */
+  add_rule("r",    OP_DIV, AM_a1_1); /* [1../] => [..r]        */
 
   /* 20141215 More redundancy found via ./search1 es '[1r]ab*[v^]' */
-  add_rule("",     'v', AM_a1_r); /* [r..v] => [..vr]       */
-  add_rule("",     '^', AM_a1_r); /* [r..^] => [..^r]       */
-  add_rule("e",    'E', AM_1);    /* [1E] => [e]            */
+  add_rule("",     OP_ROOT, AM_a1_r); /* [r..v] => [..vr]       */
+  add_rule("",     OP_POW, AM_a1_r); /* [r..^] => [..^r]       */
+  add_rule("e",    OP_EXP, AM_1);    /* [1E] => [e]            */
 
   /* Compute the weight of the most complex expression that could possibly
      fit in the available MAX_ELEN symbols */
@@ -12163,10 +12164,10 @@ void parse_args(size_t nargs, char *argv[])
           g_canon_ops = 0;
           while(*s) {
             switch(*s) {
-              case 'n': ; g_canon_ops |= CANONVAL_NEGATE; break;
-              case 'r': ; g_canon_ops |= CANONVAL_RECIPROCAL; break;
-              case '2': ; g_canon_ops |= CANONVAL_MUL2; break;
-              case '5': ; g_canon_ops |= CANONVAL_DIV2; break;
+              case OP_NEG: ; g_canon_ops |= CANONVAL_NEGATE; break;
+              case OP_RECIP: ; g_canon_ops |= CANONVAL_RECIPROCAL; break;
+              case OP_2: ; g_canon_ops |= CANONVAL_MUL2; break;
+              case OP_5: ; g_canon_ops |= CANONVAL_DIV2; break;
               default: ; break;
             }
             s++;
@@ -12655,7 +12656,7 @@ void parse_args(size_t nargs, char *argv[])
           a = pa_get_arg();
           g_reweights[g_reweights_num++] = a;
         }
-        
+
       } else {
         printf(
             "%s: --symbol-weights should be followed by one or more tuples\n"
@@ -13094,7 +13095,7 @@ int main(int nargs, char *argv[])
         strcpy(expr, buff);
       }
       printf("Evaluating postfix expression '%s'", expr);
-      contains_x = (symstrsym(expr, 'x') != 0);
+      contains_x = (symstrsym(expr, OP_X) != 0);
       if (contains_x) {
         printf(" with x=");
         spff(k_usable_digits, exec_x); /* printf(fmt_g_usa_fixed, exec_x); */
@@ -13214,7 +13215,7 @@ int main(int nargs, char *argv[])
     print_end(-1);
   }
   if (FABS((ries_dif)g_target) / k_vanished_dx >= 1.0e15) {
-    if (sym_attrs['x'].sa_alwd > 1) {
+    if (sym_attrs[OP_X].sa_alwd > 1) {
       if (k_derivative_margin > 0) {
         printf(
 "WARNING: Your --derivative-margin option (%g)\n"
