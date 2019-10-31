@@ -7,7 +7,10 @@ riesw: ries.c msal_math64.c
 ries.man.txt: ries.1
 	nroff -man $< > $@
 
+ries.ps: ries.1
+	groff -man -t -e $< > $@
+
 .PHONY:
 	clean
 clean:
-	rm -f ries riesw
+	rm -f ries riesw ries.man.txt ries.ps

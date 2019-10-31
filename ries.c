@@ -10933,7 +10933,7 @@ void init2()
       /* printf("converting (%s)\n", custom_symbols[i].long_form); */
       convert_formula(custom_symbols[i].long_form,
                       custom_symbols[i].formula);
-      printf(" converted to (%s)\n", custom_symbols[i].formula);
+      /* printf(" converted to (%s)\n", custom_symbols[i].formula); */
       free(custom_symbols[i].long_form);
       custom_symbols[i].long_form = NULL;
     }
