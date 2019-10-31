@@ -3274,6 +3274,56 @@ b001 g_explicit_multiply; /* Always show '*' symbol for multiplication */
 #define AM_a1_1 0x80000 /* 1 <expr> <seft_c_op> */
 #define AM_a1_r 0x100000 /* r <expr> <seft_c_op> */
 
+/* ======= Operator Symbols ====== */
+#ifdef RIES_GSL
+/* The symbols for the GSL-provided special functions are not all so
+   mnemonically useful as the ordinary operator symbols.  And it's also
+   probably just good practice to provide definitions for these instead of
+   magic constants. */
+# define OP_FACTORIAL   '!'
+# define OP_GAMMA       'G'
+# define OP_LOGGAMMA    'y'
+# define OP_ZETA        'Z'
+# define OP_SHI         'z'
+# define OP_ERF         'b'
+# define OP_DILOG       'd'
+# define OP_EI          'V'
+# define OP_DIGAMMA     'U'
+# define OP_SCBRT       'u'
+#endif
+/* Maybe good to define for the rest as well? */
+#define OP_1            '1'
+#define OP_2            '2'
+#define OP_3            '3'
+#define OP_4            '4'
+#define OP_5            '5'
+#define OP_6            '6'
+#define OP_7            '7'
+#define OP_8            '8'
+#define OP_9            '9'
+#define OP_PHI          'f'
+#define OP_E            'e'
+#define OP_X            'x'
+#define OP_IDENTITY     'I'
+#define OP_NEG          'n'
+#define OP_RECIP        'r'
+#define OP_SQUARE       's'
+#define OP_SQRT         'q'
+#define OP_LN           'l'
+#define OP_EXP          'E'
+#define OP_SIN          'S'
+#define OP_COS          'C'
+#define OP_TAN          'T'
+#define OP_W            'W'
+#define OP_PLUS         '+'
+#define OP_MINUS        '-'
+#define OP_MUL          '*'
+#define OP_DIV          '/'
+#define OP_POW          '^'
+#define OP_ROOT         'v'
+#define OP_LOGBASE      'L'
+/* =============================== */
+
 #define MAX_SEFT_POP 40
 symbol g_asym[MAX_SEFT_POP];   /* the valid seft 'a' symbols */
 s16 n_asym;
@@ -5837,11 +5887,11 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
   /* 'G' Gamma function would go here */
 #ifdef RIES_GSL
     /* handle GSL functions piecemeal?  Or have a wrapper? */
-  case '!':
-  case 'G':   /* Gamma and factorial */
+  case OP_FACTORIAL:
+  case OP_GAMMA:   /* Gamma and factorial */
     /* Should really only have one of (!,G) enabled at a time. */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
-    if (op == '!') {
+    if (op == OP_FACTORIAL) {
       a = a + 1.0;              /* fact(x)=gamma(x+1) */
     }
     if (a > GSL_SF_GAMMA_XMAX) {
@@ -5873,7 +5923,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'y':                     /* log(gamma(x)) */
+  case OP_LOGGAMMA:                     /* log(gamma(x)) */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     /* Gamma has poles at non-positive integers.  This the right way to
      * check for significance? */
@@ -5903,7 +5953,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'Z':                     /* Riemann Zeta */
+  case OP_ZETA:                     /* Riemann Zeta */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     if (a == 1.0) {
       /* (I know, comparing floats with ==...) */
@@ -5932,7 +5982,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'z':                     /* Shi(x), hyperbolic sine integral */
+  case OP_SHI:                     /* Shi(x), hyperbolic sine integral */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     er = gsl_sf_Shi_e(a, &sf_result);
     rv = sf_result.val;
@@ -5952,7 +6002,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'b':                     /* erf */
+  case OP_ERF:                     /* erf */
     /* erfc is just 1-erf, not exciting. */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     drv = 0.0;
@@ -5973,7 +6023,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'd':                     /* dilog */
+  case OP_DILOG:                     /* dilog */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     drv = 0;
     er = gsl_sf_dilog_e(a, &sf_result);
@@ -5995,7 +6045,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'V':                     /* Ei */
+  case OP_EI:                     /* Ei */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     if (a == 0.0) {
       return ERR_EXEC_BAD_ARGUMENT;
@@ -6017,7 +6067,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'U':                     /* digamma = psi(0,x) */
+  case OP_DIGAMMA:                     /* digamma = psi(0,x) */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     fl = floor(a);
     if ((fl < 1.0 && FABS(a - fl) < k_sig_loss) ||
@@ -6038,7 +6088,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
-  case 'u':                     /* subercuberoot: x**x**x = a */
+  case OP_SCBRT:                     /* subercuberoot: x**x**x = a */
     a = ms_pop(ms, &da, &tga); *undo_count = 1;
     if (a <= 0.0) {
       return ERR_EXEC_BAD_ARGUMENT;
@@ -11162,36 +11212,36 @@ void init2()
                                "W(x) = LambertW(x) = inverse(x=w*e^w)", "W");
 #ifdef RIES_GSL
   gsl_set_error_handler_off();
-  add_symbol(ADDSYM_NAMES('G', "gamma", "gamma"),
+  add_symbol(ADDSYM_NAMES(OP_GAMMA, "gamma", "gamma"),
              'b', 5, "G(x) = Gamma(x) = (x-1)!", "Gamma(x) = (x-1)!", "gamma");
-  add_symbol(ADDSYM_NAMES('!', "factorial", "factorial"),
+  add_symbol(ADDSYM_NAMES(OP_FACTORIAL, "factorial", "factorial"),
              'b', 5, "!(x) = factorial(x)", "factorial(x) = x!", "factorial");
-  add_symbol(ADDSYM_NAMES('b', "erf", "erf"),
+  add_symbol(ADDSYM_NAMES(OP_ERF, "erf", "erf"),
              'b', 5, "b(x) = erf(x) = error function",
              "erf(x) = error function", "erf");
-  add_symbol(ADDSYM_NAMES('Z', "zeta", "zeta"),
+  add_symbol(ADDSYM_NAMES(OP_ZETA, "zeta", "zeta"),
              'b', 5, "Z(x) = zeta(x) = Riemann zeta function",
              "zeta(x) = Riemann zeta function", "zeta");
   /* lngamma may extend the possible domain more than just applying ln to gamma. */
-  add_symbol(ADDSYM_NAMES('y', "lngamma", "lngamma"),
+  add_symbol(ADDSYM_NAMES(OP_LOGGAMMA, "lngamma", "lngamma"),
              'b', 5, "y(x) = lngamma(x) = ln(Gamma(x))",
              "lngamma(x) = ln(Gamma(x))", "lngamma");
-  add_symbol(ADDSYM_NAMES('d', "dilog", "dilog"),
+  add_symbol(ADDSYM_NAMES(OP_DILOG, "dilog", "dilog"),
              'b', 5, "d(x) = Re(dilog(x)) = dilogarithm (Li_2)",
              "dilog(x) = dilogarithm (Li_2)", "dilog");
   add_symbol(ADDSYM_NAMES('c', "Chi", "Chi"),
              'b', 5, "c(x) = Chi(x) = hyperbolic cosine integral",
              "Chi(x) = hyperbolic cosine integral", "Chi");
-  add_symbol(ADDSYM_NAMES('z', "Shi", "Shi"),
+  add_symbol(ADDSYM_NAMES(OP_SHI, "Shi", "Shi"),
              'b', 5, "z(x) = Shi(x) = hyperbolic sine integral",
              "Shi(x) = hyperbolic sine integral", "Shi");
-  add_symbol(ADDSYM_NAMES('V', "Ei", "Ei"),
+  add_symbol(ADDSYM_NAMES(OP_EI, "Ei", "Ei"),
              'b', 5, "V(x) = Ei(x) = exponential integral",
              "Ei(x) = exponential integral", "Ei");
-  add_symbol(ADDSYM_NAMES('U', "digamma", "digamma"),
+  add_symbol(ADDSYM_NAMES(OP_DIGAMMA, "digamma", "digamma"),
              'b', 5, "U(x) = digamma(x) = Gamma'(x)/Gamma(x)",
              "digamma(x) = Gamma'(x)/Gamma(x)", "digamma");
-  add_symbol(ADDSYM_NAMES('u', "scbrt", "scbrt"),
+  add_symbol(ADDSYM_NAMES(OP_SCBRT, "scbrt", "scbrt"),
              'b', 5, "u(x) = supercuberoot(x) = y s.t. y^y^y = x",
              "supercuberoot(x) = y s.t. y^y^y = x", "supercuberoot");
 #endif
@@ -11456,14 +11506,14 @@ void init2()
 
 #ifdef RIES_GSL
   /* Attempting to add some rules relevant to GSL extensions... */
-  add_rule("",     'G', AM_1);  /* [1G] => 0                */
-  add_rule("1",    '!', AM_1);  /* [1!] => 1                */
+  add_rule("",     OP_GAMMA, AM_1);     /* [1G] => 0                */
+  add_rule("1",    OP_FACTORIAL, AM_1); /* [1!] => 1                */
   /* Chi is an even function */
-  add_rule("c",    'c', AM_n);  /* [nc] => [c]              */
-  add_rule("",     'y', AM_1);  /* [1y] => 0                */
-  add_rule("",     'Z', AM_1);  /* [1A] => undefined        */
-  add_rule("l",    't', AM_1);  /* [..1t] => [..l]          */
-  add_rule("!",    't', AM_a1_1); /* [1..t] => [..!] */
+  add_rule("c",    'c', AM_n);         /* [nc] => [c]              */
+  add_rule("",     OP_LOGGAMMA, AM_1); /* [1y] => 0                */
+  add_rule("",     OP_ZETA, AM_1);     /* [1Z] => undefined        */
+  add_rule("l",    't', AM_1);         /* [..1t] => [..l]          */
+  add_rule("!",    't', AM_a1_1);      /* [1..t] => [..!] */
 #endif
 
   if (k_sincos_arg_scale == 1.0) {
