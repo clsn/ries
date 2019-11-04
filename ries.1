@@ -1,3 +1,4 @@
+'\" et
 .TH RIES 1L "Manual version: 2017 Feb 12" \" -*- nroff -*-
 .\"
 .\"  This manpage uses the groff font family escape, as documented here:
@@ -180,17 +181,13 @@ Power: 2 ^ 3 = 8
 Root (the ``v'' resembles part of the radical symbol): 3 v 27 = cube root of 27
 .IP L
 Logarithm to base A of B
-.IP W
-Lambert W function. Only available if using the stand-alone maths library,
-described in the section ``STAND-ALONE MATHS LIBRARY'' below. In addition,
-one must explicitly choose it with \fB\-EW\fR.
 .RE
 
 .IP
 You can specify the operators in ``long form'' by preceding the list with a
 colon (:) and separating them with whitespace.  Be sure to quote the
 parameter so the shell does not split the option apart.  See also below
-regarding LONG-FORM EXPRESSIONS.
+regarding LONG-FORM EXPRESSIONS and GSL EXTENSIONS.
 .IP
 There are lots of potential uses for \fB\-N\fR. For example,
 if you invoke \fBries\fR on a small irrational number,
@@ -248,12 +245,11 @@ disabled by an earlier \fB-S\fR or \fB-N\fR option. This is mainly
 intended for use in combination with the \fB--include\fR option. If
 one include file disables some symbols, this option can be used to
 re-enable some or all of them. It is also required for use of the
-Lambert W function, which is disabled by default. See ``STAND-ALONE
-MATHS LIBRARY'' for instructions and use the option \fB-EW\fR to
-request use of the Lambert W function in a \fBries\fR command.
-A bare \fB-E\fR option with no symbols following enables
+GSL extension operators (see below on GSL EXTENSIONS), which are disabled
+by default.  A bare \fB-E\fR option with no symbols following enables
 .I all
 possible symbols.
+
 
 .IP \fB-O\fIsss\fR
 Only One: Specifies symbols which should appear no more than once
@@ -1425,6 +1421,188 @@ the \fBries\fR command-line. Its default weight is set to make it
 occur a little more often than the two-argument exponential and root
 functions; use the \fB--symbol-weights\fR option if you want to change
 this.
+
+.SH LONG-FORM EXPRESSIONS
+TODO and move.
+
+
+.SH GSL EXTENSIONS
+This version of \fBries\fR has been configured to use the GNU Scientific
+Library (GSL) for some extended functionality in the form of additional
+available mathematical functions.  The following functions, listed by their
+``long-form'' names, are currently available:
+
+.IP \fBfactorial\fR
+.IP \fBgamma\fR
+These are both invocations of the Gamma function, \[*G](\fIx\fR).  The
+quantity \fIn\fR-factorial, written ``\fIn\fR!'', equals the product of all
+the integers up to and including \fIn\fR, that is,
+.EQ
+1 times 2 times 3 times cdots n .
+.EN
+The Gamma function is often considered to be an extension of the factorials
+to non-integers, since
+.EQ
+Gamma ( x ) = x Gamma ( x - 1 ) ,
+.EN
+but the two functions differ in that there is a slight offset:
+.EQ
+x! = Gamma ( x + 1 ) .
+.EN
+It is recommended that only one or the other of these functions be enabled
+at a given time (see the \fB-N\fR option), as they are redundant to each
+other.
+     Although
+.EQ
+Gamma ( n )
+.EN
+is an integer whenever \fIn\fR is an integer, \fBries\fR currently
+considers the value of the gamma function to be a transcendental number in
+all cases.
+     For typesetting simplicity, the factorial function is represented as
+\fC!(x)\fR rather than \fIx\fR! in \fBries\fR output.
+
+.IP \fBdigamma\fR
+The digamma function,
+.EQ
+psi ( x ) ,
+.EN
+is defined such that
+.EQ
+psi ( x ) = Gamma ' ( x ) / Gamma ( x ) ,
+.EN
+where
+.EQ
+Gamma ' ( x )
+.EN
+is the first derivative of the Gamma function (see above).
+
+.IP \fBEi\fR
+The exponential integral is the function
+.EQ
+Ei ( x ) = - int sub { -x } sup { inf } exp ( -t ) dt / t
+.EN
+
+.IP \fBlngamma\fR
+This is the real part of the natural logarithm of the Gamma function,
+.EQ
+Re ( ln ( Gamma ( x ) ) ).
+.EN
+It is useful as a single function in the context of \fBries\fR in that it
+permits the use of values of \fIx\fR which would normally cause an overflow
+if we computed
+.EQ
+Gamma ( x )
+.EN
+separately.
+
+.IP \fBShi\fR
+The hyperbolic sine is the function
+.EQ
+Shi ( x ) = int sub 0 sup x sinh ( t ) dt / t
+.EN
+where sinh is the hyperbolic sine function.
+
+.IP \fBChi\fR
+The hyperbolic cosine is the function
+.EQ
+Chi ( x ) = Re left ( gamma + log ( x ) + int sub 0 sup x ( cosh ( t ) - 1
+) dt / t right )
+.EN
+where cosh is the hyperbolic cosine function, and \[*g] is the
+Euler-Mascheroni constant,
+.EQ
+gamma = lim sub { n -> inf } left ( sum sub { i = 1 } sup n 1 / i - log ( n
+) right )
+.EN
+
+.IP \fBdilog\fR
+This computes the real part of the dilogarithm,
+.EQ
+Li sub 2 ( x ) = - int sub 0 sup x ( 1 - s ) ds / s
+.EN
+for real values of \fIx\fR.
+
+.IP \fBerf\fR
+This computes the error function,
+.EQ
+erf ( x ) = ( 2 / sqrt { pi } ) int sub 0 sup x exp ( - t sup 2 ) dt
+.EN
+
+.IP \fBW\fR
+This computes the Lambert \fIW\fR function, sometimes called the product
+logarithm.  It is the inverse of the function
+.EQ
+w e sup w .
+.EN
+That is, the value of
+.EQ
+W ( x )
+.EN
+is the value \fIw\fR which is such that
+.EQ
+w exp ( w ) = x .
+.EN
+This can be used to define the ``super-square-root'' of a number, which is
+the number \fIy\fR such that
+.EQ
+y sup y = x .
+.EN
+The super square root of \fIx\fR equals
+.EQ
+exp ( W ( ln ( x ) ) )
+.EN
+so you can define the super-square-root in \fBries\fR by saying
+.RS 0.2i
+.IP
+.fam C
+.nf
+--define '4:ssqrt:ssqrt(x) = y s.t. y^y=x:lWE'
+.fi
+.fam
+.RE
+.IP
+Such a definition is included in the \fBfuncs.ries\fR file.
+
+.IP \fBscbrt\fR
+This computes the ``super-cube-root'', rather like the
+``super-square-root'' described above.  That is, scbrt(x) is the value
+\fIy\fR such that
+.EQ
+y sup { y sup y } = x .
+.EN
+This is computed using GSL's rootfinding capabilities.
+
+.IP \fBzeta\fR
+This computes the Riemann zeta function, which is the analytic continuation
+of the infinite sum
+.EQ
+zeta ( s ) = sum sub { k = 1 } sup { inf } k sup { - s } .
+.EN
+Note that the zeta function has a pole at
+.EQ
+x = 1 .
+.EN
+
+.IP \fBlnpoch\fR
+This computes the logarithm the Pochhammer symbol, or the rising factorial,
+of its \fItwo\fR arguments:
+.EQ
+lnpoch ( x, y ) = ln ( rf ( x, y ) ) = ln left ( Gamma ( x + y ) / Gamma (
+x ) ) .
+.EN
+
+.SS CAVEATS OF SPECIAL FUNCTIONS
+
+.P
+TODO.  Things like coincidences \fBries\fR doesn't know about, e.g. that
+\fCx = -sqrt(lnpoch(e, 1))+x+gamma(1)\fR is trivially true for everything,
+etc. and loss of significance effects for things like \fCerf\fR of values
+over 4, etc.  These latter should be checked for within \fBries\fR, but
+currently are not.
+.P
+Also, remove the standalone maths library section, since I think it isn't
+truly compatible with GSL.
 
 .SH LONG-FORM EXPRESSIONS
 TODO and move.
