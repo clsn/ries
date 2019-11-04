@@ -64,6 +64,11 @@ In the compile line you may add one or more of these options:
     These functions are in the separate source file "msal_math64.c", which
     should be available in the same place you found this source file.
 
+ -DRIES_GSL
+    Use this option to link to GSL, the GNU Scientific Library, which
+    provides many more special transcendental functions.  Information on
+    the library can be found at https://www.gnu.org/software/gsl/
+
   -DRIES_MAX_EXPRESSION_LENGTH=29
     Use a maximum expression length of 29 symbols, rather than the default.
     Longer expressions might be needed if you're using the --one-sided
@@ -2722,7 +2727,7 @@ variants. */
 
 /* -------------- defines ------------------------------------------------- */
 
-#define RIES_VERSION "2018 Aug 05"
+#define RIES_VERSION "2019 Nov (clsn)"
 
 /* Default search level. For backwards compatibility, the -l option adds
    a number to the DEFAULT_LEV_BASE value. Without a -l option, it acts as if
@@ -3931,7 +3936,11 @@ void show_version(void)
 #ifdef RIES_USE_SA_M64
   "stand-alone"
 #else
+# ifdef RIES_GSL
+  "GSL"
+# else
   "standard"
+# endif
 #endif
   );
 
@@ -3948,7 +3957,8 @@ void show_version(void)
 
   printf("\n");
   printf("%s",
-"RIES is provided under the GPL license v3. Source code at mrob.com/ries\n"
+"RIES is provided under the GPL license v3.\n"
+"Source code at github.com/clsn/ries\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
   );
@@ -3973,7 +3983,7 @@ void brief_help(void)
 "  -r    Restrict to rational solutions (-re for exact match)\n"
 "  -i    Restrict to integer solutions (-ie for exact match)\n"
 "\n"
-"There are many more options; get the full manual at mrob.com/ries\n"
+"There are many more options; get the full manual at github.com/clsn/ries\n"
 );
 } /* End of brief.help */
 
@@ -6809,7 +6819,11 @@ s16 infix_1(
       /* This operator goes in front of both arguments */
       term[optr++] = (char) op;
     }
-    if (symbl || op == OP_LNPOCH) {
+    if (symbl
+#ifdef RIES_GSL
+        || op == OP_LNPOCH
+#endif
+        ) {
       /* 2-argument custom functions should be func(a, b) */
       term[optr++] = (char) op;
       term[optr++] = '(';
@@ -6848,7 +6862,11 @@ s16 infix_1(
       }
     } else if (op == OP_LOGBASE) {
       /* We already emitted it */
-    } else if (symbl || op == OP_LNPOCH) {
+    } else if (symbl
+#ifdef RIES_GSL
+               || op == OP_LNPOCH
+#endif
+               ) {
       /* comma between function params */
       term[optr++] = ',';
     } else {
@@ -6865,7 +6883,11 @@ s16 infix_1(
     if (paren_b) {
       term[optr++] = ')';
     }
-    if (symbl || op == OP_LNPOCH) {
+    if (symbl
+#ifdef RIES_GSL
+        || op == OP_LNPOCH
+#endif
+        ) {
       /* need closing paren */
       term[optr++] = ')';
     }
@@ -13431,7 +13453,7 @@ int main(int nargs, char *argv[])
     /* If robustness were not important we could use the "%*" printf
        extension to get the variable width */
     snprintf(fmt1, FMT_STR_SIZE, "%s%d%s", "  %", 44 - k_usable_digits, "s"); /* "  %27s" */
-    printf(fmt1, "mrob.com/ries");
+    printf(fmt1, "github.com/clsn/ries");
     printf("%s", "\n\n");
   }
 
