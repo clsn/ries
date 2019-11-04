@@ -1,5 +1,5 @@
 '\" et
-.TH RIES 1L "Manual version: 2017 Feb 12" \" -*- nroff -*-
+.TH RIES 1L "Manual version: 2019 Nov" \" -*- nroff -*-
 .\"
 .\"  This manpage uses the groff font family escape, as documented here:
 .\"
@@ -181,11 +181,19 @@ Power: 2 ^ 3 = 8
 Root (the ``v'' resembles part of the radical symbol): 3 v 27 = cube root of 27
 .IP L
 Logarithm to base A of B
+.IP W
+Lambert W function. Only available if using the stand-alone maths library,
+described in the section ``STAND-ALONE MATHS LIBRARY'' below, or if using
+the GSL EXTENSIONS. In addition,
+one must explicitly choose it with \fB\-EW\fR.
 .RE
 
 .IP
 You can specify the operators in ``long form'' by preceding the list with a
-colon (:) and separating them with whitespace.  Be sure to quote the
+colon (:) and separating them with whitespace.  This gives you access to
+other operators (whose single-characters symbols are not so mnemonic) when
+using the GSL extension.
+Be sure to quote the
 parameter so the shell does not split the option apart.  See also below
 regarding LONG-FORM EXPRESSIONS and GSL EXTENSIONS.
 .IP
@@ -245,7 +253,8 @@ disabled by an earlier \fB-S\fR or \fB-N\fR option. This is mainly
 intended for use in combination with the \fB--include\fR option. If
 one include file disables some symbols, this option can be used to
 re-enable some or all of them. It is also required for use of the
-GSL extension operators (see below on GSL EXTENSIONS), which are disabled
+Lambert W function (if using the the stand-alone math library) or
+the GSL extension operators (see below on GSL EXTENSIONS), which are disabled
 by default.  A bare \fB-E\fR option with no symbols following enables
 .I all
 possible symbols.
@@ -755,9 +764,12 @@ Or the hyperbolic sin function (sinh) with
 \ \ \ \fC--define '4:sinh:sinh(x) = hyperbolic sine:E|r-2/'\fR
 .IP
 Or the hypotenuse function
+.ie t \{\
 .EQ
 ( sqrt { a sup 2 + b sup 2 } )
 .EN
+.\}
+.el sqrt(a^2+b^2)
 with
 .IP
 \ \ \ \fC--define '4:hypot:hypot(a, b) = sqrt(a^2+b^2):s@s+q'\fR
@@ -773,6 +785,8 @@ long-form expressions, you
 .I must
 separate all operators with spaces.  So the above expressions in long-form
 would look like this:
+.\" Sorry. bad kludge.
+.bp
 .RS 0.2i
 .IP
 .eo
@@ -1427,131 +1441,148 @@ TODO and move.
 
 
 .SH GSL EXTENSIONS
-This version of \fBries\fR has been configured to use the GNU Scientific
-Library (GSL) for some extended functionality in the form of additional
-available mathematical functions.  The following functions, listed by their
-``long-form'' names, are currently available:
+\fBries\fR can optionally (at compile-time) be configured to use the GNU
+Scientific Library (GSL) for some extended functionality in the form of
+additional available mathematical functions.  The following functions,
+listed here by their ``long-form'' names (with their single-character
+symbols in parentheses), are thereby made available, but are
+\fIdisabled\fR by default, and must be explicitly enabled through the use
+of the \fB-E\fR option.
 
-.IP \fBfactorial\fR
-.IP \fBgamma\fR
+.IP \fBfactorial\ (!)\fR
+.IP \fBgamma\ (G)\fR
 These are both invocations of the Gamma function, \[*G](\fIx\fR).  The
 quantity \fIn\fR-factorial, written ``\fIn\fR!'', equals the product of all
 the integers up to and including \fIn\fR, that is,
-.EQ
-1 times 2 times 3 times cdots n .
-.EN
+1\[tmu]2\[tmu]\[md]\[md]\[md]\fIn\fR.
 The Gamma function is often considered to be an extension of the factorials
 to non-integers, since
-.EQ
-Gamma ( x ) = x Gamma ( x - 1 ) ,
-.EN
+\[*G](\fIx\fR) = \fIx\fR\[*G](\fIx\fR-1)
+(just as is the case for factorials),
 but the two functions differ in that there is a slight offset:
-.EQ
-x! = Gamma ( x + 1 ) .
-.EN
+\fIx\fR!=\[*G](\fIx\fR+1).
 It is recommended that only one or the other of these functions be enabled
 at a given time (see the \fB-N\fR option), as they are redundant to each
 other.
-     Although
-.EQ
-Gamma ( n )
-.EN
+     Although \[*G](\fIn\fR)
 is an integer whenever \fIn\fR is an integer, \fBries\fR currently
 considers the value of the gamma function to be a transcendental number in
 all cases.
      For typesetting simplicity, the factorial function is represented as
 \fC!(x)\fR rather than \fIx\fR! in \fBries\fR output.
 
-.IP \fBdigamma\fR
-The digamma function,
-.EQ
-psi ( x ) ,
-.EN
+.IP \fBdigamma\ (U)\fR
+The digamma function, \[*q](\fIx\fR),
 is defined such that
-.EQ
-psi ( x ) = Gamma ' ( x ) / Gamma ( x ) ,
-.EN
+\[*q](\fIx\fR)=\[*G]\[fm](\fIx\fR)/\[*G](\fIx\fR),
 where
-.EQ
-Gamma ' ( x )
-.EN
+\[*G]\[fm](\fIx\fR)
 is the first derivative of the Gamma function (see above).
 
-.IP \fBEi\fR
+.IP \fBEi\ (V)\fR
 The exponential integral is the function
+.ie t \{\
 .EQ
-Ei ( x ) = - int sub { -x } sup { inf } exp ( -t ) dt / t
+Ei ( x ) = - int sub { -x } sup { inf } exp ( -t ) dt / t .
 .EN
+.\}
+.el \{\
+Ei(\fIx\fR) = the negative of the integral of exp(\fIt\fR)\fIdt\fR/\fIt\fR
+from \fI-x\fR to infinity.
+.\}
 
-.IP \fBlngamma\fR
+.IP \fBlngamma\ (y)\fR
 This is the real part of the natural logarithm of the Gamma function,
-.EQ
-Re ( ln ( Gamma ( x ) ) ).
-.EN
+Re(ln(\[*G](\fIx\fR))).
 It is useful as a single function in the context of \fBries\fR in that it
 permits the use of values of \fIx\fR which would normally cause an overflow
-if we computed
-.EQ
-Gamma ( x )
-.EN
+if we computed \[*G](\fIx\fR)
 separately.
 
-.IP \fBShi\fR
-The hyperbolic sine is the function
+.IP \fBShi\ (z)\fR
+The hyperbolic sine integral is the function
+.ie t \{\
 .EQ
-Shi ( x ) = int sub 0 sup x sinh ( t ) dt / t
+Shi ( x ) = int sub 0 sup x sinh ( t ) dt / t ,
 .EN
+.\}
+.el \{\
+Shi(\fIx\fR) = the integral of sinh(\fIt\fR)\fIdt\fR/\fIt\fR from 0 to
+\fIx\fR,
+.\}
 where sinh is the hyperbolic sine function.
 
-.IP \fBChi\fR
-The hyperbolic cosine is the function
+.IP \fBChi\ (c)\fR
+The hyperbolic cosine integral is the function
+.ie t \{\
 .EQ
-Chi ( x ) = Re left ( gamma + log ( x ) + int sub 0 sup x ( cosh ( t ) - 1
-) dt / t right )
+C h i ( x ) = Re left ( gamma + log ( x ) + int sub 0 sup x ( cosh ( t ) - 1
+) dt / t right ) ,
 .EN
+.\}
+.el \{\
+Chi(\fIx\fR) = \[*g] + log(\fIx\fR) + the integral of
+(cosh(\fIt\fR)-1)\fIdt\fR/\fIt\fR between 0 and x (just the real part of
+this quantity),
+.\}
 where cosh is the hyperbolic cosine function, and \[*g] is the
 Euler-Mascheroni constant,
+.ie t \{\
 .EQ
-gamma = lim sub { n -> inf } left ( sum sub { i = 1 } sup n 1 / i - log ( n
-) right )
+gamma = lim sub { n -> inf } left ( sum sub { i = 1 } sup n { 1 over i }
+- log ( n ) right ) .
 .EN
+.\}
+.el \{\
+\[*g] = limit of the sum of the reciprocals of all the integers up to
+\fIn\fR minus ln(\fIn\fR), as n\[->]\[if].
+.\}
 
-.IP \fBdilog\fR
+.IP \fBdilog\ (d)\fR
 This computes the real part of the dilogarithm,
+.ie t \{\
 .EQ
 Li sub 2 ( x ) = - int sub 0 sup x ( 1 - s ) ds / s
 .EN
+.\}
+.el \{\
+also written as Li_2(\fIx\fR), which is the negative of the integral from 0
+to \fIx\fR of (1-\fIs\fR)\fIds\fR/\fIs\fR,
+.\}
 for real values of \fIx\fR.
 
-.IP \fBerf\fR
+.IP \fBerf\ (b)\fR
 This computes the error function,
+.ie t \{\
 .EQ
-erf ( x ) = ( 2 / sqrt { pi } ) int sub 0 sup x exp ( - t sup 2 ) dt
+erf ( x ) = ( 2 / sqrt { pi } ) int sub 0 sup x exp ( - t sup 2 ) dt .
 .EN
+.\}
+.el \{\
+erf(\fIx\fR)=2/\[sqrt]\[*p] times the integral from 0 to \fIx\fR of
+exp(-\fIt\fR\[S2])\fIdt\fR.
+.\}
 
-.IP \fBW\fR
+.IP \fBW\ (W)\fR
 This computes the Lambert \fIW\fR function, sometimes called the product
 logarithm.  It is the inverse of the function
+.ie t \{\
 .EQ
 w e sup w .
 .EN
-That is, the value of
-.EQ
-W ( x )
-.EN
-is the value \fIw\fR which is such that
-.EQ
-w exp ( w ) = x .
-.EN
+.\}
+.el \fIw\fR\~exp(\fIw\fR).
+That is, the value of W(\fIx\fR)
+is the value \fIw\fR which is such that \fIw\fR\~exp(\fIw\fR) = \fIx\fR.
 This can be used to define the ``super-square-root'' of a number, which is
 the number \fIy\fR such that
+.ie t \{\
 .EQ
 y sup y = x .
 .EN
-The super square root of \fIx\fR equals
-.EQ
-exp ( W ( ln ( x ) ) )
-.EN
+.\}
+.el \fIy^y=x\fR.
+The super square root of \fIx\fR equals exp(W(ln(\fIx\fR))),
 so you can define the super-square-root in \fBries\fR by saying
 .RS 0.2i
 .IP
@@ -1564,45 +1595,44 @@ so you can define the super-square-root in \fBries\fR by saying
 .IP
 Such a definition is included in the \fBfuncs.ries\fR file.
 
-.IP \fBscbrt\fR
+.IP \fBscbrt\ (u)\fR
 This computes the ``super-cube-root'', rather like the
 ``super-square-root'' described above.  That is, scbrt(x) is the value
 \fIy\fR such that
+.ie t \{\
 .EQ
 y sup { y sup y } = x .
 .EN
+.\}
+.el \fIy^(y^y)=x\fR.
 This is computed using GSL's rootfinding capabilities.
 
-.IP \fBzeta\fR
+.IP \fBzeta\ (Z)\fR
 This computes the Riemann zeta function, which is the analytic continuation
 of the infinite sum
+.ie t \{\
 .EQ
 zeta ( s ) = sum sub { k = 1 } sup { inf } k sup { - s } .
 .EN
-Note that the zeta function has a pole at
-.EQ
-x = 1 .
-.EN
+.\}
+.el of \fIk\fR^(-\fIx\fR) as \fIk\fR goes from 1 to infinity.
+Note that the zeta function has a pole at x=1.
+Currently, \fBries\fR does not compute derivatives for the zeta function,
+which may limit how the algorithm makes use of it.
 
-.IP \fBlnpoch\fR
+.IP \fBlnpoch\ (t)\fR
 This computes the logarithm the Pochhammer symbol, or the rising factorial,
 of its \fItwo\fR arguments:
-.EQ
-lnpoch ( x, y ) = ln ( rf ( x, y ) ) = ln left ( Gamma ( x + y ) / Gamma (
-x ) ) .
-.EN
+lnpoch(\fIx\fR, \fIy\fR) = ln(rf(\fIx\fR, \fIy\fR)) =
+ln(\[*G](\fIx\fR\~+\~\fIy\fR)/\[*G](\fIx\fR)).
 
 .SS CAVEATS OF SPECIAL FUNCTIONS
 
 .P
 TODO.  Things like coincidences \fBries\fR doesn't know about, e.g. that
 \fCx = -sqrt(lnpoch(e, 1))+x+gamma(1)\fR is trivially true for everything,
-etc. and loss of significance effects for things like \fCerf\fR of values
-over 4, etc.  These latter should be checked for within \fBries\fR, but
-currently are not.
-.P
-Also, remove the standalone maths library section, since I think it isn't
-truly compatible with GSL.
+etc.  Some of these have been removed through the addition of extra rules
+and loss-of-significance checks, but there remain a few.
 
 .SH LONG-FORM EXPRESSIONS
 TODO and move.
