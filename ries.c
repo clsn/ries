@@ -6120,9 +6120,11 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     if (er) {
       return ERR_EXEC_BAD_ARGUMENT;
     }
-    if (FABS(rv) < k_sig_loss) {
-      return ERR_EXEC_SIG_LOSS;
-    }
+    /* The derivative of Ei(x) at its root is ~3.896; there really isn't
+       any loss of significance here, is there? */
+    /* if (FABS(a * rv) < k_sig_loss) { */
+    /*   return ERR_EXEC_SIG_LOSS; */
+    /* } */
     /* d/dx Ei(x) = exp(x)/x */
     if (do_dx) {
       drv = exp(a)/a;
@@ -10492,6 +10494,21 @@ stats_count gen_forms(s16 e_minw, s16 e_maxw, s16 using_x,
   base.stack = 0;
   base.min_weight = 0;
   base.max_weight = 0;
+#ifdef ZERO_RHS
+  if (!using_x) {
+    /* Add a special-case RHS: zero. */
+    s16 exx;
+    pe *pe_z = (pe *)calloc(1, sizeof(pe));
+    /* XXXXX Check for OOM */
+    pe_z->cplx = 1;             /* ?? */
+    pe_z->elen = 1;
+    pe_z->sym[0] = OP_NOOP;
+    pe_z->sym[1] = '\0';
+    pe_z->pe_rminw[0] = 0; /* Nothing remaining, don't add anything to this! */
+    pe_z->pe_rmaxw[0] = 0;
+    bt_insert(0.0, 0.0, TYPE_INT, pe_z, &exx);
+  }
+#endif
   n = gf_1(&base, e_minw, e_maxw, using_x,
                           a_minw, a_maxw, b_minw, b_maxw, c_minw, c_maxw);
 
@@ -11218,7 +11235,7 @@ void init2()
      we actually know about. %%% This will include custom constants from the
      queue built up during argument scanning. */
 
-  add_symbol(ADDSYM_NAMES(OP_NOOP, 0,       "NOP"),
+  add_symbol(ADDSYM_NAMES(OP_NOOP, "0",       "NOP"),
     '0', 0,   0, 0, "no operation");
 
   /* seft 'a' symbols are constants.
