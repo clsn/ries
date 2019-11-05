@@ -11078,7 +11078,9 @@ void init1()
   allsyms_set(MAX_ELEN, 1);
   /* "Extended" functions disabled by default. */
   somesyms_set((symbol *) "W", 0);
+#ifdef RIES_GSL
   somesyms_set((symbol *) "G!bkZydczVUut", 0);
+#endif
   S_option = B_FALSE;
   NOS_options = B_FALSE;
   g_show_ss = B_FALSE;
