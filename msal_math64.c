@@ -65,7 +65,9 @@ REVISION HISTORY
     defined(i386) || defined(__x86_64__) || defined(i486) || \
     defined(intel) || defined(x86) || defined(i86pc) || \
     defined(__alpha) || defined(__osf__)
-# define __LITTLE_ENDIAN
+# ifndef __LITTLE_ENDIAN
+#  define __LITTLE_ENDIAN
+# endif
 #endif
 
 typedef union {
