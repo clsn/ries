@@ -11100,6 +11100,172 @@ void set_anagram(char * anagram)
   }
 } /* End of set.anagram */
 
+/* Load in the pruning rules to the table. */
+void record_rules()
+{
+
+  define_amkeys();
+
+  /* operators have masks for pruning (optimization). These are commented
+   * with reasons, given as "transformation" equations. A transformation
+   * looks like this: [KK*] => [Ks], and represents two sequences of operators
+   * that have the same value or have the same effect in an expression. The
+   * form to the left of the '=>' is the form being eliminated by the rule,
+   * and the form to the right is shown to demonstrate why the form on the
+   * left is eliminated. When the transformation has a shorter form on the
+   * right than on the left, as with [1r] => [1], the reason for the rule
+   * is obvious. In other cases it is important to eliminate only the form
+   * that has a higher complexity score. If the scores are equal, such as
+   * [rn] => [nr], we pick one that interacts favorably with other rules.
+   * The form on the right is said to be "forced", meaning that any expressions
+   * involving this type of calculation are "forced" to do it in the right-hand
+   * form.
+   *    You must not "force" a form that is also eliminated by another rule!
+   * For example, the following two rules are OK by themselves, but together
+   * cause a problem:
+   *          [sr] => [rs]
+   *          [rs] => [sr]
+   * However, you can also "force" a form that is also "forced" into another
+   * form by another rule. The following two rules exemplify this:
+   *          [rn] => [nr]
+   *          [rq] => [qr]
+   * These two rules, combined, make sure that 'r' never comes before 'n'
+   * or 'q'; this will cause the combinations of 'r', 'n', and 'q' to be
+   * reduced from six {[rnq], [rqn], [nrq], [nqr], [qrn], [qnr]} to
+   * two {[nqr], [qnr]}
+   *    Each rule has a symbolset which must be present in order for that
+   * rule to be used (in a few cases this symset is null).
+   *      symset   sym  mask  mval          */
+  add_rule(STR_NUL,     OP_X, AM_RHS);
+  add_rule(STR_NEG STR_RECIP,   OP_NEG, AM_r); /* [rn] => [nr]             */
+#if 0
+  /* Is this meaningful at all??? */
+  add_rule(STR_NUL,           OP_RECIP, AM_1n);   /* [1nr] => [1n] */
+#endif
+  add_rule(STR_NUL,     OP_NEG, AM_n);  /* [nn] => []               */
+  add_rule(STR_1,  OP_RECIP, AM_1);  /* [1r] => [1]              */
+  add_rule(STR_NUL,     OP_RECIP, AM_r);  /* [rr] => []               */
+  add_rule(STR_1,  OP_SQUARE, AM_1);  /* [1s] => [1]              */
+  add_rule(STR_4,  OP_SQUARE, AM_2);  /* [2s] => [4]              */
+  add_rule(STR_SQUARE, OP_SQUARE, AM_n);  /* [ns] => [s]              */
+  add_rule(STR_RECIP STR_SQUARE,
+           OP_SQUARE, AM_r);  /* [rs] => [sr]             */
+  add_rule(STR_4 STR_POW, OP_SQUARE, AM_sq); /* [qs] => []; [ss] => [4^] */
+  add_rule(STR_1,  OP_SQRT, AM_1);  /* [1q] => [1]              */
+  add_rule(STR_RECIP STR_SQRT, OP_SQRT, AM_r);  /* [rq] => [qr]             */
+  add_rule(STR_4 STR_ROOT, OP_SQRT, AM_sq); /* [sq] => []; [qq] => [4v] */
+  add_rule(STR_NUL,     OP_LN, AM_1);  /* [1l] => 0                */
+  add_rule(STR_LN STR_NEG, OP_LN, AM_r);  /* [rl] => [ln]             */
+  add_rule(STR_NUL,     OP_LN, AM_E);  /* [El] => []               */
+  add_rule(STR_NUL,     OP_EXP, AM_l);  /* [lE] => []               */
+  add_rule(STR_EXP STR_RECIP, OP_EXP, AM_n);  /* [nE] => [Er]             */
+  add_rule(STR_SIN STR_NEG,   OP_SIN, AM_n);  /* [nS] => [Sn]             */
+  add_rule(STR_COS,    OP_COS, AM_n);  /* [nC] => [C]              */
+
+  /* The operators are not included in their own require-symset string
+     unless they are also used in the target of the forced transformation.
+     This is important with the -O option. For example, if they specify
+     -O+, the '+' rules will have the effect of "saving" the '+' for
+     "a more important", i.e. irreducible, use. Of course, it doesn't
+     actually prevent solutions from being found, it just makes them get
+     found sooner. */
+  add_rule(STR_2 STR_MUL, OP_PLUS, AM_KK); /* [KK+] => [K2*]           */
+  add_rule(STR_MUL "23456789", /* If our integers maxed out at an even number we
+                                  wouldn't need the "*" here */
+                   OP_PLUS, AM_55); /* [25+]=>[7]; [55+]=>[52*] */
+  add_rule(STR_PLUS,    OP_PLUS, AM_jK); /* [jK+] => [Kj+]           */
+  add_rule(STR_MINUS,   OP_PLUS, AM_n);  /* [n+] => [-]              */
+  add_rule(STR_NUL,     OP_MINUS, AM_KK); /* [KK-] => 0               */
+  add_rule("1234" STR_NEG,  OP_MINUS, AM_55); /* [JK-] => [L] or [Ln]     */
+  add_rule("12345678" STR_NEG,
+                   OP_MINUS, AM_jK); /* [35-] => [2n]            */
+  add_rule(STR_PLUS,     OP_MINUS, AM_n);  /* [n-] => [+]              */
+  add_rule(STR_SQUARE,   OP_MUL, AM_KK); /* [KK*] => [Ks]            */
+  add_rule(STR_MUL,      OP_MUL, AM_jK); /* [jK*] => [Kj*]           */
+  add_rule(STR_MUL,      OP_MUL, AM_1);  /* [1*] => []               */
+  add_rule(STR_MUL STR_NEG,   OP_MUL, AM_n);  /* [n*] => [*n]             */
+  add_rule(STR_DIV,      OP_MUL, AM_r);  /* [r*] => [/]              */
+  add_rule(STR_1,        OP_DIV, AM_KK); /* [KK/] => [1]             */
+  add_rule(STR_RECIP,    OP_DIV, AM_1K); /* [1K/] => [Kr]            */
+  add_rule(STR_NUL,           OP_DIV, AM_1);  /* [1/] => []               */
+  add_rule(STR_DIV STR_NEG,   OP_DIV, AM_n);  /* [n/] => [/n]             */
+  add_rule(STR_MUL,      OP_DIV, AM_r);  /* [r/] => [*]              */
+  add_rule(STR_NUL,           OP_POW, AM_1);  /* [1^] => []               */
+  add_rule(STR_SQUARE,   OP_POW, AM_2);  /* [2^] => [s]              */
+  add_rule(STR_POW STR_RECIP,   OP_POW, AM_n);  /* [n^] => [^r]             */
+  add_rule(STR_1,        OP_POW, AM_1K); /* [1K^] => [1]             */
+  add_rule(STR_ROOT,     OP_POW, AM_r);  /* [r^] => [v]              */
+  add_rule(STR_NUL,           OP_ROOT, AM_1);  /* [1v] => []               */
+  add_rule(STR_SQRT,     OP_ROOT, AM_2);  /* [2v] => [q]              */
+  add_rule(STR_ROOT STR_RECIP,   OP_ROOT, AM_n);  /* [nv] => [vr]             */
+  add_rule(STR_1,        OP_ROOT, AM_1K); /* [1Kv] => [1]             */
+  add_rule(STR_POW,      OP_ROOT, AM_r);  /* [rv] => [^]              */
+  add_rule(STR_1,        OP_LOGBASE, AM_KK); /* [KKL] => [1]             */
+  add_rule(STR_NUL,           OP_LOGBASE, AM_1);  /* [1L] => undefined        */
+  add_rule(STR_LOGBASE STR_NEG,   OP_LOGBASE, AM_r);  /* [rL] => [Ln]     */
+  add_rule(STR_NUL,           OP_LOGBASE, AM_1K); /* [1KL] => 0               */
+
+#ifdef RIES_GSL
+  /* Attempting to add some rules relevant to GSL extensions... */
+  add_rule(STR_NUL,            OP_GAMMA, AM_1);     /* [1G] => 0         */
+  add_rule(STR_1,              OP_FACTORIAL, AM_1); /* [1!] => 1         */
+  /* Chi is an even function */
+  add_rule(STR_CHI,            OP_CHI, AM_n);       /* [nc] => [c]       */
+  /* And Shi is an odd one */
+  add_rule(STR_SHI STR_NEG,    OP_SHI, AM_n);       /* [nz] => [zn]      */
+  /* So is erf! */
+  add_rule(STR_ERF STR_NEG,    OP_ERF, AM_n);       /* [nb] => [bn]      */
+  add_rule(STR_NUL,            OP_LOGGAMMA, AM_1);  /* [1y] => 0         */
+  add_rule(STR_NUL,            OP_ZETA, AM_1);      /* [1Z] => undefined */
+  add_rule(STR_LN,             OP_LNPOCH, AM_1);    /* [..1t] => [..l]   */
+  add_rule(STR_FACTORIAL,      OP_LNPOCH, AM_a1_1); /* [1..t] => [..!]   */
+#endif
+
+  if (k_sincos_arg_scale == 1.0) {
+    /* Added on 20070511 */
+    add_rule(STR_NUL,     OP_SIN, AM_pi); /* [pS] => 0              */
+    /* Added on 20090513 */
+    add_rule(STR_1 STR_NEG,   OP_COS, AM_pi); /* [pC] => [1n]           */
+  }
+
+  /* Added on 20090513 */
+  add_rule(STR_NUL,     OP_DIV, AM_KxK);/* [K*K/] -> []             */
+
+  /* Added on 20111230 */
+  add_rule(STR_NUL,     OP_MINUS, AM_KpK);/* [K+K-] -> []             */
+
+  /* 20130130: The commutative operators + and * have the property
+     that A+(B+C) = (A+B)+C. Thus, we can add a rule that forces
+     one or the other of these two forms; the easier one to force
+     is left-hand associative, i.e. do each operation as soon as
+     possible. */
+  add_rule(STR_NUL,     OP_PLUS, AM_plus); /* [ABC++] -> [AB+C+]     */
+  add_rule(STR_NUL,     OP_MUL, AM_mul);  /* [ABC**] -> [AB*C*]     */
+
+  /* 20130130: Here we force A^(B*C) into the equivalent form
+     (A^B)^C, which is only available if more than one ^ symbol
+     is allowed. */
+  add_rule(STR_POW,    OP_POW, AM_mul);  /* [ABC*^] -> [AB^C^]     */
+
+  /* 20130130: [AB^q] = sqrt(A^B) is the same as [AqB^] = sqrt(A)^B */
+  add_rule(STR_NUL,     OP_SQRT, AM_pow);  /* [AB^q] -> [AqB^]       */
+
+  /* 20141212: [2E]->[es], e.g. 1.07822380518236 finds xfLr = 2E1- */
+  add_rule(STR_E STR_SQUARE,      OP_EXP, AM_2);    /* [2E] => [es]      */
+  add_rule(STR_EXP,               OP_POW, AM_a1_e); /* [e..^] => [..E]   */
+
+  /* 20141213 If I disable these I can find examples with the
+     #search1# script, e.g. the command ./search1 es '1ab/'
+     found that "ries 3.31130856083748 -F0 -n999 -l3 --no-refinement --max-match-distance 1e-6" gave the result "x4xr-+ = 31pq/v" */
+  add_rule(STR_NUL,     OP_MUL, AM_a1_1); /* [1..*] => [..]         */
+  add_rule(STR_RECIP,    OP_DIV, AM_a1_1); /* [1../] => [..r]        */
+
+  /* 20141215 More redundancy found via ./search1 es '[1r]ab*[v^]' */
+  add_rule(STR_NUL,     OP_ROOT, AM_a1_r); /* [r..v] => [..vr]       */
+  add_rule(STR_NUL,     OP_POW, AM_a1_r); /* [r..^] => [..^r]       */
+  add_rule(STR_E,    OP_EXP, AM_1);    /* [1E] => [e]            */
+}
+
 /* init1() sets defaults (anything that can be overridden or changed by
    command-line arguments) */
 void init1()
@@ -11421,6 +11587,10 @@ void init2()
 
   /* Report error and abort if there is only one type A symbol
      (namely X, which is always included) */
+  /* XXXXXXXXXXXXXXXXXXXXXX
+     This check no longer works!  Move it after endisabling!
+     XXXXXXXXXXXXXXXXXXXXXX
+  */
   if (n_asym < 2) {
     printf("%s: You must allow at least one constant symbol.\n",
       g_argv0);
@@ -11438,6 +11608,7 @@ void init2()
       brief_help();
       print_end(1);
     }
+    /* XXXXXXXXXXXXX til here XXXXXXXXXXXXXXX */
 #ifdef NO_IDENTITY_OPTIMIZATION
     /* With the "no identity" optimization we don't need this kludge. */
 #else
@@ -11522,167 +11693,6 @@ void init2()
 
   /* If there are no type C symbols, gf_1 will notice n_csym and
      will skip generating forms with 'c's */
-
-  define_amkeys();
-
-  /* operators have masks for pruning (optimization). These are commented
-   * with reasons, given as "transformation" equations. A transformation
-   * looks like this: [KK*] => [Ks], and represents two sequences of operators
-   * that have the same value or have the same effect in an expression. The
-   * form to the left of the '=>' is the form being eliminated by the rule,
-   * and the form to the right is shown to demonstrate why the form on the
-   * left is eliminated. When the transformation has a shorter form on the
-   * right than on the left, as with [1r] => [1], the reason for the rule
-   * is obvious. In other cases it is important to eliminate only the form
-   * that has a higher complexity score. If the scores are equal, such as
-   * [rn] => [nr], we pick one that interacts favorably with other rules.
-   * The form on the right is said to be "forced", meaning that any expressions
-   * involving this type of calculation are "forced" to do it in the right-hand
-   * form.
-   *    You must not "force" a form that is also eliminated by another rule!
-   * For example, the following two rules are OK by themselves, but together
-   * cause a problem:
-   *          [sr] => [rs]
-   *          [rs] => [sr]
-   * However, you can also "force" a form that is also "forced" into another
-   * form by another rule. The following two rules exemplify this:
-   *          [rn] => [nr]
-   *          [rq] => [qr]
-   * These two rules, combined, make sure that 'r' never comes before 'n'
-   * or 'q'; this will cause the combinations of 'r', 'n', and 'q' to be
-   * reduced from six {[rnq], [rqn], [nrq], [nqr], [qrn], [qnr]} to
-   * two {[nqr], [qnr]}
-   *    Each rule has a symbolset which must be present in order for that
-   * rule to be used (in a few cases this symset is null).
-   *      symset   sym  mask  mval          */
-  add_rule(STR_NUL,     OP_X, AM_RHS);
-  add_rule(STR_NEG STR_RECIP,   OP_NEG, AM_r); /* [rn] => [nr]             */
-#if 0
-  /* Is this meaningful at all??? */
-  add_rule(STR_NUL,           OP_RECIP, AM_1n);   /* [1nr] => [1n] */
-#endif
-  add_rule(STR_NUL,     OP_NEG, AM_n);  /* [nn] => []               */
-  add_rule(STR_1,  OP_RECIP, AM_1);  /* [1r] => [1]              */
-  add_rule(STR_NUL,     OP_RECIP, AM_r);  /* [rr] => []               */
-  add_rule(STR_1,  OP_SQUARE, AM_1);  /* [1s] => [1]              */
-  add_rule(STR_4,  OP_SQUARE, AM_2);  /* [2s] => [4]              */
-  add_rule(STR_SQUARE, OP_SQUARE, AM_n);  /* [ns] => [s]              */
-  add_rule(STR_RECIP STR_SQUARE,
-           OP_SQUARE, AM_r);  /* [rs] => [sr]             */
-  add_rule(STR_4 STR_POW, OP_SQUARE, AM_sq); /* [qs] => []; [ss] => [4^] */
-  add_rule(STR_1,  OP_SQRT, AM_1);  /* [1q] => [1]              */
-  add_rule(STR_RECIP STR_SQRT, OP_SQRT, AM_r);  /* [rq] => [qr]             */
-  add_rule(STR_4 STR_ROOT, OP_SQRT, AM_sq); /* [sq] => []; [qq] => [4v] */
-  add_rule(STR_NUL,     OP_LN, AM_1);  /* [1l] => 0                */
-  add_rule(STR_LN STR_NEG, OP_LN, AM_r);  /* [rl] => [ln]             */
-  add_rule(STR_NUL,     OP_LN, AM_E);  /* [El] => []               */
-  add_rule(STR_NUL,     OP_EXP, AM_l);  /* [lE] => []               */
-  add_rule(STR_EXP STR_RECIP, OP_EXP, AM_n);  /* [nE] => [Er]             */
-  add_rule(STR_SIN STR_NEG,   OP_SIN, AM_n);  /* [nS] => [Sn]             */
-  add_rule(STR_COS,    OP_COS, AM_n);  /* [nC] => [C]              */
-
-  /* The operators are not included in their own require-symset string
-     unless they are also used in the target of the forced transformation.
-     This is important with the -O option. For example, if they specify
-     -O+, the '+' rules will have the effect of "saving" the '+' for
-     "a more important", i.e. irreducible, use. Of course, it doesn't
-     actually prevent solutions from being found, it just makes them get
-     found sooner. */
-  add_rule(STR_2 STR_MUL, OP_PLUS, AM_KK); /* [KK+] => [K2*]           */
-  add_rule(STR_MUL "23456789", /* If our integers maxed out at an even number we
-                                  wouldn't need the "*" here */
-                   OP_PLUS, AM_55); /* [25+]=>[7]; [55+]=>[52*] */
-  add_rule(STR_PLUS,    OP_PLUS, AM_jK); /* [jK+] => [Kj+]           */
-  add_rule(STR_MINUS,   OP_PLUS, AM_n);  /* [n+] => [-]              */
-  add_rule(STR_NUL,     OP_MINUS, AM_KK); /* [KK-] => 0               */
-  add_rule("1234" STR_NEG,  OP_MINUS, AM_55); /* [JK-] => [L] or [Ln]     */
-  add_rule("12345678" STR_NEG,
-                   OP_MINUS, AM_jK); /* [35-] => [2n]            */
-  add_rule(STR_PLUS,     OP_MINUS, AM_n);  /* [n-] => [+]              */
-  add_rule(STR_SQUARE,   OP_MUL, AM_KK); /* [KK*] => [Ks]            */
-  add_rule(STR_MUL,      OP_MUL, AM_jK); /* [jK*] => [Kj*]           */
-  add_rule(STR_MUL,      OP_MUL, AM_1);  /* [1*] => []               */
-  add_rule(STR_MUL STR_NEG,   OP_MUL, AM_n);  /* [n*] => [*n]             */
-  add_rule(STR_DIV,      OP_MUL, AM_r);  /* [r*] => [/]              */
-  add_rule(STR_1,        OP_DIV, AM_KK); /* [KK/] => [1]             */
-  add_rule(STR_RECIP,    OP_DIV, AM_1K); /* [1K/] => [Kr]            */
-  add_rule(STR_NUL,           OP_DIV, AM_1);  /* [1/] => []               */
-  add_rule(STR_DIV STR_NEG,   OP_DIV, AM_n);  /* [n/] => [/n]             */
-  add_rule(STR_MUL,      OP_DIV, AM_r);  /* [r/] => [*]              */
-  add_rule(STR_NUL,           OP_POW, AM_1);  /* [1^] => []               */
-  add_rule(STR_SQUARE,   OP_POW, AM_2);  /* [2^] => [s]              */
-  add_rule(STR_POW STR_RECIP,   OP_POW, AM_n);  /* [n^] => [^r]             */
-  add_rule(STR_1,        OP_POW, AM_1K); /* [1K^] => [1]             */
-  add_rule(STR_ROOT,     OP_POW, AM_r);  /* [r^] => [v]              */
-  add_rule(STR_NUL,           OP_ROOT, AM_1);  /* [1v] => []               */
-  add_rule(STR_SQRT,     OP_ROOT, AM_2);  /* [2v] => [q]              */
-  add_rule(STR_ROOT STR_RECIP,   OP_ROOT, AM_n);  /* [nv] => [vr]             */
-  add_rule(STR_1,        OP_ROOT, AM_1K); /* [1Kv] => [1]             */
-  add_rule(STR_POW,      OP_ROOT, AM_r);  /* [rv] => [^]              */
-  add_rule(STR_1,        OP_LOGBASE, AM_KK); /* [KKL] => [1]             */
-  add_rule(STR_NUL,           OP_LOGBASE, AM_1);  /* [1L] => undefined        */
-  add_rule(STR_LOGBASE STR_NEG,   OP_LOGBASE, AM_r);  /* [rL] => [Ln]     */
-  add_rule(STR_NUL,           OP_LOGBASE, AM_1K); /* [1KL] => 0               */
-
-#ifdef RIES_GSL
-  /* Attempting to add some rules relevant to GSL extensions... */
-  add_rule(STR_NUL,            OP_GAMMA, AM_1);     /* [1G] => 0         */
-  add_rule(STR_1,              OP_FACTORIAL, AM_1); /* [1!] => 1         */
-  /* Chi is an even function */
-  add_rule(STR_CHI,            OP_CHI, AM_n);       /* [nc] => [c]       */
-  /* And Shi is an odd one */
-  add_rule(STR_SHI STR_NEG,    OP_SHI, AM_n);       /* [nz] => [zn]      */
-  /* So is erf! */
-  add_rule(STR_ERF STR_NEG,    OP_ERF, AM_n);       /* [nb] => [bn]      */
-  add_rule(STR_NUL,            OP_LOGGAMMA, AM_1);  /* [1y] => 0         */
-  add_rule(STR_NUL,            OP_ZETA, AM_1);      /* [1Z] => undefined */
-  add_rule(STR_LN,             OP_LNPOCH, AM_1);    /* [..1t] => [..l]   */
-  add_rule(STR_FACTORIAL,      OP_LNPOCH, AM_a1_1); /* [1..t] => [..!]   */
-#endif
-
-  if (k_sincos_arg_scale == 1.0) {
-    /* Added on 20070511 */
-    add_rule(STR_NUL,     OP_SIN, AM_pi); /* [pS] => 0              */
-    /* Added on 20090513 */
-    add_rule(STR_1 STR_NEG,   OP_COS, AM_pi); /* [pC] => [1n]           */
-  }
-
-  /* Added on 20090513 */
-  add_rule(STR_NUL,     OP_DIV, AM_KxK);/* [K*K/] -> []             */
-
-  /* Added on 20111230 */
-  add_rule(STR_NUL,     OP_MINUS, AM_KpK);/* [K+K-] -> []             */
-
-  /* 20130130: The commutative operators + and * have the property
-     that A+(B+C) = (A+B)+C. Thus, we can add a rule that forces
-     one or the other of these two forms; the easier one to force
-     is left-hand associative, i.e. do each operation as soon as
-     possible. */
-  add_rule(STR_NUL,     OP_PLUS, AM_plus); /* [ABC++] -> [AB+C+]     */
-  add_rule(STR_NUL,     OP_MUL, AM_mul);  /* [ABC**] -> [AB*C*]     */
-
-  /* 20130130: Here we force A^(B*C) into the equivalent form
-     (A^B)^C, which is only available if more than one ^ symbol
-     is allowed. */
-  add_rule(STR_POW,    OP_POW, AM_mul);  /* [ABC*^] -> [AB^C^]     */
-
-  /* 20130130: [AB^q] = sqrt(A^B) is the same as [AqB^] = sqrt(A)^B */
-  add_rule(STR_NUL,     OP_SQRT, AM_pow);  /* [AB^q] -> [AqB^]       */
-
-  /* 20141212: [2E]->[es], e.g. 1.07822380518236 finds xfLr = 2E1- */
-  add_rule(STR_E STR_SQUARE,      OP_EXP, AM_2);    /* [2E] => [es]      */
-  add_rule(STR_EXP,               OP_POW, AM_a1_e); /* [e..^] => [..E]   */
-
-  /* 20141213 If I disable these I can find examples with the
-     #search1# script, e.g. the command ./search1 es '1ab/'
-     found that "ries 3.31130856083748 -F0 -n999 -l3 --no-refinement --max-match-distance 1e-6" gave the result "x4xr-+ = 31pq/v" */
-  add_rule(STR_NUL,     OP_MUL, AM_a1_1); /* [1..*] => [..]         */
-  add_rule(STR_RECIP,    OP_DIV, AM_a1_1); /* [1../] => [..r]        */
-
-  /* 20141215 More redundancy found via ./search1 es '[1r]ab*[v^]' */
-  add_rule(STR_NUL,     OP_ROOT, AM_a1_r); /* [r..v] => [..vr]       */
-  add_rule(STR_NUL,     OP_POW, AM_a1_r); /* [r..^] => [..^r]       */
-  add_rule(STR_E,    OP_EXP, AM_1);    /* [1E] => [e]            */
 
   /* Compute the weight of the most complex expression that could possibly
      fit in the available MAX_ELEN symbols */
@@ -13172,6 +13182,7 @@ int main(int nargs, char *argv[])
   init2();
 
   endisable_symbols();
+  record_rules();
   do_renames();
   do_reweights();
 
