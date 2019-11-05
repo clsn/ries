@@ -2627,11 +2627,13 @@ all three have to be within 10^-6 of each other.
 /* GSL is incompatible with long double and with sa_m64 (we'll say) */
 #include <gsl/gsl_sf.h>
 #include <gsl/gsl_roots.h>
+#include <gsl/gsl_deriv.h>
 # define SIN(x) (gsl_sf_sin(x))
 # define COS(x) (gsl_sf_cos(x))
 # define TAN(x) (tan(x))
 # define LAMBERTW(x) (gsl_sf_lambert_W0(x))
-  int supercuberoot(double x, double *result);
+int supercuberoot(double x, double *result);
+int diffzeta(double x, double *rv, double *er);
 #else  /* RIES_GSL */
 #ifdef RIES_USE_SA_M64
 # include "msal_math64.c"
@@ -6032,12 +6034,43 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     if (FABS(rv - 1.0) < k_sig_loss || FABS(rv) < k_sig_loss) {
       return ERR_EXEC_SIG_LOSS;
     }
-    /* ??? dx ??? */
     drv = 0.0;
     if (do_dx) {
-      return ERR_EXEC_ILLEGAL_DERIV; /* or should I return 0? */
+      int fail;
+      double err;
+      fail = diffzeta(a, &drv, &err);
+      if (fail || err > k_sig_loss) { /* good use of err? */
+        return ERR_EXEC_SIG_LOSS;
+      }
+      drv *= da;                /* chain rule! */
     }
-    trv = TGMIN(tga, TYPE_TRAN);
+    /* zeta(x) = 0 when x is an even nonpositive integer. */
+    /* zeta(x) is rational when x is an odd negative integer. */
+    /* (and it's a multiple of a power of pi when x is a positive even
+       integer, but that isn't important to us) */
+    /* (Most of this actually matters very little, since the zeta(x) for
+       odd negative x gets very small rather quickly, very soon ducking
+       below our significance level.  Oh well.) */
+    if (TAG_INT_P(a)) {
+      int rounda;
+      double fr, roundaf;
+      fr = modf(a, &roundaf);
+      roundaf = (int)rounda;
+      if (rounda <= 0) {
+        if (rounda % 2) {
+          trv = TYPE_RAT;
+        }
+        else {
+          trv = TYPE_INT;
+        }
+      }
+      else {
+        trv = TGMIN(tga, TYPE_TRAN);
+      }
+    }
+    else {
+      trv = TGMIN(tga, TYPE_TRAN);
+    }
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
@@ -7435,6 +7468,20 @@ int supercuberoot(double x, double *result) {
   *result = gsl_root_fsolver_root(solver);
   gsl_root_fsolver_free(solver);
   return er;
+}
+
+/* find the derivative of the zeta function numerically */
+double zeta(double x, void *params) {
+  /* Is this function really necessary? */
+  return gsl_sf_zeta(x);
+}
+
+int diffzeta(double x, double *result, double *err) {
+  gsl_function zetaer;
+  int fail;
+  zetaer.function = &zeta;
+  zetaer.params = NULL;
+  return gsl_deriv_central(&zetaer, x, k_sig_loss, result, err);
 }
 
 #endif
