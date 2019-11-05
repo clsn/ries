@@ -295,23 +295,22 @@ These options work just like the
 \fB-S\fR, \fB-N\fR, \fB-E\fR, and \fB-O\fR
 options listed above, except that they apply
 .I only
-to the RHS of the equation.
-So for example you can get rational-only
-solutions while still permitting exponentiation
-(to get larger numerators and denonimators)
-by using \fC-Ox -S'123456789+-*/' --E-RHS='^'\fR.  If you had
-just included \fB^\fR with the other operators, it might have gotten used
-on the left-hand side of the equation, yielding perhaps
-\fBx^3 = \fIsomething\fR, which then would solve to something involving
-a cube root.
-The
-.B -r
-option disables the
-.B ^
-operator for just this reason.
-But enabling it only on the right-hand side allows it
-to be used safely.
-
+to the RHS of the equation, or more precisely, only to expressions that do
+not contain \fCx\fR, the ``variable'' representing the number being solved
+for.
+There are no corresponding LHS-only setters: setting different values for
+LHS and RHS involves setting the ``normal'' value with
+.BR -O / -N / -E / -S
+and then setting the RHS value to override it on the right-hand side.
+.IP
+These RHS-only settings are
+.I ignored
+when ``sorta-solving'' equations to move the variable over to one side (see
+the \fB-s\fR option), and when doing canonical reduction (see the
+\fB--canon-reduction\fR option).  Only the restrictions and permissions
+applied by the regular
+.BR -O / -N / -E / -S
+options apply.
 
 .SH Options Limiting the Type of Solutions
 
