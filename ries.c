@@ -3275,10 +3275,7 @@ b001 g_explicit_multiply; /* Always show '*' symbol for multiplication */
 #define AM_a1_e 0x40000 /* e <expr> <seft_c_op> */
 #define AM_a1_1 0x80000 /* 1 <expr> <seft_c_op> */
 #define AM_a1_r 0x100000 /* r <expr> <seft_c_op> */
-#if 0
-/* does this make any sense? */
 #define AM_1n	0x200000 /* 1 n */
-#endif
 
 /* ======= Operator Symbols ====== */
 #ifdef RIES_GSL
@@ -10013,7 +10010,8 @@ stats_count ge_2(
       }
     }
 
-    /* currently, all two-symbol patterns are for (aa) forms */
+    /* currently, all^Wmost two-symbol patterns are for (aa) forms */
+    /* (there's AM_1n) */
     if ((base->sym[ip-1] == 'a')
         && (base->sym[ip-2] == 'a')) {
       if (debug_H & g_dbg_side) {
@@ -10051,14 +10049,13 @@ stats_count ge_2(
         if (debug_H & g_dbg_side) { printf(" jK"); }
       }
     }
-#if 0
-    /* Is this a sensible thing to be looking for? */
+    /* Odd one out, only 2-symbol rule that isn't aa */
+    /* If there come to be others, group them like the aa's */
     else if (bpe->sym[ip-2] == OP_1 &&
              bpe->sym[ip-1] == OP_NEG) {
       atts |= AM_1n;
       if (debug_H & g_dbg_side) { printf(" 1n"); }
     }
-#endif
   }
 
   if (ip > 0) {
@@ -11138,10 +11135,7 @@ void record_rules()
    *      symset   sym  mask  mval          */
   add_rule(STR_NUL,     OP_X, AM_RHS);
   add_rule(STR_NEG STR_RECIP,   OP_NEG, AM_r); /* [rn] => [nr]             */
-#if 0
-  /* Is this meaningful at all??? */
-  add_rule(STR_NUL,           OP_RECIP, AM_1n);   /* [1nr] => [1n] */
-#endif
+  add_rule(STR_1 STR_NEG,       OP_RECIP, AM_1n);   /* [1nr] => [1n] */
   add_rule(STR_NUL,     OP_NEG, AM_n);  /* [nn] => []               */
   add_rule(STR_1,  OP_RECIP, AM_1);  /* [1r] => [1]              */
   add_rule(STR_NUL,     OP_RECIP, AM_r);  /* [rr] => []               */
