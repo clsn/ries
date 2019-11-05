@@ -5975,7 +5975,12 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       }
       drv *= rv;
     }
-    trv = TGMIN(tga, TYPE_TRAN);
+    if (TAG_INT_P(tga)) {
+      trv = TYPE_INT;           /* Gamma(int) is an int */
+    }
+    else {
+      trv = TGMIN(tga, TYPE_TRAN);
+    }
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
