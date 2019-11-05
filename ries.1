@@ -818,6 +818,20 @@ hyperbolic trigonometric functions like this:
 A
 .B funcs.ries
 file containing some definitions is included with the \fBries\fR source.
+.IP
+Note that operators used inside definitions are not affected by being
+disabled or restricted by the
+.BR -N ", " -O ", or " -S
+operators, although the defined operator may be.  That is, if you have
+defined the hyperbolic trigonometric functions as above, you can still
+forbid the use of the exponentiation operator with
+.B -NE
+without restricting the use of your user-defined
+.BR sinh / cosh / tanh
+functions, even though they are defined in terms of it.  The user-defined
+functions can be restricted on their own, though, so
+.B -N:cosh
+will forbid the \fBcosh\fR function.
 .IP \fB-X\fR\ \fIweight\fB:\fIname\fB:\fIdescription\fB:\fIvalue\fR
 Define a new constant that \fBries\fR can use in its calculations.  So for
 example you might want to allow the Euler-Mascheroni constant \[*g]\ \ to
