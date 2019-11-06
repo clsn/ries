@@ -64,6 +64,11 @@ In the compile line you may add one or more of these options:
     These functions are in the separate source file "msal_math64.c", which
     should be available in the same place you found this source file.
 
+ -DRIES_GSL
+    Use this option to link to GSL, the GNU Scientific Library, which
+    provides many more special transcendental functions.  Information on
+    the library can be found at https://www.gnu.org/software/gsl/
+
   -DRIES_MAX_EXPRESSION_LENGTH=29
     Use a maximum expression length of 29 symbols, rather than the default.
     Longer expressions might be needed if you're using the --one-sided
@@ -2724,7 +2729,7 @@ variants. */
 
 /* -------------- defines ------------------------------------------------- */
 
-#define RIES_VERSION "2018 Aug 05"
+#define RIES_VERSION "2019 Nov (clsn)"
 
 /* Default search level. For backwards compatibility, the -l option adds
    a number to the DEFAULT_LEV_BASE value. Without a -l option, it acts as if
@@ -3168,6 +3173,8 @@ typedef struct sym_attr_block {
   s16    preempt_weight;
   attr_bits sa_mask; /* Attributes, masked with this, must be 0 */
   s16    sa_alwd;    /* Number of symbols allowed in each expression */
+  s16    sa_RHSalwd; /* if non-negative, number allowed on RHS, overriding
+                        sa_alwd. */
   s16    sa_ct;      /* used in ge.2() to keep track of how many symbols
                         are in expression; part of -O option. */
   const char * defn; /* symbol definition for legend */
@@ -3928,7 +3935,11 @@ void show_version(void)
 #ifdef RIES_USE_SA_M64
   "stand-alone"
 #else
+# ifdef RIES_GSL
+  "GSL"
+# else
   "standard"
+# endif
 #endif
   );
 
@@ -3945,7 +3956,8 @@ void show_version(void)
 
   printf("\n");
   printf("%s",
-"RIES is provided under the GPL license v3. Source code at mrob.com/ries\n"
+"RIES is provided under the GPL license v3.\n"
+"Source code at github.com/clsn/ries\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
   );
@@ -3970,7 +3982,7 @@ void brief_help(void)
 "  -r    Restrict to rational solutions (-re for exact match)\n"
 "  -i    Restrict to integer solutions (-ie for exact match)\n"
 "\n"
-"There are many more options; get the full manual at mrob.com/ries\n"
+"There are many more options; get the full manual at github.com/clsn/ries\n"
 );
 } /* End of brief.help */
 
@@ -6145,9 +6157,11 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     if (er) {
       return ERR_EXEC_BAD_ARGUMENT;
     }
-    if (FABS(rv) < k_sig_loss) {
-      return ERR_EXEC_SIG_LOSS;
-    }
+    /* The derivative of Ei(x) at its root is ~3.896; there really isn't
+       any loss of significance here, is there? */
+    /* if (FABS(a * rv) < k_sig_loss) { */
+    /*   return ERR_EXEC_SIG_LOSS; */
+    /* } */
     /* d/dx Ei(x) = exp(x)/x */
     if (do_dx) {
       drv = exp(a)/a;
@@ -6842,7 +6856,11 @@ s16 infix_1(
       /* This operator goes in front of both arguments */
       term[optr++] = (char) op;
     }
-    if (symbl || op == OP_LNPOCH) {
+    if (symbl
+#ifdef RIES_GSL
+        || op == OP_LNPOCH
+#endif
+        ) {
       /* 2-argument custom functions should be func(a, b) */
       term[optr++] = (char) op;
       term[optr++] = '(';
@@ -6881,7 +6899,11 @@ s16 infix_1(
       }
     } else if (op == OP_LOGBASE) {
       /* We already emitted it */
-    } else if (symbl || op == OP_LNPOCH) {
+    } else if (symbl
+#ifdef RIES_GSL
+               || op == OP_LNPOCH
+#endif
+               ) {
       /* comma between function params */
       term[optr++] = ',';
     } else {
@@ -6898,7 +6920,11 @@ s16 infix_1(
     if (paren_b) {
       term[optr++] = ')';
     }
-    if (symbl || op == OP_LNPOCH) {
+    if (symbl
+#ifdef RIES_GSL
+        || op == OP_LNPOCH
+#endif
+        ) {
       /* need closing paren */
       term[optr++] = ')';
     }
@@ -9509,6 +9535,7 @@ s16 canonval(
       ip, bpe->elen, bpe->sym, dbl(x), dx);
   }
 
+  /* I decree that sa_RHSalwd does not apply to canonicalization. */
   if ((g_canon_ops & CANONVAL_NEGATE)
     && (sym_attrs[OP_NEG].sa_ct < sym_attrs[OP_NEG].sa_alwd)
     && (x < 0.0) && (ip < MAX_ELEN))
@@ -10171,7 +10198,11 @@ stats_count ge_2(
       recurse = 0;
 
     /* Check symbol count for this symbol */
-    } else if (sym_attrs[sym].sa_ct >= sym_attrs[sym].sa_alwd) {
+      /* if !using_x, we're on the RHS, right? */
+    } else if (sym_attrs[sym].sa_ct >=
+               (!using_x && (sym_attrs[sym].sa_RHSalwd >= 0) ?
+                sym_attrs[sym].sa_RHSalwd :
+                sym_attrs[sym].sa_alwd)) {
       if (debug_L & g_dbg_side) {
         printf("prune symcount[%c]\n", sym);
       }
@@ -10519,6 +10550,21 @@ stats_count gen_forms(s16 e_minw, s16 e_maxw, s16 using_x,
   base.stack = 0;
   base.min_weight = 0;
   base.max_weight = 0;
+#ifdef ZERO_RHS
+  if (!using_x) {
+    /* Add a special-case RHS: zero. */
+    s16 exx;
+    pe *pe_z = (pe *)calloc(1, sizeof(pe));
+    /* XXXXX Check for OOM */
+    pe_z->cplx = 1;             /* ?? */
+    pe_z->elen = 1;
+    pe_z->sym[0] = OP_NOOP;
+    pe_z->sym[1] = '\0';
+    pe_z->pe_rminw[0] = 0; /* Nothing remaining, don't add anything to this! */
+    pe_z->pe_rmaxw[0] = 0;
+    bt_insert(0.0, 0.0, TYPE_INT, pe_z, &exx);
+  }
+#endif
   n = gf_1(&base, e_minw, e_maxw, using_x,
                           a_minw, a_maxw, b_minw, b_maxw, c_minw, c_maxw);
 
@@ -10664,6 +10710,7 @@ void setup_abc_mmw(void)
   for (i=0; i<SYMBOL_RANGE; i++) {
     if (sym_attrs[i].sa_known) {
       /* This symbol was enabled at init.2() time */
+      /* XXXXX What about sa_RHSalwd??? */
       if (sym_attrs[i].sa_alwd) {
         /* We want this symbol for this petit cycle. %%% For proper solve-for-x
            with restricted symbol sets, this part of the test will
@@ -10762,6 +10809,7 @@ void add_rule(const char * ss, char sy, attr_bits mask)
      against the INTERSECTION of the LHS and RHS symbol sets */
   allowed = 1;
   s = symset;
+  /* XXXXX What about sa_RHSalwd??? */
   while((sreq = *s++)) {
     if (sym_attrs[sreq].sa_alwd < MAX_ELEN) {
       allowed = 0;
@@ -10940,6 +10988,30 @@ void somesyms_set(symbol * s, s16 n)
   }
 }
 
+void allsyms_set_RHS(s16 n, int include_x)
+{
+  int i;
+
+  for(i=0; i<SYMBOL_RANGE; i++) {
+    if (include_x || ((char) i != 'x')) {
+      sym_attrs[i].sa_RHSalwd = n;
+    }
+  }
+}
+
+void somesyms_set_RHS(symbol * s, s16 n)
+{
+  symbol ns[SYMBOL_RANGE];
+  if (s && s[0] == LONGFORM) {
+    convert_formula(s, ns);
+    s = ns;
+  }
+  while (s && *s) {
+    sym_attrs[*s].sa_RHSalwd = n;
+    s++;
+  }
+}
+
 void endisable_symbols()
 {
   /* Process the -S/-N/-E/-O options, AFTER the symbols have been defined,
@@ -10960,6 +11032,19 @@ void endisable_symbols()
       break;
     case 'O':
       somesyms_set(syms, 1);
+      break;
+
+    case 's':
+      allsyms_set_RHS(0, 0);
+      /* FALL THROUGH */
+    case 'e':
+      somesyms_set_RHS(syms, MAX_ELEN);
+      break;
+    case 'o':
+      somesyms_set_RHS(syms, 1);
+      break;
+    case 'n':
+      somesyms_set_RHS(syms, 0);
       break;
     }
   }
@@ -11298,6 +11383,7 @@ void init1()
   */
   for(i=0; i<SYMBOL_RANGE; i++) {
     sym_attrs[i].preempt_weight = -1;
+    sym_attrs[i].sa_RHSalwd = -1;
   }
   allsyms_set(MAX_ELEN, 1);
   /* "Extended" functions disabled by default. */
@@ -11408,7 +11494,7 @@ void init2()
      we actually know about. %%% This will include custom constants from the
      queue built up during argument scanning. */
 
-  add_symbol(ADDSYM_NAMES(OP_NOOP, 0,       "NOP"),
+  add_symbol(ADDSYM_NAMES(OP_NOOP, "0",       "NOP"),
     '0', 0,   0, 0, "no operation");
 
   /* seft 'a' symbols are constants.
@@ -12904,6 +12990,13 @@ void parse_args(size_t nargs, char *argv[])
         g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-E" */
         g_ONES++;
       }
+    } else if (strncmp(pa_this_arg, "--E-RHS=", 8) == 0) {
+      /* Enable these symbols *on the RHS*! */
+      NOS_options = B_TRUE;
+      /* process this later. */
+      g_ONES_opt[g_ONES].which = 'e';
+      g_ONES_opt[g_ONES].syms = pa_this_arg+8;
+      g_ONES++;
     } else if (strncmp(pa_this_arg, "-F", 2) == 0) {
       /* Select expression display format */
       pa_this_arg += 2;   /* skip the "-F" */
@@ -12978,11 +13071,23 @@ void parse_args(size_t nargs, char *argv[])
       g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-N" */
       g_ONES++;
 
+    } else if (strncmp(pa_this_arg, "--N-RHS=", 8) == 0) {
+      NOS_options = B_TRUE;
+      g_ONES_opt[g_ONES].which = 'n';
+      g_ONES_opt[g_ONES].syms = pa_this_arg + 8;
+      g_ONES++;
+
     } else if (strncmp(pa_this_arg, "-O", 2) == 0) {
       /* Once-only symbols */
       NOS_options = B_TRUE;
       g_ONES_opt[g_ONES].which = 'O';
       g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-O" */
+      g_ONES++;
+    } else if (strncmp(pa_this_arg, "--O-RHS=", 8) == 0) {
+      /* Once-only symbols, on the RHS only! */
+      NOS_options = B_TRUE;
+      g_ONES_opt[g_ONES].which = 'o';
+      g_ONES_opt[g_ONES].syms = pa_this_arg+8;
       g_ONES++;
     } else if ((strncmp(pa_this_arg, "-r", 2) == 0)
              || (strcmp(pa_this_arg, "--rational-subexpressions") == 0)) {
@@ -13006,6 +13111,15 @@ void parse_args(size_t nargs, char *argv[])
         g_ONES_opt[g_ONES].syms = pa_this_arg;
         g_ONES++;
       }
+
+    } else if (strncmp(pa_this_arg, "--S-RHS=", 8) == 0) {
+      /* Only these symbols */
+      pa_this_arg += 8;   /* skip the "-S" */
+      S_option = B_TRUE;
+      NOS_options = B_TRUE;
+      g_ONES_opt[g_ONES].which = 's';
+      g_ONES_opt[g_ONES].syms = pa_this_arg;
+      g_ONES++;
 
     } else if ((strcmp(pa_this_arg, "-x") == 0)
             || (strcmp(pa_this_arg, "--absolute-roots") == 0)) {
@@ -13413,7 +13527,7 @@ int main(int nargs, char *argv[])
     /* If robustness were not important we could use the "%*" printf
        extension to get the variable width */
     snprintf(fmt1, FMT_STR_SIZE, "%s%d%s", "  %", 44 - k_usable_digits, "s"); /* "  %27s" */
-    printf(fmt1, "mrob.com/ries");
+    printf(fmt1, "github.com/clsn/ries");
     printf("%s", "\n\n");
   }
 
