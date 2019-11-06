@@ -3543,6 +3543,10 @@ char *g_all_options[] =
    "-S",
    "-x ",
    "--absolute-roots ",
+   "--N-RHS",
+   "--O-RHS",
+   "--S-RHS",
+   "--E-RHS",
    NULL
   };
 

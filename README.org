@@ -18,11 +18,11 @@ So, what's available here (at first) is:
 
  + =Mathematica.ries= :: Another profile, also from Munafo, for producing output that could be pasted into Mathematica (perhaps with minor changes.)
 
- + =constants.ries= :: Now we get into files that are from me (Mark Shoulson) and not Robert Munafo.  A feature I've added is the ability to define additional constants to be used in =ries= equations.  So instead of only being able to generate equations made from single digits, π, ℯ, φ, and functions of them, you can decide, for example, that [[https://en.wikipedia.org/wiki/Ap%C3%A9ry%27s_constant][Apéry's constant]], ζ(3)≈1.20205690315959, is a "base" constant that can be used in your equations.  Or the [[https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant][Euler-Mascheroni constant], γ≈0.57721566490153286, or anything else you like.  This profile contains a selection of such constants:
+ + =constants.ries= :: Now we get into files that are from me (Mark Shoulson) and not Robert Munafo.  A feature I've added is the ability to define additional constants to be used in =ries= equations.  So instead of only being able to generate equations made from single digits, π, ℯ, φ, and functions of them, you can decide, for example, that [[https://en.wikipedia.org/wiki/Ap%C3%A9ry%27s_constant][Apéry's constant]], ζ(3)≈1.20205690315959, is a "base" constant that can be used in your equations.  Or the [[https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant][Euler-Mascheroni constant]], γ≈0.57721566490153286, or anything else you like.  This profile contains a selection of such constants:
 
-   + [[https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant][Euler-Mascheroni constant]] :: lim_{n→∞} (sum_{i=1}^n 1/i) - ln(n).  Approximately 0.5772156649
+   + [[https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant][Euler-Mascheroni constant]] :: γ = lim_{n→∞} (sum_{i=1}^n 1/i) - ln(n).  Approximately 0.5772156649
 
-   + [[https://en.wikipedia.org/wiki/Plastic_number][Plastic Number]] :: The unique real root of /x³-x-1/.  Approximately 1.324717957244746
+   + [[https://en.wikipedia.org/wiki/Plastic_number][Plastic Number]] :: The unique real root ρ of /x³-x-1/.  Approximately 1.324717957244746
 
    + [[https://en.wikipedia.org/wiki/Ap%C3%A9ry%27s_constant][Apéry's constant]] :: ζ(3) (Riemann Zeta function).  Approximately 1.20205690315959
 
@@ -44,7 +44,7 @@ So, what's available here (at first) is:
 
  + =sympy.ries= :: A profile for use with the python symbolic math package [[http://www.sympy.org/][sympy]].  Does only a few very simple substitutions, like constant names, =**= for =^=, and =S.One= for =1=, so reciprocals (at least) won't get evaluated to floating-point numbers and sympy can keep them as rationals.
 
- + =infixnroot.py= :: a small Python script that uses a hack (from [[http://code.activestate.com/recipes/384122-infix-operators/][here]]) to create a Python "infix" operator that does what =ries='s ="/= symbol does: take the /n/-th root of something.  This way, =sympy.ries= above doesn't choke on /n/-th roots.  Even gotten arbitrary logarithms to work, albeit by means of some rather evil Python.
+ + =infixnroot.py= :: a small Python script that uses a hack (from [[http://code.activestate.com/recipes/384122-infix-operators/][here]]) to create a Python "infix" operator that does what =ries='s ~"/~ symbol does: take the n-th root of something.  This way, =sympy.ries= above doesn't choke on n-th roots.  Even gotten arbitrary logarithms to work, albeit by means of some rather evil Python.
 
  + =rcomplete.sh= :: a little shellscript to enable tab-completion for =ries= options.
 
@@ -61,19 +61,19 @@ I've also added the ability to define your own functions, with the =--define= op
 *** GSL Support
 You can now compile =ries= to use the [[https://www.gnu.org/software/gsl/][GNU Scientific Library]] as a math engine, which provides access to some "special" functions:
 
- + Lambert W Function :: The inverse of w*exp(w).  That is, W(/x/) is the number /w/ such that w*exp(w) = x.  You can use this to build a "super square root" function, that is, to find the number /y/ such that y^y=x.
+ + [[https://en.wikipedia.org/wiki/Lambert_W_function][Lambert W Function]] :: The inverse of w*exp(w).  That is, W(/x/) is the number /w/ such that w*exp(w) = x.  You can use this to build a "super square root" function, that is, to find the number /y/ such that y^y=x.
 
- + Gamma and Factorial Functions :: The factorial /n/! of a positive integer /n/ is the product of all the integers from 1 through /n/.  The Gamma function \Gamma(x) extends this function to non-integers, and also to negative non-integers (but not to negative integers!), except that /n/!=\Gamma(n+1).  The natural log of the Gamma function is also available separately, as a single function, which can accept much higher arguments without overflowing than the Gamma function can.
+ + [[https://en.wikipedia.org/wiki/Gamma_function][Gamma]] and [[https://en.wikipedia.org/wiki/Factorial][Factorial]] Functions :: The factorial /n/! of a positive integer /n/ is the product of all the integers from 1 through /n/.  The Gamma function \Gamma(x) extends this function to non-integers, and also to negative non-integers (but not to negative integers!), except that /n/!=\Gamma(n+1).  The natural log of the Gamma function is also available separately, as a single function, which can accept much higher arguments without overflowing than the Gamma function can.
 
- + Log of the Pochhammer Symbol :: The Pochhamer Symbol, or Rising Factorial, is a function of /two/ arguments, x and y, and equals \Gamma(x+y)/\Gamma(x).  This function makes the logarithm of that rising factorial available.
+ + Log of the [[https://en.wikipedia.org/wiki/Pochhammer_notation][Pochhammer Symbol]] :: The Pochhammer Symbol, or Rising Factorial, is a function of /two/ arguments, x and y, and equals \Gamma(x+y)/\Gamma(x).  This function makes the logarithm of that rising factorial available.
 
- + Digamma or Psi Function :: The Digamma function is \Gamma'(x)/\Gamma(x), where \Gamma'(x) is the derivative of the Gamma function.
+ + [[https://en.wikipedia.org/wiki/Digamma_function][Digamma or Psi Function]] :: The Digamma function is \Gamma'(x)/\Gamma(x), where \Gamma'(x) is the derivative of the Gamma function.
 
- + Exponential and Hyperbolic Integrals :: These are three functions based on the exp function and the sinh and cosh functions, but involving integrals of f(t)/t.
+ + [[https://en.wikipedia.org/wiki/Exponential_integral][Exponential]] and [[https://en.wikipedia.org/wiki/Trigonometric_integral#Hyperbolic_sine_integral][Hyperbolic]] Integrals :: These are three functions based on the exp function and the sinh and cosh functions, but involving integrals of f(t)/t.
 
- + Dilogarithm or Li_2(x) :: The dilogarithm is another integral-based function, this one based on (1-t)/t.
+ + [[https://en.wikipedia.org/wiki/Spence%2527s_function][Dilogarithm]] or Li_2(x) :: The dilogarithm is another integral-based function, this one based on (1-t)/t.
 
- + Riemann Zeta Function :: This is the well-known function at the center of the famed Riemann hypothesis.  It's an infinite sum of integers to the power of -x.
+ + [[https://en.wikipedia.org/wiki/Riemann_zeta_function][Riemann Zeta Function]] :: This is the well-known function at the center of the famed [[https://en.wikipedia.org/wiki/Riemann_hypothesis][Riemann hypothesis]].  It's an infinite sum of integers to the power of -x.
 
  + Super Cube Root :: This is not a built-in function of the GSL, but uses GSL's root-finding capabilities to find the number /y/ such that y^y^y=x.
 

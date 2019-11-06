@@ -1502,10 +1502,9 @@ but the two functions differ in that there is a slight offset:
 It is recommended that only one or the other of these functions be enabled
 at a given time (see the \fB-N\fR option), as they are redundant to each
 other.
-     Although \[*G](\fIn\fR)
-is an integer whenever \fIn\fR is an integer, \fBries\fR currently
-considers the value of the gamma function to be a transcendental number in
-all cases.
+     When \fIn\fR is an integer, \[*G](\fIn\fR)
+is an integer, and \fBries\fR considers the result an integer.  Otherwise,
+\[*G](\fIx\fR) is considered a transcendental result.
      For typesetting simplicity, the factorial function is represented as
 \fC!(x)\fR rather than \fIx\fR! in \fBries\fR output.
 
@@ -1655,8 +1654,6 @@ zeta ( s ) = sum sub { k = 1 } sup { inf } k sup { - s } .
 .\}
 .el of \fIk\fR^(-\fIx\fR) as \fIk\fR goes from 1 to infinity.
 Note that the zeta function has a pole at x=1.
-Currently, \fBries\fR does not compute derivatives for the zeta function,
-which may limit how the algorithm makes use of it.
 
 .IP \fBlnpoch\ (t)\fR
 This computes the logarithm the Pochhammer symbol, or the rising factorial,
