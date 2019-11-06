@@ -22,8 +22,8 @@ riesgsl: ries.c
 riesldbl: ries.c
 	cc -O2 -o $@ $< $(LDBLFLAGS) -lm
 
-ries.man.txt: ries.1
-	nroff -man $< > $@
+ries.man.txt: ./ries.1
+	nroff -man -t $< > $@
 
 ries.ps: ries.1
 	groff -man -t -e $< > $@
