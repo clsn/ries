@@ -1,3 +1,4 @@
+# This setup is all kind of dumb.  Sorry.
 GSLFLAGS=-DRIES_GSL `gsl-config --libs`
 M64FLAGS=-DRIES_USE_SA_M64
 LDBLFLAGS=-DRIES_WANT_LDBL

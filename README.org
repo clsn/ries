@@ -61,7 +61,7 @@ I've also added the ability to define your own functions, with the =--define= op
 *** GSL Support
 You can now compile =ries= to use the [[https://www.gnu.org/software/gsl/][GNU Scientific Library]] as a math engine, which provides access to some "special" functions:
 
- + Lambert W Function :: The inverse of \(w*exp(w)\).  That is, W(/x/) is the number /w/ such that w*exp(w) = x.  You can use this to build a "super square root" function, that is, to find the number /y/ such that \(y^y=x\).
+ + Lambert W Function :: The inverse of w*exp(w).  That is, W(/x/) is the number /w/ such that w*exp(w) = x.  You can use this to build a "super square root" function, that is, to find the number /y/ such that y^y=x.
 
  + Gamma and Factorial Functions :: The factorial /n/! of a positive integer /n/ is the product of all the integers from 1 through /n/.  The Gamma function \Gamma(x) extends this function to non-integers, and also to negative non-integers (but not to negative integers!), except that /n/!=\Gamma(n+1).  The natural log of the Gamma function is also available separately, as a single function, which can accept much higher arguments without overflowing than the Gamma function can.
 
@@ -69,13 +69,13 @@ You can now compile =ries= to use the [[https://www.gnu.org/software/gsl/][GNU S
 
  + Digamma or Psi Function :: The Digamma function is \Gamma'(x)/\Gamma(x), where \Gamma'(x) is the derivative of the Gamma function.
 
- + Exponential and Hyperbolic Integrals :: These are three functions based on the exp function and the sinh and cosh functions, but involving integrals of \(f(t)/t\).
+ + Exponential and Hyperbolic Integrals :: These are three functions based on the exp function and the sinh and cosh functions, but involving integrals of f(t)/t.
 
- + Dilogarithm or Li_2(x) :: The dilogarithm is another integral-based function, this one based on \((1-t)/t\).
+ + Dilogarithm or Li_2(x) :: The dilogarithm is another integral-based function, this one based on (1-t)/t.
 
- + Riemann Zeta Function :: This is the well-known function at the center of the famed Riemann hypothesis.  It's an infinite sum of integers to the power of \(-x\).
+ + Riemann Zeta Function :: This is the well-known function at the center of the famed Riemann hypothesis.  It's an infinite sum of integers to the power of -x.
 
- + Super Cube Root :: This is not a built-in function of the GSL, but uses GSL's root-finding capabilities to find the number /y/ such that y^{y^y}=x.
+ + Super Cube Root :: This is not a built-in function of the GSL, but uses GSL's root-finding capabilities to find the number /y/ such that y^y^y=x.
 
 
 *** RHS-only Operator Restrictions
