@@ -286,10 +286,10 @@ example: \FCries -i 16\FT gives the answer
 because 16^2-16 is close to 3^5. \FCries -i 16 -Ox\FT replaces
 that answer with ``5 \fIx\fR^2 = 6^4''.
 
-.IP \fB--S-RHS=\fIsss\fR
-.IP \fB--N-RHS=\fIsss\fR
-.IP \fB--E-RHS=\fIsss\fR
-.IP \fB--O-RHS=\fIsss\fR
+.IP \fB--S-RHS\ \fIsss\fR
+.IP \fB--N-RHS\ \fIsss\fR
+.IP \fB--E-RHS\ \fIsss\fR
+.IP \fB--O-RHS\ \fIsss\fR
 
 These options work just like the
 \fB-S\fR, \fB-N\fR, \fB-E\fR, and \fB-O\fR
@@ -857,6 +857,8 @@ functions, even though they are defined in terms of it.  The user-defined
 functions can be restricted on their own, though, so
 .B -N:cosh
 will forbid the \fBcosh\fR function.
+
+.IP \fB--constant\fR\ \fIweight\fB:\fIname\fB:\fIdescription\fB:\fIvalue\fR
 .IP \fB-X\fR\ \fIweight\fB:\fIname\fB:\fIdescription\fB:\fIvalue\fR
 Define a new constant that \fBries\fR can use in its calculations.  So for
 example you might want to allow the Euler-Mascheroni constant \[*g]\ \ to

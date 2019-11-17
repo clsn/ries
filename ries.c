@@ -3501,6 +3501,7 @@ char *g_all_options[] =
    "--max-memory ",
    "--memory-abort-threshold ",
    "-X ",
+   "--constant ",
    "--define ",
    "--min-equate-value ",
    "--min-match-distance ",
@@ -3543,10 +3544,10 @@ char *g_all_options[] =
    "-S",
    "-x ",
    "--absolute-roots ",
-   "--N-RHS",
-   "--O-RHS",
-   "--S-RHS",
-   "--E-RHS",
+   "--N-RHS ",
+   "--O-RHS ",
+   "--S-RHS ",
+   "--E-RHS ",
    NULL
   };
 
@@ -12601,7 +12602,8 @@ void parse_args(size_t nargs, char *argv[])
         print_end(-1);
       }
 
-    } else if (strcmp(pa_this_arg, "-X") == 0) {
+    } else if (strcmp(pa_this_arg, "-X") == 0 ||
+               strcmp(pa_this_arg, "--constant") == 0) {
       char symbol;
       int wt;
       ries_val t;
@@ -13075,10 +13077,11 @@ void parse_args(size_t nargs, char *argv[])
       g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-N" */
       g_ONES++;
 
-    } else if (strncmp(pa_this_arg, "--N-RHS=", 8) == 0) {
+    } else if (strcmp(pa_this_arg, "--N-RHS") == 0) {
+      pa_get_arg();
       NOS_options = B_TRUE;
       g_ONES_opt[g_ONES].which = 'n';
-      g_ONES_opt[g_ONES].syms = pa_this_arg + 8;
+      g_ONES_opt[g_ONES].syms = pa_this_arg;
       g_ONES++;
 
     } else if (strncmp(pa_this_arg, "-O", 2) == 0) {
@@ -13087,11 +13090,12 @@ void parse_args(size_t nargs, char *argv[])
       g_ONES_opt[g_ONES].which = 'O';
       g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-O" */
       g_ONES++;
-    } else if (strncmp(pa_this_arg, "--O-RHS=", 8) == 0) {
+    } else if (strcmp(pa_this_arg, "--O-RHS") == 0) {
       /* Once-only symbols, on the RHS only! */
+      pa_get_arg();
       NOS_options = B_TRUE;
       g_ONES_opt[g_ONES].which = 'o';
-      g_ONES_opt[g_ONES].syms = pa_this_arg+8;
+      g_ONES_opt[g_ONES].syms = pa_this_arg;
       g_ONES++;
     } else if ((strncmp(pa_this_arg, "-r", 2) == 0)
              || (strcmp(pa_this_arg, "--rational-subexpressions") == 0)) {
@@ -13118,7 +13122,7 @@ void parse_args(size_t nargs, char *argv[])
 
     } else if (strncmp(pa_this_arg, "--S-RHS=", 8) == 0) {
       /* Only these symbols */
-      pa_this_arg += 8;   /* skip the "-S" */
+      pa_get_arg();
       S_option = B_TRUE;
       NOS_options = B_TRUE;
       g_ONES_opt[g_ONES].which = 's';
