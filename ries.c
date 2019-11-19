@@ -12996,12 +12996,13 @@ void parse_args(size_t nargs, char *argv[])
         g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-E" */
         g_ONES++;
       }
-    } else if (strncmp(pa_this_arg, "--E-RHS=", 8) == 0) {
+    } else if (strcmp(pa_this_arg, "--E-RHS") == 0) {
       /* Enable these symbols *on the RHS*! */
+      pa_get_arg();
       NOS_options = B_TRUE;
       /* process this later. */
       g_ONES_opt[g_ONES].which = 'e';
-      g_ONES_opt[g_ONES].syms = pa_this_arg+8;
+      g_ONES_opt[g_ONES].syms = pa_this_arg;
       g_ONES++;
     } else if (strncmp(pa_this_arg, "-F", 2) == 0) {
       /* Select expression display format */
@@ -13120,7 +13121,7 @@ void parse_args(size_t nargs, char *argv[])
         g_ONES++;
       }
 
-    } else if (strncmp(pa_this_arg, "--S-RHS=", 8) == 0) {
+    } else if (strcmp(pa_this_arg, "--S-RHS") == 0) {
       /* Only these symbols */
       pa_get_arg();
       S_option = B_TRUE;
