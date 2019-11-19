@@ -11053,28 +11053,6 @@ void endisable_symbols()
       break;
     }
   }
-  /* Have to recount the number of syms of each seft now */
-  n_asym = n_bsym = n_csym = 0;
-  for (i = 0; i < SYMBOL_RANGE; i++) {
-    sym_attr_block attrs = sym_attrs[i];
-    /* XXXX What about sa_RHSalwd? */
-    /* Should those count?  And how? */
-    /* Maybe sa_RHSalwd should always just count as a very high weight? */
-    if (attrs.sa_alwd > 0) {
-      switch(attrs.seft) {
-      case 'a':
-        n_asym++;
-        break;
-      case 'b':
-        n_bsym++;
-        break;
-      case 'c':
-        n_csym++;
-        break;
-        /* Otherwise do nothing. */
-      }
-    }
-  }
 }
 
 void set_symname(char *a)
@@ -11692,7 +11670,30 @@ void init2()
      %%% Figure out if I need this at all, or use PS_cross instead */
   sym_attrs['.'].sa_name = " ";
 
+  /* Report error and abort if there is only one type A symbol
+     (namely X, which is always included) */
+  /* XXXXXXXXXXXXXXXXXXXXXX
+     This check no longer works!  Move it after endisabling!
+     XXXXXXXXXXXXXXXXXXXXXX
+  */
+  if (n_asym < 2) {
+    printf("%s: You must allow at least one constant symbol.\n",
+      g_argv0);
+    if (S_option) {
+      printf("  (Note that the -S option disables all other symbols)\n");
+    }
+    brief_help();
+    print_end(1);
+  }
 
+  if (n_bsym == 0) {
+    if (n_csym == 0) {
+      printf("%s: You must allow at least one operator symbol.\n",
+        g_argv0);
+      brief_help();
+      print_end(1);
+    }
+    /* XXXXXXXXXXXXX til here XXXXXXXXXXXXXXX */
 #ifdef NO_IDENTITY_OPTIMIZATION
     /* With the "no identity" optimization we don't need this kludge. */
 #else
@@ -11702,6 +11703,7 @@ void init2()
       'b', 10, "I = identity", 0, "identity");
     g_used_identity = B_TRUE;
 #endif
+  }
 
   /* "I" is reserved.  Just hack it and add a dummy name to it... */
   sym_attrs[OP_IDENTITY].sa_name="I";
@@ -13297,27 +13299,6 @@ int main(int nargs, char *argv[])
   init2();
 
   endisable_symbols();
-  /* Report error and abort if there is only one type A symbol
-     (namely X, which is always included) */
-  if (n_asym < 2) {
-    printf("%s: You must allow at least one constant symbol.\n",
-      g_argv0);
-    if (S_option) {
-      printf("  (Note that the -S option disables all other symbols)\n");
-    }
-    brief_help();
-    print_end(1);
-  }
-
-  if (n_bsym == 0) {
-    if (n_csym == 0) {
-      printf("%s: You must allow at least one operator symbol.\n",
-        g_argv0);
-      brief_help();
-      print_end(1);
-    }
-  }
-
   record_rules();
   do_renames();
   do_reweights();
