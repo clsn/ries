@@ -1,7 +1,7 @@
 # Some user-defined functions.
 #
 
-# --define WEIGHT:SEFT:NAME:DESC:FORMULA
+# --define WEIGHT:NAME:DESC:FORMULA
 
 # sinh, cosh, tanh
 --define "4:sinh:sinh = hyperbolic sine:E|r-2/"

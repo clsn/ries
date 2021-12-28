@@ -185,7 +185,7 @@ Logarithm to base A of B
 Lambert W function. Only available if using the stand-alone maths library,
 described in the section ``STAND-ALONE MATHS LIBRARY'' below, or if using
 the GSL EXTENSIONS. In addition,
-one must explicitly choose it with \fB\-EW\fR.
+one must explicitly choose it with \fB-EW\fR.
 .RE
 
 .IP
@@ -197,7 +197,7 @@ Be sure to quote the
 parameter so the shell does not split the option apart.  See also below
 regarding LONG-FORM EXPRESSIONS and GSL EXTENSIONS.
 .IP
-There are lots of potential uses for \fB\-N\fR. For example,
+There are lots of potential uses for \fB-N\fR. For example,
 if you invoke \fBries\fR on a small irrational number,
 you might get several solutions that involve
 the unary and binary logarithm operators `ln' (natural logarithm) and `log_'
@@ -220,13 +220,13 @@ expressions is longer, and that makes the search slower.
 
 
 .IP \fB-S\fIsss\fR
-permitted Symbol Set: Specifies a symbol set, as with \fB\-N\fR, but has the
+permitted Symbol Set: Specifies a symbol set, as with \fB-N\fR, but has the
 opposite effect: \fIonly\fR these symbols will be used. A \fB-S\fR also
-cancels any \fB\-E\fR, \fB\-N\fR or \fB\-O\fR options that were given;
-meaning that if you wish to combine these options, the \fB\-S\fR
+cancels any \fB-E\fR, \fB-N\fR or \fB-O\fR options that were given;
+meaning that if you wish to combine these options, the \fB-S\fR
 should come first.
 
-\fB\-S\fR can be used to solve those old problems of the
+\fB-S\fR can be used to solve those old problems of the
 sort ``How can the number 27 be expressed using only the
 four basic operators and the digit 4?'' The answer is
 given by:
@@ -239,11 +239,11 @@ option, you'd have to type:
 
     \FCries -Npef12356789rsqlL^v 27 -Ox\FT
 
-If you give the \fB\-S\fR option with no symbols, \fBries\fR will
+If you give the \fB-S\fR option with no symbols, \fBries\fR will
 display a table of all available symbols (as modified by any \fB-E\fR,
 \fB-N\fR, \fB-O\fR and \fB-S\fR options) with their definition and
-weights. This lone \fB\-S\fR can be given along with a normal
-\fB\-S\fR option, but in any case \fBries\fR will exit after showing
+weights. This lone \fB-S\fR can be given along with a normal
+\fB-S\fR option, but in any case \fBries\fR will exit after showing
 the table.
 
 
@@ -263,7 +263,7 @@ possible symbols.
 .IP \fB-O\fIsss\fR
 Only One: Specifies symbols which should appear no more than once
 on \fIeach side\fR of the equation. This option can be combined with \fB-E\fR
-or \fB\-N\fR, in which case they augment each other.
+or \fB-N\fR, in which case they augment each other.
 If used with \fB-S\fR with the same symbol, the latter option
 takes effect.
 

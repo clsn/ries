@@ -11291,6 +11291,7 @@ void record_rules()
 
 #ifdef RIES_GSL
   /* Attempting to add some rules relevant to GSL extensions... */
+  /* Many of these rules can lead to 0! */
   add_rule(STR_NUL,            OP_GAMMA, AM_1);     /* [1G] => 0         */
   add_rule(STR_1,              OP_FACTORIAL, AM_1); /* [1!] => 1         */
   /* Chi is an even function */
