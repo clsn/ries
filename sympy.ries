@@ -9,4 +9,4 @@
 --symbol-names :1:S.One :^:** :e:E :f:GoldenRatio :W:LambertW :v:**ROOT**
 :L:LOG._
 # these are in the constants.ries file
---symbol-names ::i^i:I**I ::G(gamma):gamma(EulerGamma)
+--symbol-names ::i^i:I**I ::G(gamma):gamma(EulerGamma) ::Gamma:EulerGamma

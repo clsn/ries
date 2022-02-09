@@ -1,9 +1,9 @@
 --explicit-multiply
 --symbol-names :p:π :e:ℯ :f:φ :l:㏑ :v:√ :q:²√ :*:·
+## ÷ is not "prettier" than / !
 # :^:**
 --symbol-names :L:㏒
 --symbol-names :a:α :G:γ :P:ρ :K:κ
 ###
 # GSL:
 --symbol-names ::gamma:Γ ::digamma:ψ ::dilog:Li₂ ::zeta:ζ ::scbrt:³√ₛ
-

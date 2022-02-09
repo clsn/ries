@@ -3435,10 +3435,13 @@ ries_val   k_9 = 9.0L;
 /* max length of a formula */
 #define FORM_LEN (16)
 #define NAME_LEN (10)
+/* with a lot of operators, need more space for rename/reweight tables. */
+#define TABLE_SIZE (48)
 /* There are reasons for this: */
 #define MAX_DESC_STR "50"
 #define FORM_LEN_STR "16"
 #define NAME_LEN_STR "10"
+#define TABLE_SIZE_STR "48"
 /* Probably could be done with appropriately sneaky preprocessor commands,
    if you trust those to be there when you need them. */
 
@@ -3455,7 +3458,7 @@ struct custom_symbol_t {
   char name[NAME_LEN];
   char desc[MAX_DESC];
   char seft;
-} custom_symbols[30];
+} custom_symbols[TABLE_SIZE];
 size_t symbol_count=0;
 
 /* I need to move processing the -E/-O/-S/-N options out of parse.args;
@@ -3463,14 +3466,14 @@ size_t symbol_count=0;
 struct {
   char which;
   char *syms;
-} g_ONES_opt[FORM_LEN];
+} g_ONES_opt[TABLE_SIZE];
 size_t g_ONES = 0;
 
 /* Ditto for --symbol-names.  symbol-weights too. */
-char *g_renames[FORM_LEN];
+char *g_renames[TABLE_SIZE];
 size_t g_renames_num = 0;
 
-char *g_reweights[FORM_LEN];
+char *g_reweights[TABLE_SIZE];
 size_t g_reweights_num = 0;
 
 struct stack_triplet {          /* This comes in handy */
@@ -12857,7 +12860,13 @@ void parse_args(size_t nargs, char *argv[])
         while(pa_next_isparam()) {
           char * a;
           a = pa_get_arg();
-          g_renames[g_renames_num++] = a;
+          if (g_renames_num >= TABLE_SIZE-1) {
+            // Non-fatal error.
+            printf("Too many symbol names; ignoring %s\n", a);
+          }
+          else {
+            g_renames[g_renames_num++] = a;
+          }
         }
       } else {
         printf(
@@ -12874,7 +12883,13 @@ void parse_args(size_t nargs, char *argv[])
         while(pa_next_isparam()) {
           char * a;
           a = pa_get_arg();
-          g_reweights[g_reweights_num++] = a;
+          if (g_reweights_num >= TABLE_SIZE-1) {
+            // Non-fatal error.
+            printf("Too many symbol weights; ignoring %s\n", a);
+          }
+          else {
+            g_reweights[g_reweights_num++] = a;
+          }
         }
 
       } else {

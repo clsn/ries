@@ -1,4 +1,5 @@
-# -X 4:EulerGamma:"lim{n->oo}sum_{i=1}^n1/i-ln(n)":0.57721566490153286060651209008
+# Note!  "EulerGamma" is too long a name!
+-X "4:Gamma:Gamma = lim{n->oo}sum_{i=1}^n1/i-ln(n):0.57721566490153286060651209008"
 -X "4:plastic:plastic = RootOf(x^3-x-1):1.324717957244746025960908854"
 -X "4:apery:apery = Apery's constant ζ(3)":1.20205690315959428539973816151"
 # geometric mean of partial quotients of almost all continued fractions
