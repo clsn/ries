@@ -1,8 +1,8 @@
 /* ries.c
 
     RIES -- Find Algebraic Equations, Given Their Solution
-    Copyright (C) 2000-2018 Robert P. Munafo
-    This is the 2018 Aug 05 version of "ries.c"
+    Copyright (C) 2000-2022 Robert P. Munafo
+    This is the 2022 Jun 30 version of "ries.c"
 
 
     This program is free software: you can redistribute it and/or modify
@@ -104,6 +104,13 @@ UNFINISHED WORK (TTD)
 (Listed more or less in the order that I want to look at them, and
 recent ones have date tags. Most of the undated notes are from prior
 to December 2011)
+
+20220318
+  Add a msal_math128.c that uses the GCC __float128 type (test for
+__FLT128_MANT_DIG__). Figure out how to reconcile it with library
+routines (if any) e.g. sqrt can call library sqrt for the first
+approximation. Perhaps also make a msal_math80.c to cover the case
+when ldbl is 80-bit Intel native.
 
 20160423
   Add --surprise-me option, which generates a target value according
@@ -689,7 +696,7 @@ TABLE OF FUNCTIONS
   ;   --            Function definition end
   .   --            Placeholder for multiplication during infix formatting
   /   (a b -- r)    Divide: r(a,b) = a/b
-  A   (x -- a)      Arctangent a(x) = atan(x) (reserved, not yet used)
+  A   (a b -- A)    Arctangent A(a,b) = atan2(a,b) (reserved, not yet used)
   C   (x -- c)      Cosine c(x) = cos(pi x)
   E   (x -- f)      Exponential function f(x) = e^x
   G   (x -- g)      Gamma function g(x) = Gamma[x] = (x-1)! (reserved, not
@@ -805,7 +812,9 @@ what a word does to the stack. It is described by a comment (some text in
 parentheses) containing: the stack contents before the word is executed,
 a "--" symbol, and the stack contents after the word executes.
 
-There are three sefts in ries:
+There are three sefts in ries, 'a', 'b', and 'c'. These are the
+similest and most common of a larget set of sefts found in FORTH-like
+languages, of which the following are a representative sample:
 
  seft 0: ( -- )
    No operation (compare to b, b2 which don't change the stack level
@@ -1048,7 +1057,7 @@ to anyone who has taken calculus:
   s  squared        2 A da
   q  square root    da / 2 sqrt(A)
   r  reciprocal     - da / A^2
-  A  arctangent     da / (1+A^2)
+  A  arctan(a/b)    da / (1+A^2)
   C  cosine         -sin(A) da
   G  Gamma          %%% reserved (mutex with !)
   !  factorial      %%% reserved (mutex with G)
@@ -1086,6 +1095,22 @@ to anyone who has taken calculus:
 
   log(a+b) = log(a(1+b/a))
            = log(a) + log(1+b/a)
+
+
+  Another example for atan2(a,b):
+
+    d/dx(arctan(a/b)) = 1/((A/B)^2+1) d/dx(A/B)
+                      = 1/((A/B)^2+1) (B da - A db / B^2)
+                      = (B da - A db) / (B^2 * ((A/B)^2+1))
+                      = (B da - A db) / (A^2 + B^2)
+
+  which agrees with Wikipedia (at en.wikipedia.org/wiki/Atan2#Derivative):
+
+    Informally representing the function atan2 as the angle function
+    theta(x,y) = atan2(y,x) [...] yields the following for the differential:
+
+      dtheta = d/dx(atan2(y,x) dx) + d/dy(atan2(y,x) dy)
+             = (-y/(x^2+y^2)) dx + (x/(x^2+y^2)) dy
 
    */ /*
 
@@ -2254,7 +2279,7 @@ improvements like user-defined constants.
 20130307 '=' symbol can now be renamed. Add -r and -re options to
 ensure that all solutions are rational when solved for x. (These are
 just shorthand for using -N to exclude lots of symbols). Increase
-allocation of temp buffers in infix_1, fixing a crash that happened
+allocation of temp buffers in infix.1, fixing a crash that happened
 when using an all-seft-b symbolset and solving for x, e.g. "ries
 3.1415926535897932 -SeElq -s".
 
@@ -2406,7 +2431,8 @@ warnings.
 20130820 Add ries_spfg_test and msal_test_spfg
 
 20140226 Eliminate conversion to double in ries_to_digits, fixing an
-'exponent adjust failed' error when trying to print values like 1.23e-789
+'exponent adjust failed' error when trying to print values like
+1.23e-789 (with long double which supports exponents down to e-4951)
 
 20140227 Minor refactoring; add did_newton parameter to report_match
 
@@ -2470,7 +2496,12 @@ parse.args()
 20170211 Add '--show-work' as a synonym for '-Ds'
 20180713 Add '--max-trig-argument' option.
 
+20180713 Add '--max-trig-argument' option.
 20180802 Rename '--max-trig-argument' to '--max-trig-cycles'
+
+20210417 Clean up arctan code and get it working.
+ 20210418 Better formatting of atan2 in infix.1(), don't print
+2nd argument if it is 1.
 
 */ /*
 
@@ -2675,6 +2706,7 @@ int diffzeta(double x, double *rv, double *er);
 /* The following functions are acceptable as-is but need long double
 variants. */
 #ifdef RIES_VAL_LDBL
+# define ARCTAN2(x,y) (arctan2l((x),(y)))
 # define EXP(x) (expl((x)))
 # define FABS(x) (fabsl((x)))
 # define FLOOR(x) (floorl((x)))
@@ -2683,6 +2715,7 @@ variants. */
 # define POW(x,y) (powl((x),(y)))
 # define SQRT(x) (sqrtl((x)))
 #else
+# define ARCTAN2(x,y) (arctan2((x),(y)))
 # define EXP(x) (exp((x)))
 # define FABS(x) (fabs((x)))
 # define FLOOR(x) (floor((x)))
@@ -2923,11 +2956,17 @@ restrictive: TYPE_RAT > TYPE_ALG because the rationals are a subset of
 the algebraic numbers. */
 #define TYPE_NONE 0  /* unknown, i.e. beyond the functions in RIES */
 #define TYPE_TRAN 1  /* "transcendental": includes Gamma[pi], root of x^x=7 */
-#define TYPE_ELEM 2  /* "elementary": algebraic with arbitrary exponents */
-#define TYPE_ALG  3  /* Algebraic but not constructible */
-#define TYPE_CONS 4  /* Constructible but not rational */
-#define TYPE_RAT  5  /* Rational (but not integer) */
-#define TYPE_INT  6  /* Integer */
+#define TYPE_TCEL 2  /* Timothy Chow's "exponential-logarithmic": algebraic
+                        adding the complex exponent and logarithm operations,
+                        equivalently all trig and inverse trig functions, e.g.
+                        pi = -i ln(-1); sin z = (e^(iz)-e^(-iz))/2i; and
+                        arctan(x) = 1/2i ln((x-i)/(x+i) + k */
+#define TYPE_ALG  3  /* Algebraic (roots of any polynomial with algebraic
+                        coefficients), not always constructible */
+#define TYPE_CONS 4  /* Constructible (rationals extended by square root,
+                        nested square roots okay) */
+#define TYPE_RAT  5  /* Rational (integers extended by division) */
+#define TYPE_INT  6  /* Integer (closed under add, subtract, and multiply) */
 #define TGMIN(a,b) (((a)<(b)) ? a : b)
 typedef s16 ries_tgs; /* tgs-manip */
 #define TAG_INT_P(tg)  ((tg) == TYPE_INT)
@@ -3030,7 +3069,7 @@ void obt_clone(obt_traversal * from, obt_traversal * to);
 void obt_up(obt_traversal * it);
 void obt_left(obt_traversal * it);
 void obt_right(obt_traversal * it);
-_____________________________________________________________________________*/
+-----------------------------------------------------------------------------*/
 
 /*                        M E T A S T A C K !
 
@@ -3250,9 +3289,8 @@ b001 NOS_options;
 b001 g_show_ss;
 b001 g_reported_exhaustion;
 
-ries_tgs g_restrict_subexpr; /* nonzero if they gave -i, -r or -c option */
-
-ries_tgs g_restrict_exponents; /* nonzero to limit exponents to being e.g. rational */
+ries_tgs g_restrict_subexpr; /* Set e.g. to TYPE_RAT by -r option */
+ries_tgs g_restrict_exponents; /* Set e.g. to TYPE_RAT by -a option */
 ries_tgs g_restrict_trig_args;
 
 b001 g_relative_x;  /* true if X values should be given relative to T */
@@ -3352,6 +3390,7 @@ b001 g_explicit_multiply; /* Always show '*' symbol for multiplication */
 #define OP_POW          '^'
 #define OP_ROOT         'v'
 #define OP_LOGBASE      'L'
+#define OP_ATAN         'A'
 #define OP_NOOP         ' '
 
 #define STR_1            "1"
@@ -3385,6 +3424,7 @@ b001 g_explicit_multiply; /* Always show '*' symbol for multiplication */
 #define STR_POW          "^"
 #define STR_ROOT         "v"
 #define STR_LOGBASE      "L"
+#define STR_ATAN         "A"
 #define STR_NUL          ""
 /* =============================== */
 
@@ -3420,10 +3460,10 @@ ries_val k_phi = (ries_val)1.61803398874989484820458683436563811772030L;
 ries_tgs tg_phi = TYPE_CONS;
 ries_val   k_2 = 2.0L;
 ries_val   k_e = (ries_val)2.71828182845904523536028747135266249775724L;
-ries_tgs tg_e = TYPE_ELEM;
+ries_tgs tg_e = TYPE_TCEL;
 ries_val   k_3 = 3.0L;
 ries_val  k_pi = (ries_val)3.14159265358979323846264338327950288419716L;
-ries_tgs tg_pi = TYPE_ELEM;
+ries_tgs tg_pi = TYPE_TCEL;
 ries_val   k_4 = 4.0L;
 ries_val   k_5 = 5.0L;
 ries_val   k_6 = 6.0L;
@@ -3660,7 +3700,7 @@ as examples:
  +---------------------+
 
 */
-#define FMT_STR_SIZE 20
+#define FMT_STR_SIZE 32
 char fmt_g_nominal[FMT_STR_SIZE];   /* e.g. "%.17g" */
 char fmt_g_nom_fixed[FMT_STR_SIZE]; /* e.g. "%-23.17g" */
 
@@ -3793,6 +3833,9 @@ ries_val ms_pop(metastack *ms, ries_dif *diff, ries_tgs * tags);
 ries_val ms_peek(metastack *ms, ries_dif *diff, ries_tgs * tag, s16 *sptr);
 void ms_undo(metastack *ms);
 
+double arctan2(double a, double b);
+long double arctan2l(long double a, long double b);
+
 s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx);
 
 s16 infix_1(symbol * expr, char * term, symbol * t_op);
@@ -3870,7 +3913,7 @@ void define_amkeys(void);
 void add_symbol(symbol sym, const char *name_forth, const char *name_infix,
   symbol type, s16 weight,
   const char * def_terse, const char * def_normal, const char * description);
-/* The macro ADDSYM_NAMES is used to pass the four variants of a symbol's
+/* The macro ADDSYM_NAMES is used to pass the three variants of a symbol's
    name, using the macro helps make the calls to add.symbol() a bit more
    readable. */
 #define ADDSYM_NAMES(ascii1,FORTH,infix)  (ascii1), (FORTH), (infix)
@@ -3908,7 +3951,7 @@ char * pa_def_path;
 void show_version(void)
 {
   printf(
-    "ries version of %s, Copyright (C) 2000-2018 Robert P. Munafo\n",
+    "ries version of %s, Copyright (C) 2000-2022 Robert P. Munafo\n",
     RIES_VERSION);
 
   printf(
@@ -4837,7 +4880,7 @@ const char * tagname(int t)
   switch(t) {
     case TYPE_NONE: default: return "none";
     case TYPE_TRAN: return "tran";
-    case TYPE_ELEM: return "elem";
+    case TYPE_TCEL: return "elem";
     case TYPE_ALG:  return "alg";
     case TYPE_CONS: return "cons";
     case TYPE_RAT:  return "rat";
@@ -4847,7 +4890,7 @@ const char * tagname(int t)
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   Time measurement, memory allocation, and "thrashing" detection
-_____________________________________________________________________________*/
+-----------------------------------------------------------------------------*/
 
 time_flt tod_start; /* gettime() value at program start */
 
@@ -5229,11 +5272,11 @@ void ms_push(metastack *ms, ries_val x, ries_dif dx, ries_tgs tags)
 
   /* remember */
   msp = ms->msp;
+  ms->ms[msp] = MSO_PUSH;
+
   if (debug_m) {
     printf("push %d %g (%g)%x '%d'\n", sp, dbl(x), dx, tags, msp);
   }
-  ms->ms[msp] = MSO_PUSH;
-
 
   /* for a push, we don't need to add any undo values */
 
@@ -5362,7 +5405,7 @@ void ms_undo(metastack *ms)
     ms->sp = sp;
     if (debug_m) { printf("undo-pop\n"); }
   }
-}
+} /* End of ms.undo */
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -5433,35 +5476,23 @@ See OEIS[A30178].
 4.6692016091029906718532038204662016
   Feigenbaum bifurcation velocity, OEIS[6890].
 
-_____________________________________________________________________________*/
+-----------------------------------------------------------------------------*/
 
-#if 0
-/* the man page for atan2 doesn't specify its behavior when both arguments
+/* Native double and long double atan2 functions.
+
+The man page for atan2 doesn't specify its behaviour when both arguments
    are zero, so just to be safe I am defining it myself. */
-double arctan(double a, double b)
+double arctan2(double a, double b)
 {
-  double rv;
-
-  if ((a == k_0) && (b == k_0)) {
-    rv = k_0;
-  } else {
-    rv = atan2(a,b);
-  }
-  return rv;
+  if ((a == 0) && (b == 0)) { return 0; }
+  return atan2(a,b);
 }
 
-long double arctanl(long double a, long double b)
+long double arctan2l(long double a, long double b)
 {
-  long double rv;
-
-  if ((a == k_0) && (b == k_0)) {
-    rv = k_0;
-  } else {
-    rv = atan2l(a,b);
+  if ((a == 0) && (b == 0)) { return 0; }
+  return atan2l(a,b);
   }
-  return rv;
-}
-#endif
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -5798,7 +5829,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
       return ERR_EXEC_ILLEGAL_DERIV;
     }
     rv = LOG(a);
-    trv = TGMIN(tga, TYPE_ELEM); /* tgs-manip */
+    trv = TGMIN(tga, TYPE_TCEL); /* tgs-manip */
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
@@ -5825,7 +5856,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     if (do_dx) {
       drv = (ries_dif) (rv * da);
     }
-    trv = TGMIN(tga, TYPE_ELEM); /* tgs-manip */
+    trv = TGMIN(tga, TYPE_TCEL); /* tgs-manip */
     ms_push(ms, rv, drv, trv); *undo_count = 2;
     break;
 
@@ -6385,7 +6416,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
         trv = TGMIN(tga, TYPE_ALG); /* Some other rational power/root */
       }
     } else if ((tgb == TYPE_CONS) || (tgb == TYPE_ALG)) {
-      trv = TGMIN(tga, TYPE_ELEM);
+      trv = TGMIN(tga, TYPE_TCEL);
     } else {
       /* Exponent isn't even algebraic! */
       trv = TGMIN(tga, tgb);
@@ -6443,7 +6474,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
            that first anyway */
       }
     } else if ((tgb == TYPE_CONS) || (tgb == TYPE_ALG)) {
-      trv = TGMIN(tga, TYPE_ELEM);
+      trv = TGMIN(tga, TYPE_TCEL);
     } else {
       /* Radix isn't even algebraic! */
       trv = TGMIN(tga, tgb);
@@ -6491,7 +6522,7 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
         return ERR_EXEC_ZERO_DERIV;
       }
     }
-    trv = TGMIN(tga, TGMIN(tgb, TYPE_ELEM)); /* tgs-manip */
+    trv = TGMIN(tga, TGMIN(tgb, TYPE_TCEL)); /* tgs-manip */
     ms_push(ms, rv, drv, trv); *undo_count = 3;
     break;
 #ifdef RIES_GSL
@@ -6544,22 +6575,22 @@ s16 exec(metastack *ms, symbol op, s16 *undo_count, s16 do_dx)
     break;
 
 #endif
-#if 0
-  case 'A' :       /* atan2 function (quadrant-correct arctangent) */
+
+  case OP_ATAN :       /* atan2 function (quadrant-correct arctangent) */
     b = ms_pop(ms, &db, 0);
     a = ms_pop(ms, &da, 0);
-    rv = ARCTAN(a,b);
+    rv = ARCTAN2(a,b);
     if (do_dx) {
       /* %%% I need to verify this. It also needs to be transformed into
          a form that won't lose accuracy when computed (consider b near 0)
          probably need to use two forms: one for when fabs(a) > fabs(b),
-         and one for the other case. */
-      drv = (k_1 / (k_1 + (a*a / b*b))) * (b * da - a * db) / (b*b);
+         and one for the other case.
+            (b * da - a * db) / (k_1 + (a*a / b*b)) * b*b);  */
+      drv = (((ries_dif)b)*da - ((ries_dif)a)*db) / ((ries_dif)(b*b + a*a));
     }
     trv = TYPE_NONE; /* tgs-manip */
     ms_push(ms, rv, drv, trv); *undo_count = 3;
     break;
-#endif
 
   default:
     if (symbl = find_custom(op)) {
@@ -6691,6 +6722,7 @@ s16 infix_1(
   symbol op_t;   /* for swapping op_a and op_b */
   char * s;      /* for copying subterms to output */
   s16 paren_a, paren_b; /* precedence flags for seft 'c' operators */
+  s16 atan2_show_denom;
   struct custom_symbol_t *symbl;
 
   optr = 0;
@@ -6809,6 +6841,9 @@ s16 infix_1(
       op = OP_POW;
       *t_op = OP_POW;
     }
+    /* %%% Identity involving arctan2: negate first arg and negate result
+       (does not work if y=0 and x<=0, but atan2(0,x) should be excluded)
+       %%% Must *not* negate both arguments: atan2(1,-1) != atan2(-1,1) */
 
     /* okay, do the swap */
     if (swap) {
@@ -6819,12 +6854,17 @@ s16 infix_1(
     /* determine precedence */
     paren_a = paren_b = 0; /* default don't use parens */
 
+    atan2_show_denom = 1;
     if (op == OP_LOGBASE) {
       /* Latter part is always in parens; first part (base) is
          in parens only if it's an expression */
       paren_b = 1;
       if (sym_attrs[op_a].seft != 'a') {
         paren_a = 1;
+      }
+    } else if (op == OP_ATAN) {
+      if (op_b == '1') {
+        atan2_show_denom = 0;
       }
     }
     if (sym_attrs[op_a].seft == 'c') {
@@ -6860,17 +6900,20 @@ s16 infix_1(
 
     /* Emit leading operator for two-argument custom functions and 'L' */
     symbl = find_custom(op);
-    if (op == OP_LOGBASE) {
+    if (op == OP_LOGBASE || op == OP_ATAN || symbl
+#ifdef RIES_GSL
+        || op == OP_LNPOCH
+#endif
+        ) {
       /* This operator goes in front of both arguments */
       term[optr++] = (char) op;
     }
-    if (symbl
+    if (op == OP_ATAN || symbl
 #ifdef RIES_GSL
         || op == OP_LNPOCH
 #endif
         ) {
       /* 2-argument custom functions should be func(a, b) */
-      term[optr++] = (char) op;
       term[optr++] = '(';
     }
 
@@ -6907,28 +6950,32 @@ s16 infix_1(
       }
     } else if (op == OP_LOGBASE) {
       /* We already emitted it */
-    } else if (symbl
+    } else if (op == OP_ATAN || symbl
 #ifdef RIES_GSL
                || op == OP_LNPOCH
 #endif
                ) {
       /* comma between function params */
-      term[optr++] = ',';
+      if (op != OP_ATAN || atan2_show_denom) {
+        term[optr++] = ',';
+      }
     } else {
       term[optr++] = (char) op;
     }
 
     /* Emit second argument */
-    if (paren_b) {
-      term[optr++] = '(';
+    if (op != OP_ATAN || atan2_show_denom) {
+      if (paren_b) {
+        term[optr++] = '(';
+      }
+      for(s = term_b; *s; s++) {
+        term[optr++] = *s;
+      }
+      if (paren_b) {
+        term[optr++] = ')';
+      }
     }
-    for(s = term_b; *s; s++) {
-      term[optr++] = *s;
-    }
-    if (paren_b) {
-      term[optr++] = ')';
-    }
-    if (symbl
+    if (op == OP_ATAN || symbl
 #ifdef RIES_GSL
         || op == OP_LNPOCH
 #endif
@@ -6941,11 +6988,12 @@ s16 infix_1(
 
   /* terminate input and output strings */
   term[optr] = 0;
+
   return 0;
 } /* End of infix.1 */
 
 /* cv.phantoms takes a symstr and converts any phantom symbols to
-their ASCII equivlents. symstrs with phantom symbols are fairly
+their ASCII equivalents. symstrs with phantom symbols are fairly
 short-lived, because they are created only by infix.preproc and then
 immediately converted by infix.1 */
 void cv_phantoms(symbol * s)
@@ -7623,6 +7671,7 @@ s16 eval2(symbol * expr, ries_val * val, ries_dif * dx, ries_tgs * tags,
       }
     }
   }
+
   { /* Store any requested results in the pointers passed to us */
     ries_val v;
     v = ms_peek(&ms, dx, tags, sptr);
@@ -11633,17 +11682,11 @@ void init2()
   add_symbol(ADDSYM_NAMES(OP_LOGBASE, "logN", "log_"),
     'c', -1, "A L B = logarithm to base A of B = ln(B) / ln(A)",
                                            "log_A(B) = logarithm to base A of B = ln(B) / ln(A)", ""); /* Log_x(y) */
-#if 0
-  add_symbol(ADDSYM_NAMES('A', "atan2", "arctan2"),
-    'c', -4, "x A y = arctangent of x/y",
-                                        "arctan(x,y) = arctangent of x/y", "");
-#endif
-#ifdef RIES_GSL
-  add_symbol(ADDSYM_NAMES(OP_LNPOCH, "lnpoch", "lnpoch"),
-             'c', 2, "t(x) = log(pochhammer(x,y)) = log(Gamma(x+y)/Gamma(x)",
-             "log(pochhammer(x,y)) = log(rising factorial) = log(Gamma(x+y)/Gamma(x))",
-             "logpochhammer");
-#endif
+  add_symbol(ADDSYM_NAMES(OP_ATAN, "atan2", "atan2"),
+    'c', -1,  /* Weight normally -1, use 11 to disable arctan2 */
+           "y A x = arctan2(y,x)",
+           "atan2(y,x) = Angle of ray from origin through point (y,x)", "");
+
   /* phantom symbols -- used only for postfix to infix translation */
   add_symbol(ADDSYM_NAMES(PS_REVDIV, 0, "!/"),
     'c', 0,   0, 0, 0);
@@ -11838,7 +11881,7 @@ void init2()
       g_mtch_alloc += n_exprs_space;
     }
     if ((out_expr_format == OF_CONDENSED) || (out_expr_format == OF_NORMAL)) {
-      /* In this situation we also add every match in infix_1 format, which
+      /* In this situation we also add every match in infix.1 format, which
          can be 4 times as long as internal format */
       g_mtch_alloc += (n_exprs_space * 4);
     }
@@ -12072,7 +12115,7 @@ void set_debug_opts(char * str)
     +-* /nr                          *    *    *    *    *
     sqf                                        *    *    *
     x                                1    1    1    *    *
-    ^vSCT                                           *    *
+    ^vASCT                                          *    *
     eplEL                                                *
  */
 
@@ -12082,7 +12125,7 @@ target. */
 void set_restrict_rat(void)
 {
   g_restrict_subexpr = TYPE_RAT;
-  somesyms_set((symbol *) "pefqSCTlvLEW", 0);
+  somesyms_set((symbol *) "pefqASCTlvLEW", 0);
   somesyms_set((symbol *) "+-*/nr", MAX_ELEN);
   somesyms_set((symbol *) "x", 1);
   somesyms_set((symbol *) "s^", 0); /* %%% Once I improve LHS vs RHS
@@ -12099,7 +12142,7 @@ void set_restrict_alg(int restrict_trig)
   g_restrict_subexpr = TYPE_ALG;
   /* This option is mostly achieved by turning off transcendental
      functions. */
-  somesyms_set((symbol *) "pelLEW", 0);
+  somesyms_set((symbol *) "pelLEWA", 0);
   /* Unlike with the smaller classes (constructible, rational) we allow
      more than one x in the solution */
   somesyms_set((symbol *) "+-*/nrsqfx", MAX_ELEN);
@@ -12236,6 +12279,7 @@ char * pa_stk_pop(void)
 void parse_args(size_t nargs, char *argv[])
 {
   int nv; /* Number of values returned by a sscanf */
+  double tmp_dbl;
   int do_getarg;
 
   {
@@ -12859,6 +12903,7 @@ void parse_args(size_t nargs, char *argv[])
            be given. */
         while(pa_next_isparam()) {
           char * a;
+          symbol sym;
           a = pa_get_arg();
           if (g_renames_num >= TABLE_SIZE-1) {
             // Non-fatal error.
@@ -12988,7 +13033,7 @@ void parse_args(size_t nargs, char *argv[])
       }
       /* This option is just shorthand for turning off a bunch of
          functions. */
-      somesyms_set((symbol *) "peSCTl^vLEW", 0);
+      somesyms_set((symbol *) "peASCTl^vLEW", 0);
       somesyms_set((symbol *) "+-*/nrsqf", MAX_ELEN);
       somesyms_set((symbol *) "x", 1);
       /* %%% Once I add an integer arguments option for ^, I can enable it
@@ -13039,31 +13084,24 @@ void parse_args(size_t nargs, char *argv[])
             || (strcmp(pa_this_arg, "--integer-subexpressions") == 0)) {
       /* Integer subexpressions */
       g_restrict_subexpr = TYPE_INT;
-      somesyms_set((symbol *) "pefqSCTlvLEW", 0);
+      somesyms_set((symbol *) "pefqASCTlvLEW", 0);
       if (pa_this_arg[2] == 'e') {
         /* They gave "-ie" */
         g_exact_exit = B_TRUE;
       }
 
-    } else if ((strncmp(pa_this_arg, "-l", 2) == 0)
-           || (strcmp(pa_this_arg, "--liouvillian-subexpressions") == 0)) {
-      char t;
-      /* they gave a level */
-      pa_this_arg += 2;   /* skip the "-l" */
-      t = pa_this_arg[0];
-      if ((t == '-') || ((t >= '0') && (t <= '9'))) {
-        nv = sscanf(pa_this_arg, "%lf", &g_levadj);
-        if (nv) {
+    } else if (nv=sscanf(pa_this_arg, "-l%lf", &tmp_dbl), nv>0) {
+      /* They gave a level eg. "-l-1" or "-l5.5" */
+      g_levadj = tmp_dbl; {
           tlevel = DEFAULT_LEV_BASE + g_levadj;
-        } else {
-          printf("%s: -l parameter requires a number, e.g. '-l3'\n"
-              "\n", g_argv0);
-          brief_help();
-          print_end(-1);
         }
-      } else {
-        /* We have a bare "-l", or "--liou..." without the "--"; in either
-           case this means we want to restrict to Liouvillian roots */
+    } else if ((strcmp(pa_this_arg, "-el") == 0)
+            || (strcmp(pa_this_arg, "-l") == 0)
+            || (strcmp(pa_this_arg, "--liouvillian-subexpressions") == 0)
+            || (strcmp(pa_this_arg, "-le") == 0)
+    ) {
+      /* We have "-el", a bare "-l", or "--liou..." without the "--"; in
+         either case this means we want to restrict to Liouvillian roots */
         set_restrict_alg(0);
         /* Enable exponential and logarithmic functions (but not Gamma or
            LambertW) */
@@ -13076,8 +13114,8 @@ void parse_args(size_t nargs, char *argv[])
            sqrt(2)^sqrt(2) to be found, but prevents finding the root of
            x^x=7. */
         g_restrict_subexpr = TYPE_TRAN;
-        g_restrict_exponents = TYPE_ELEM;
-        g_restrict_trig_args = TYPE_ELEM;
+      g_restrict_exponents = TYPE_TCEL;
+      g_restrict_trig_args = TYPE_TCEL;
         if (pa_this_arg[2] == 'e') {
           /* They gave "-le"
              %%% This should instead set an epsilon as with
@@ -13085,7 +13123,11 @@ void parse_args(size_t nargs, char *argv[])
              to the ULP as measured by init.formats */
           g_exact_exit = B_TRUE;
         }
-      }
+    } else if (strncmp(pa_this_arg, "-l", 2) == 0) {
+      printf("%s: -l parameter requires a number, e.g. '-l3'\n"
+          "\n", g_argv0);
+      brief_help();
+      print_end(-1);
 
     } else if (strncmp(pa_this_arg, "-N", 2) == 0) {
       /* Not these symbols */
@@ -13482,7 +13524,7 @@ int main(int nargs, char *argv[])
     print_end(-1);
   }
   if (FABS((ries_dif)g_target) / k_vanished_dx >= 1.0e15) {
-    if (sym_attrs[OP_X].sa_alwd > 1) {
+    if (sym_attrs['x'].sa_alwd > 1) {
       if (k_derivative_margin > 0) {
         printf(
 "WARNING: Your --derivative-margin option (%g)\n"
@@ -13802,7 +13844,7 @@ int main(int nargs, char *argv[])
 /*
     ries.c
     RIES -- Find Algebraic Equations, Given Their Solution
-    Copyright (C) 2000-2018 Robert P. Munafo
+    Copyright (C) 2000-2022 Robert P. Munafo
 
     See copyright notice at beginning of this file.
  */
