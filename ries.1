@@ -1,5 +1,5 @@
 '\" et
-.TH RIES 1L "Manual version: 2019 Nov" \" -*- nroff -*-
+.TH RIES 1 "Manual version: 2022 Oct" \" -*- nroff -*-
 .\"
 .\"  This manpage uses the groff font family escape, as documented here:
 .\"
@@ -168,7 +168,7 @@ Sine, Cosine
 .IP T
 Tangent
 .IP A
-Arctangent (takes two parameters, numerator and denominator)
+Two-argument Arctangent: arctan(y,x) is the angle of the ray from the origin through the point (x,y)
 .IP l
 ln (natural logarithm, also called log)
 .IP E
@@ -398,9 +398,9 @@ number?\fR.
 
 
 .IP \fB-l\fR
-Liouvillian: Generate equations whose roots are ``Liouvillian
-numbers'', as described by Timothy Chow in his 1998 paper \fIWhat is a
-closed-form number?\fR.
+Liouvillian: Generate equations whose roots are ``EL numbers''
+(exponential-logarithmic), as described by Timothy Chow in his 1998
+paper \fIWhat is a closed-form number?\fR.
 
 
 .SH Options Affecting Output Format
@@ -702,7 +702,7 @@ then re-enable a function like \fIe\fR^\fIx\fR using \fB-EE\fR.
 
 .IP \fB--any-trig-args\fR
 This option cancels any restrictions on subexpressions used as an
-argument to one of the trigonometric function, such as those set by
+argument to a trigonometric function, such as those set by
 the \fB--algebraic-subexpressions\fR and
 \fB--liouvillian-subexpressions\fR options.
 
@@ -804,7 +804,7 @@ with
 Note that you will have to take care to quote your argument against
 expansion by the shell (or breaking on spaces), as shown above.  In a file
 for use with \fB--include\fR you should enclose the argument with
-double-quotes.
+double-quotes (\(dq).
      The ``long form'' for an expression is the same as what you
 would see if you used the ``\fB-F3\fR'' option.  Signal a long-form
 expression by adding an extra colon at the beginning.  Note that in
@@ -863,7 +863,7 @@ will forbid the \fBcosh\fR function.
 .IP \fB--constant\fR\ \fIweight\fB:\fIname\fB:\fIdescription\fB:\fIvalue\fR
 .IP \fB-X\fR\ \fIweight\fB:\fIname\fB:\fIdescription\fB:\fIvalue\fR
 Define a new constant that \fBries\fR can use in its calculations.  So for
-example you might want to allow the Euler-Mascheroni constant \[*g]\ \ to
+example you might want to allow the Euler-Mascheroni constant \[*g]\/ to
 be an allowed constant.  You can do so with
 .RS 0.2i
 .IP
@@ -899,7 +899,7 @@ small as 8x10^-5 times the expression's value. In calculating any
 possible answers, \fBries\fR would allow ``\fIx\fR^2'' because the
 ratio between d/d\fIx\fR \fIx\fR^2 and \fIx\fR^2 is about 1.62e-4,
 which is big enough to surpass the margin. However, any answers
-involving ``sqrt(\fIx\fR)'' would be rejected beause the ratio between
+involving ``sqrt(\fIx\fR)'' would be rejected because the ratio between
 d/d\fIx\fR sqrt(\fIx\fR) and sqrt(\fIx\fR) is only 4.05e-5:
 
 .ta 1.2iC 2.2iC 3.4iC 4.4iC
@@ -957,7 +957,7 @@ in which both sides of the equal sign are less than 3. Similarly,
 
 .IP \fB--max-match-distance\fR\ \fIvalue\fR
 Specify the maximum distance between your given target value \fIT\fR
-and the roots \fIx\fR of any reported equations. This sets a minumum
+and the roots \fIx\fR of any reported equations. This sets a minimum
 level of accuracy, overriding the default, which is 1% of the
 size of your target value. For example, the command \FCries 2.5063\FT
 will use a threshold that is 1% of 2.5063, or about 0.025. It
@@ -1008,15 +1008,32 @@ automatically detect when your system is slowing down; see the
 \fB--memory-abort-threshold\fR option for details.
 
 
+.IP \fB--max-trig-cycles\fR\ \fIvalue\fR
+Specify the maximum and minimum values for arguments to the
+trigonometric functions, in multiples of one half-period. The default
+is 1.0, which corresponds to an allowed range of -\[*p]\/ to
+\[*p]. The option \FC--max-trig-cycles 4\FT would allow arguments
+from -4\[*p]\/ to 4\[*p]. In combination with
+\fB--trig-argument-scale\fR, this argument is applied after the
+scaling, so that the number of ``cycles'', ``periods'' or ``waves''
+remains the same. For example, if the value \[*p]\//180 is used for
+\fB--trig-argument-scale\fR and if \fB--max-trig-cycles\fR is set to
+2, then the allowed range for arguments to the trigonometric functions
+is -360 to +360 (which is interpreted as being in units of degrees),
+corresponding to two full cycles of the trigonometric functions.
+This option does not affect the arctan2 function, which always returns
+results from -\[*p]\/ to \[*p]\/ (1 full cycle).
+
+
 .IP \fB--memory-abort-threshold\fR\ \fIN\fR
 This option is used with the \fB-DM\fR option, and overrides the
 default slowness measurement after which \fBries\fR will automatically
 exit. With the \fB-DM\fR option, \fBries\fR measures how fast it is
 running, as compared to an estimate of how fast it ``should'' be
 running. If this ratio is greater than the
-\fI--memory-abort-threshold\fR for more than 3 of the past 10
+\fB--memory-abort-threshold\fR for more than 3 of the past 10
 measurements, \fBries\fR will exit. The default
-\fI--memory-abort-threshold\fR is 2.0. The value must be at least 1.0,
+\fB--memory-abort-threshold\fR is 2.0. The value must be at least 1.0,
 and values less than about 1.5 are unlikely to be of much use.
      \fINOTE\fR: \fB--memory-abort-threshold\fR is an experimental
 \fBries\fR feature and is likely to change in future versions of
@@ -1201,7 +1218,8 @@ This is a synonym for the \fB-r\fR option, described above.
 
 
 .IP \fB--rational-trig-args\fR
-Require any argument to a trigonometric function be a rational
+Require any argument to the forward trigonometric functions
+(sine, cosine, tangent) to be a rational
 subexpression. The restriction applies to the argument's value before
 multiplying by the \fB--trig-argument-scale\fR (if any). This
 option exists mainly to support the \fB-a\fR or
@@ -1211,7 +1229,7 @@ option exists mainly to support the \fB-a\fR or
 .IP \fB--relative-roots\fR
 When printing each equation, show the root as \fIT\fR plus/minus a
 small number (where \fIT\fR is your target number) rather than as the
-actual value of the root. This is the refault, so you'll only need to
+actual value of the root. This is the default, so you'll only need to
 use \fB--relative-roots\fR to cancel a \fB-x\fR or
 \fB--absolute-roots\fR option in your \FC.ries_profile\FT or another
 \fB--include\fR file.
@@ -1516,9 +1534,9 @@ is an integer, and \fBries\fR considers the result an integer.  Otherwise,
 \fC!(x)\fR rather than \fIx\fR! in \fBries\fR output.
 
 .IP \fBdigamma\ (U)\fR
-The digamma function, \[*q](\fIx\fR),
+The digamma function, \[*q]\/(\fIx\fR),
 is defined such that
-\[*q](\fIx\fR)=\[*G]\[fm](\fIx\fR)/\[*G](\fIx\fR),
+\[*q]\/(\fIx\fR)=\[*G]\[fm](\fIx\fR)/\[*G](\fIx\fR),
 where
 \[*G]\[fm](\fIx\fR)
 is the first derivative of the Gamma function (see above).
