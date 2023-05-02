@@ -13052,19 +13052,29 @@ void parse_args(size_t nargs, char *argv[])
         allsyms_set(MAX_ELEN, 1); /* OK to do this now? */
       }
       else {
-        /* process this later. */
-        g_ONES_opt[g_ONES].which = 'E';
-        g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-E" */
-        g_ONES++;
+        if (g_ONES >= TABLE_SIZE-1) {
+          // Non-fatal error.
+          printf("Too many symbol names; ignoring %s\n", pa_this_arg);
+        } else {
+          /* process this later. */
+          g_ONES_opt[g_ONES].which = 'E';
+          g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-E" */
+          g_ONES++;
+        }
       }
     } else if (strcmp(pa_this_arg, "--E-RHS") == 0) {
       /* Enable these symbols *on the RHS*! */
       pa_get_arg();
-      NOS_options = B_TRUE;
-      /* process this later. */
-      g_ONES_opt[g_ONES].which = 'e';
-      g_ONES_opt[g_ONES].syms = pa_this_arg;
-      g_ONES++;
+      if (g_ONES >= TABLE_SIZE-1) {
+        // Non-fatal error.
+        printf("Too many symbol names; ignoring %s\n", pa_this_arg);
+      } else {
+        NOS_options = B_TRUE;
+        /* process this later. */
+        g_ONES_opt[g_ONES].which = 'e';
+        g_ONES_opt[g_ONES].syms = pa_this_arg;
+        g_ONES++;
+      }
     } else if (strncmp(pa_this_arg, "-F", 2) == 0) {
       /* Select expression display format */
       pa_this_arg += 2;   /* skip the "-F" */
@@ -13132,30 +13142,50 @@ void parse_args(size_t nargs, char *argv[])
     } else if (strncmp(pa_this_arg, "-N", 2) == 0) {
       /* Not these symbols */
       NOS_options = B_TRUE;
-      g_ONES_opt[g_ONES].which = 'N';
-      g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-N" */
-      g_ONES++;
+      if (g_ONES >= TABLE_SIZE-1) {
+        // Non-fatal error.
+        printf("Too many symbol names; ignoring %s\n", pa_this_arg);
+      } else {
+        g_ONES_opt[g_ONES].which = 'N';
+        g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-N" */
+        g_ONES++;
+      }
 
     } else if (strcmp(pa_this_arg, "--N-RHS") == 0) {
       pa_get_arg();
-      NOS_options = B_TRUE;
-      g_ONES_opt[g_ONES].which = 'n';
-      g_ONES_opt[g_ONES].syms = pa_this_arg;
-      g_ONES++;
+      if (g_ONES >= TABLE_SIZE-1) {
+        // Non-fatal error.
+        printf("Too many symbol names; ignoring %s\n", pa_this_arg);
+      } else {
+        NOS_options = B_TRUE;
+        g_ONES_opt[g_ONES].which = 'n';
+        g_ONES_opt[g_ONES].syms = pa_this_arg;
+        g_ONES++;
+      }
 
     } else if (strncmp(pa_this_arg, "-O", 2) == 0) {
       /* Once-only symbols */
-      NOS_options = B_TRUE;
-      g_ONES_opt[g_ONES].which = 'O';
-      g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-O" */
-      g_ONES++;
+      if (g_ONES >= TABLE_SIZE-1) {
+        // Non-fatal error.
+        printf("Too many symbol names; ignoring %s\n", pa_this_arg);
+      } else {
+        NOS_options = B_TRUE;
+        g_ONES_opt[g_ONES].which = 'O';
+        g_ONES_opt[g_ONES].syms = pa_this_arg+2; /* +2 skips "-O" */
+        g_ONES++;
+      }
     } else if (strcmp(pa_this_arg, "--O-RHS") == 0) {
       /* Once-only symbols, on the RHS only! */
       pa_get_arg();
-      NOS_options = B_TRUE;
-      g_ONES_opt[g_ONES].which = 'o';
-      g_ONES_opt[g_ONES].syms = pa_this_arg;
-      g_ONES++;
+      if (g_ONES >= TABLE_SIZE-1) {
+        // Non-fatal error.
+        printf("Too many symbol names; ignoring %s\n", pa_this_arg);
+      } else {
+        NOS_options = B_TRUE;
+        g_ONES_opt[g_ONES].which = 'o';
+        g_ONES_opt[g_ONES].syms = pa_this_arg;
+        g_ONES++;
+      }
     } else if ((strncmp(pa_this_arg, "-r", 2) == 0)
              || (strcmp(pa_this_arg, "--rational-subexpressions") == 0)) {
       /* Rational subexpressions */
@@ -13172,21 +13202,31 @@ void parse_args(size_t nargs, char *argv[])
         /* Without args, show the symbols in use and their definitions */
         g_show_ss = B_TRUE;
       } else {
-        S_option = B_TRUE;
-        NOS_options = B_TRUE;
-        g_ONES_opt[g_ONES].which = 'S';
-        g_ONES_opt[g_ONES].syms = pa_this_arg;
-        g_ONES++;
+        if (g_ONES >= TABLE_SIZE-1) {
+          // Non-fatal error.
+          printf("Too many symbol names; ignoring %s\n", pa_this_arg);
+        } else {
+          S_option = B_TRUE;
+          NOS_options = B_TRUE;
+          g_ONES_opt[g_ONES].which = 'S';
+          g_ONES_opt[g_ONES].syms = pa_this_arg;
+          g_ONES++;
+        }
       }
 
     } else if (strcmp(pa_this_arg, "--S-RHS") == 0) {
       /* Only these symbols */
       pa_get_arg();
-      S_option = B_TRUE;
-      NOS_options = B_TRUE;
-      g_ONES_opt[g_ONES].which = 's';
-      g_ONES_opt[g_ONES].syms = pa_this_arg;
-      g_ONES++;
+      if (g_ONES >= TABLE_SIZE-1) {
+        // Non-fatal error.
+        printf("Too many symbol names; ignoring %s\n", pa_this_arg);
+      } else {
+        S_option = B_TRUE;
+        NOS_options = B_TRUE;
+        g_ONES_opt[g_ONES].which = 's';
+        g_ONES_opt[g_ONES].syms = pa_this_arg;
+        g_ONES++;
+      }
 
     } else if ((strcmp(pa_this_arg, "-x") == 0)
             || (strcmp(pa_this_arg, "--absolute-roots") == 0)) {
